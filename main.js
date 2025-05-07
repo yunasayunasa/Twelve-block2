@@ -3,7 +3,7 @@ import BootScene from './BootScene.js';
 import TitleScene from './TitleScene.js';
 import CommonBossScene from './CommonBossScene.js';
 import UIScene from './UIScene.js';
-import BossScene from './BossScene.js'; // ★ インポート追加
+import Boss1Scene from './Boss1Scene.js'; // ★ インポート追加
 // Phaserゲーム設定
 const config = {
     type: Phaser.AUTO, // WebGL優先、不可ならCanvas
@@ -27,7 +27,7 @@ const config = {
         }
     },
     // 使用するシーンのリスト (インポートしたクラスを指定)
-    scene: [BootScene, TitleScene, GameScene, UIScene, BossScene],
+    scene: [BootScene, TitleScene, CommonBossScene, UIScene, Boss1Scene],
     input: {
         activePointers: 3, // 同時に認識するポインター数（マルチタッチ対応）
     },
