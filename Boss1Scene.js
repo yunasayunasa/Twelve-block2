@@ -6,8 +6,8 @@ import {
     // (多くの定数は CommonBossScene または this.bossData 経由で利用)
     DEFAULT_ATTACK_BRICK_SPAWN_DELAY_MIN, // Commonのデフォルト値を参照する場合など
     DEFAULT_ATTACK_BRICK_SPAWN_DELAY_MAX,
-    DEFAULT_ATTACK_BRICK_VELOCITY_Y,
-    ATTACK_BRICK_ITEM_DROP_RATE // これは chaosSettings で上書きされるはずだが念のため
+    DEFAULT_ATTACK_BRICK_VELOCITY_Y
+  //  ATTACK_BRICK_ITEM_DROP_RATE // これは chaosSettings で上書きされるはずだが念のため
 } from './constants.js';
 
 export default class Boss1Scene extends CommonBossScene {
