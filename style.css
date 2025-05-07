@@ -1,0 +1,255 @@
+/* style.css */
+
+/* --- ▼ カスタムフォント定義 ▼ --- */
+@font-face {
+    font-family: 'MyGameFont'; /* ★ PhaserやCSSで使うフォント名を定義 (任意) */
+    src: url('assets/PopRumKiwi-Telop.woff2') format('woff2'), /* ★ woff2形式のパス */
+         url('assets/MyCustomFont.woff') format('woff');   /* ★ woff形式があれば追加 (フォールバック用) */
+         /* 他の形式 (ttf, otf) も追加可能ですが、woff/woff2が推奨 */
+    font-weight: normal; /* 通常の太さ */
+    font-style: normal;  /* 通常のスタイル */
+}
+/* --- ▲ カスタムフォント定義 ▲ --- */
+
+/* --- 基本的なページスタイル --- */
+body {
+    margin: 0;
+    padding: 0;
+    overflow: hidden; /* スクロールバーを消す */
+    background-color: #000; /* ゲーム外の背景色 */
+    display: flex; /* ローダーを中央寄せするために使用 */
+    justify-content: center;
+    align-items: center;
+    height: 100vh; /* 画面の高さに合わせる */
+}
+
+#phaser-game-container {
+    width: 100vw; /* 画面幅全体 */
+    height: 100vh; /* 画面高さ全体 */
+    position: relative; /* DOM要素の基準点にする */
+}
+
+/* --- PhaserのCanvasの隣のdiv (DOM要素コンテナ) --- */
+canvas + div {
+    position: absolute; /* Canvasの上に重ねる */
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+   /* pointer-events: none; /* 通常は下のCanvasへのイベントを妨げない */
+    /* このコンテナ自体は触れない */
+    display: flex; /* 中の要素(スライダーコンテナ)を中央寄せ */
+    justify-content: center;
+    align-items: center;
+}
+
+/* --- スライダーが入る具体的なDOM要素 (TitleSceneで生成するdiv) --- */
+/* --- ▼ スライダーコンテナのセレクタをIDに変更 ▼ --- */
+#chaos-slider-container {
+    pointer-events: auto;
+    /* background: linear-gradient(145deg, #6a8eff, #9ab7ff); */ /* 不透明なグラデーションをコメントアウト */
+    /* ▼ 半透明の単色背景にする場合 (例: 青系の半透明) ▼ */
+    background-color: rgba(106, 142, 255, 0.7); /* 例: #6a8eff のRGB値にアルファ値0.7を追加 */
+    /* ▼ 半透明のグラデーションにする場合 (少し複雑) ▼
+       グラデーションの色自体にアルファ値を追加します */
+    /* background: linear-gradient(145deg, rgba(106, 142, 255, 0.7), rgba(154, 183, 255, 0.7)); */
+    padding: 20px;
+    border-radius: 15px;
+    /* box-shadow も少し薄くすると良いかも？ */
+    box-shadow: 4px 4px 8px rgba(0,0,0,0.2),
+                inset -2px -2px 5px rgba(255,255,255,0.4),
+                inset 2px 2px 5px rgba(0,0,0,0.15);
+    color: #fff;
+    text-shadow: 1px 1px 2px rgba(0,0,0,0.5);
+    width: 80%;
+    max-width: 400px;
+    font-size: 18px;
+    text-align: left;
+    box-sizing: border-box;
+}
+
+/* スライダーコンテナ内のラベル */
+#chaos-slider-container label { /* セレクタ変更 */
+    display: inline-block;
+    width: 150px;
+    font-weight: bold;
+}
+
+/* スライダーコンテナ内の数値表示 */
+#chaos-slider-container span { /* セレクタ変更 */
+    display: inline-block;
+    min-width: 4em;
+    text-align: right;
+    margin-right: 10px;
+    background-color: rgba(0,0,0,0.2);
+    padding: 2px 5px;
+    border-radius: 4px;
+}
+/* --- ▲ スライダーコンテナのセレクタをIDに変更 ▲ --- */
+
+
+/* --- input[type=range] (スライダー本体) のスタイル --- */
+input[type=range] {
+    width: calc(100% - 210px); /* 幅調整 (要微調整) */
+    margin: 0;
+    height: 25px;
+    cursor: pointer;
+    appearance: none; /* ブラウザ標準のスタイルをリセット */
+    background: transparent;
+    vertical-align: middle;
+}
+input[type=range]:focus {
+    outline: none; /* フォーカス時の枠線を消す */
+}
+
+/* スライダーの溝 (Track) */
+input[type=range]::-webkit-slider-runnable-track { /* Chrome, Safari, Edge */
+    height: 10px;
+    background: #ddd;
+    border: 1px solid #bbb;
+    border-radius: 5px;
+    box-shadow: inset 1px 1px 3px rgba(0,0,0,0.3);
+}
+input[type=range]::-moz-range-track { /* Firefox */
+    height: 10px;
+    background: #ddd;
+    border: 1px solid #bbb;
+    border-radius: 5px;
+    box-shadow: inset 1px 1px 3px rgba(0,0,0,0.3);
+}
+
+/* スライダーのつまみ (Thumb) */
+input[type=range]::-webkit-slider-thumb { /* Chrome, Safari, Edge */
+    appearance: none;
+    height: 24px;
+    width: 24px;
+    background: #ff8c00; /* ポップなオレンジ色 */
+    border-radius: 50%;
+    border: 2px solid #fff;
+    margin-top: -8px; /* トラックの中央に来るように調整 */
+    box-shadow: 2px 2px 4px rgba(0,0,0,0.4);
+    transition: transform 0.1s ease; /* ホバー時に少しアニメーション */
+}
+input[type=range]::-moz-range-thumb { /* Firefox */
+    height: 20px;
+    width: 20px;
+    background: #ff8c00;
+    border-radius: 50%;
+    border: 2px solid #fff;
+    box-shadow: 2px 2px 4px rgba(0,0,0,0.4);
+    transition: transform 0.1s ease;
+}
+/* つまみホバー/ドラッグ時の簡単なエフェクト */
+input[type=range]:hover::-webkit-slider-thumb {
+    transform: scale(1.1);
+}
+input[type=range]:active::-webkit-slider-thumb {
+    transform: scale(1.2);
+}
+input[type=range]:hover::-moz-range-thumb {
+    transform: scale(1.1);
+}
+input[type=range]:active::-moz-range-thumb {
+    transform: scale(1.2);
+}
+
+
+
+
+/* --- ローダースタイル --- */
+#loader-container {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    background-color: rgba(0, 0, 0, 0.8);
+    z-index: 9999; /* 最前面 */
+}
+#loader {
+    border: 8px solid #f3f3f3; /* Light grey */
+    border-top: 8px solid #3498db; /* Blue */
+    border-radius: 50%;
+    width: 60px;
+    height: 60px;
+    animation: spin 1s linear infinite;
+}
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+/* ================================================================== */
+/* ▼▼▼ ここから下にメディアクエリを追加 ▼▼▼ */
+/* ================================================================== */
+
+/* --- レスポンシブ対応: 画面幅が小さい場合 (例: 600px以下) --- */
+@media screen and (max-width: 600px) {
+    #chaos-slider-container {
+        width: 90%;       /* 画面が狭い場合はコンテナ幅を広げる */
+        max-width: none;    /* 最大幅制限を解除 */
+        padding: 15px;      /* パディングを少し狭く */
+        font-size: 16px;    /* コンテナ全体のフォントサイズを少し調整 (任意) */
+    }
+
+    #chaos-slider-container label {
+        width: 100px;       /* ラベル幅を狭く */
+        font-size: 14px;    /* フォントを小さく */
+        margin-bottom: 8px;
+    }
+
+    #chaos-slider-container span {
+        min-width: 3em;       /* 数値表示幅を狭く */
+        font-size: 14px;
+        margin-right: 5px;
+        padding: 1px 4px;   /* パディングも少し調整 */
+    }
+
+    #chaos-slider-container input[type=range] {
+        width: calc(100% - 140px); /* スライダー幅を調整 (100px + 3em + 5px ≒ 140px?) */
+        height: 20px; /* スライダー高さを少し小さく */
+    }
+
+    /* 小さい画面用のつまみスタイル (少し小さくする例) */
+    input[type=range]::-webkit-slider-thumb {
+        height: 20px;
+        width: 20px;
+        margin-top: -6px; /* トラック中央に合わせる */
+    }
+    input[type=range]::-moz-range-thumb {
+        height: 16px;
+        width: 16px;
+    }
+}
+
+/* --- さらに小さい画面用 (例: 400px以下) --- */
+@media screen and (max-width: 400px) {
+    #chaos-slider-container {
+        padding: 10px;
+        font-size: 14px;
+    }
+    #chaos-slider-container label {
+        width: 80px; /* さらに狭く */
+        font-size: 12px;
+    }
+    #chaos-slider-container span {
+        min-width: 2.5em;
+        font-size: 12px;
+    }
+    #chaos-slider-container input[type=range] {
+        width: calc(100% - 120px); /* さらに調整 */
+    }
+    /* さらに小さいつまみ */
+    input[type=range]::-webkit-slider-thumb {
+        height: 18px;
+        width: 18px;
+        margin-top: -5px;
+    }
+    input[type=range]::-moz-range-thumb {
+        height: 14px;
+        width: 14px;
+    }
+}
