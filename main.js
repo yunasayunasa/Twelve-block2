@@ -1,7 +1,7 @@
 // シーンファイルをインポート
 import BootScene from './BootScene.js';
 import TitleScene from './TitleScene.js';
-import GameScene from './GameScene.js';
+import CommonBossScene from './CommonBossScene.js';
 import UIScene from './UIScene.js';
 import BossScene from './BossScene.js'; // ★ インポート追加
 // Phaserゲーム設定
