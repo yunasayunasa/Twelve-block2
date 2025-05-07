@@ -457,12 +457,56 @@ export default class CommonBossScene extends Phaser.Scene {
         this.time.delayedCall(INTRO_FLASH_DURATION, this.startBossZoomIn, [], this);
     }
     startBossZoomIn() {
-        if (!this.boss) return; console.log("[Intro] Starting Boss Zoom In..."); this.playBossBgm();
-        this.boss.setPosition(this.gameWidth / 2, this.gameHeight * 0.8).setScale(0.05).setAlpha(0).setVisible(true);
-        if (this.boss.body) this.boss.body.setSize(1,1);
-        this.sound.play(this.bossData.voiceAppear || AUDIO_KEYS.VOICE_BOSS_APPEAR); this.sound.play(AUDIO_KEYS.SE_BOSS_ZOOM);
-        this.tweens.add({ targets: this.boss, y: this.gameHeight / 2, scale: Math.min(5, this.gameWidth / (this.boss.width / this.boss.scaleX) * 1.5), alpha: 1, duration: ZOOM_IN_DURATION, ease: 'Quad.easeIn', onComplete: () => this.time.delayedCall(ZOOM_WAIT_DURATION, this.startBossQuickShrink, [], this) });
+        console.log("[Intro] === Entering startBossZoomIn ==="); // ★追加
+    if (!this.boss) {
+        console.error("!!! ERROR: this.boss is null or undefined at start of startBossZoomIn !!!"); // ★追加
+        return;
     }
+    console.log("[Intro] Boss object exists. Visible:", this.boss.visible, "Active:", this.boss.active); // ★追加
+    this.playBossBgm(); // BGM再生開始
+    console.log("[Intro] playBossBgm called."); // ★追加
+
+    try { // ★ try-catch で囲む
+        this.boss.setPosition(this.gameWidth / 2, zoomInStartY);
+        console.log("[Intro] Boss position set."); // ★追加
+        this.boss.setScale(zoomInStartScale);
+        console.log("[Intro] Boss scale set."); // ★追加
+        this.boss.setAlpha(0);
+        console.log("[Intro] Boss alpha set."); // ★追加
+        this.boss.setVisible(true);
+        console.log("[Intro] Boss visibility set to true."); // ★追加
+    } catch(e) { console.error("!!! ERROR setting boss position/scale/alpha/visibility:", e); return; } // ★追加
+
+    if (this.boss.body) {
+         try { // ★ try-catch で囲む
+             this.boss.body.setSize(1,1); // 物理ボディを一時的に最小化
+             console.log("[Intro] Boss body size temporarily set to 1x1."); // ★追加
+         } catch(e) { console.error("!!! ERROR setting boss body size:", e); } // ★追加
+    } else {
+         console.warn("!!! WARNING: Boss body does not exist when trying to set size in startBossZoomIn !!!"); // ★追加
+    }
+
+    try { // ★ try-catch で囲む
+        this.sound.play(this.bossData.voiceAppear || AUDIO_KEYS.VOICE_BOSS_APPEAR);
+        console.log("[Intro] Boss appear voice played (or attempted)."); // ★追加
+        this.sound.play(AUDIO_KEYS.SE_BOSS_ZOOM);
+        console.log("[Intro] Boss zoom SE played (or attempted)."); // ★追加
+    } catch(e) { console.error("!!! ERROR playing intro sounds:", e); } // ★追加
+
+    console.log("[Intro] Preparing zoom tween..."); // ★追加
+    try { // ★ try-catch で囲む
+        this.tweens.add({
+            targets: this.boss, y: zoomInEndY, scale: zoomInEndScale, alpha: 1,
+            duration: ZOOM_IN_DURATION, ease: 'Quad.easeIn',
+            onComplete: () => {
+                console.log("[Intro] Zoom tween completed."); // ★追加
+                this.time.delayedCall(ZOOM_WAIT_DURATION, this.startBossQuickShrink, [], this);
+            }
+        });
+        console.log("[Intro] Zoom tween added successfully."); // ★追加
+    } catch (e) { console.error("!!! ERROR adding zoom tween:", e); } // ★追加
+    console.log("[Intro] === Exiting startBossZoomIn ==="); // ★追加
+}
     startBossQuickShrink() {
         if (!this.boss?.active) return; console.log("[Intro] Starting Boss Quick Shrink..."); this.sound.play(AUDIO_KEYS.SE_SHRINK); this.cameras.main.flash(SHRINK_FLASH_DURATION, 255, 255, 255);
         this.tweens.add({ targets: this.boss, x: this.gameWidth / 2, y: this.boss.getData('targetY'), scale: this.boss.getData('targetScale'), alpha: 1, duration: SHRINK_DURATION, ease: 'Expo.easeOut', onComplete: () => { this.sound.play(AUDIO_KEYS.SE_FIGHT_START); this.updateBossSizeAfterIntro(); this.time.delayedCall(GAMEPLAY_START_DELAY, this.startGameplay, [], this); } });
