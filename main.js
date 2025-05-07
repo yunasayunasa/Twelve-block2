@@ -11,8 +11,10 @@ const config = {
         mode: Phaser.Scale.FIT, // アスペクト比を維持してコンテナにフィット
         parent: 'phaser-game-container', // HTML内の描画コンテナID
         autoCenter: Phaser.Scale.CENTER_BOTH, // コンテナ内で中央揃え
-        width: '100%', // コンテナの幅に合わせる
-        height: '100%' // コンテナの高さに合わせる
+         // ▼▼▼ 基準解像度を設定 (例: スマホ縦画面想定) ▼▼▼
+         width: 450,
+         height: 800,
+         // ▲▲▲ 基準解像度を設定 ▲▲▲
     },
     dom: {
         createContainer: true // DOM要素（スライダーなど）を使うために必要
