@@ -1243,9 +1243,12 @@ export default class CommonBossScene extends Phaser.Scene {
         // ボディを確実に有効化し、表示に合わせて更新
         if (this.boss.body) {
             this.boss.body.enable = true; // ★ enable を true にする
-            this.boss.body.updateFromGameObject(); // ★ 表示に合わせて更新
-            console.log(`[updateBossSizeAfterIntro] Body enabled and updated. Size: ${this.boss.body.width.toFixed(0)}x${this.boss.body.height.toFixed(0)}`);
-        } else {
+            // ★★★ updateFromGameObject の前に表示サイズを確認 ★★★
+        console.log(`[updateBossSizeAfterIntro] BEFORE updateFromGameObject - Display Size: ${this.boss.displayWidth?.toFixed(1)}x${this.boss.displayHeight?.toFixed(1)}, Scale: ${this.boss.scale?.toFixed(3)}`);
+        // ★★★------------------------------------------★★★
+        this.boss.body.updateFromGameObject();
+        console.log(`[updateBossSizeAfterIntro] Body enabled and updated. Size: ${this.boss.body.width.toFixed(0)}x${this.boss.body.height.toFixed(0)}`);
+    } else {
              console.error("!!! ERROR: Boss body missing in updateBossSizeAfterIntro !!!");
         }
     }
