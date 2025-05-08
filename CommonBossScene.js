@@ -1220,14 +1220,11 @@ export default class CommonBossScene extends Phaser.Scene {
             console.log(`[updateBossSize] AFTER setScale - Display Size: ${bossInstance.displayWidth?.toFixed(1)}x${bossInstance.displayHeight?.toFixed(1)}`);
             // ★★★-------------------------------------★★★
         } catch(e) { console.error(`!!! ERROR setting scale in updateBossSize for ${textureKey}:`, e); }
+    
         try { // ボディ更新
             if (bossInstance.body) {
-                // ボディが存在するか確認してから更新
                 bossInstance.body.updateFromGameObject();
-                console.log("[updateBossSize] Updated body from GameObject.");
-            } else {
-                 console.warn("[updateBossSize] Boss body does not exist, cannot update.");
-            }
+                console.log(`[updateBossSize] Updated body from GameObject. New size: ${bossInstance.body.width.toFixed(0)}x${bossInstance.body.height.toFixed(0)}`);  }
         } catch(e) { console.error(`!!! ERROR updating body in updateBossSize for ${textureKey}:`, e); }
 
         console.log(`Boss (${textureKey}) size updated. Final Scale: ${bossInstance.scale.toFixed(3)}`);
