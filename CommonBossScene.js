@@ -1230,24 +1230,58 @@ export default class CommonBossScene extends Phaser.Scene {
         console.log(`Boss (${textureKey}) size updated. Final Scale: ${bossInstance.scale.toFixed(3)}`);
     }
 
-    updateBossSizeAfterIntro() { // 登場演出後のボスサイズ最終調整
+       // CommonBossScene.js の updateBossSizeAfterIntro メソッド
+       updateBossSizeAfterIntro() {
         if (!this.boss?.active) {
              console.warn("[updateBossSizeAfterIntro] Boss inactive, cannot update size.");
              return;
         }
         console.log("[updateBossSizeAfterIntro] Updating boss size using final data.");
-        // createSpecificBossで設定された widthRatio を使う
+        // スケール等を更新する updateBossSize を先に呼ぶ
         this.updateBossSize(this.boss, this.bossData.textureKey, this.bossData.widthRatio);
-    
-        // ボディを確実に有効化し、表示に合わせて更新
+
         if (this.boss.body) {
-            this.boss.body.enable = true; // ★ enable を true にする
-            // ★★★ updateFromGameObject の前に表示サイズを確認 ★★★
-        console.log(`[updateBossSizeAfterIntro] BEFORE updateFromGameObject - Display Size: ${this.boss.displayWidth?.toFixed(1)}x${this.boss.displayHeight?.toFixed(1)}, Scale: ${this.boss.scale?.toFixed(3)}`);
-        // ★★★------------------------------------------★★★
-        this.boss.body.updateFromGameObject();
-        console.log(`[updateBossSizeAfterIntro] Body enabled and updated. Size: ${this.boss.body.width.toFixed(0)}x${this.boss.body.height.toFixed(0)}`);
-    } else {
+            this.boss.body.enable = true; // ボディを有効化
+
+            console.log(`[updateBossSizeAfterIntro] BEFORE size set - Display Size: ${this.boss.displayWidth?.toFixed(1)}x${this.boss.displayHeight?.toFixed(1)}`);
+
+            // ★★★ updateFromGameObject() の代わりに setSize で明示的に設定 ★★★
+            // 当たり判定のサイズを表示サイズに合わせるか、少し調整するか決める
+            // 例1: 表示サイズと同じにする
+            // const hitboxWidth = this.boss.displayWidth;
+            // const hitboxHeight = this.boss.displayHeight;
+            // 例2: 表示サイズの80%にする (少し小さめ)
+            const hitboxWidth = this.boss.displayWidth * 0.8;
+            const hitboxHeight = this.boss.displayHeight * 0.8;
+
+            // サイズが0より大きいことを確認してから設定
+            if (hitboxWidth > 1 && hitboxHeight > 1) { // 最小サイズを1より大きくするなど調整
+                 try {
+                     this.boss.body.setSize(hitboxWidth, hitboxHeight);
+                     // setSize後はオフセット調整が必要なことが多い
+                     // ボディの中心が見た目の中心に来るように調整
+                     // (元画像の中心が原点(0.5, 0.5)であると仮定)
+                     this.boss.body.setOffset(
+                         (this.boss.displayWidth - hitboxWidth) / 2,
+                         (this.boss.displayHeight - hitboxHeight) / 2
+                     );
+                     console.log(`[updateBossSizeAfterIntro] Explicitly set body size to: ${hitboxWidth.toFixed(0)}x${hitboxHeight.toFixed(0)}`);
+                 } catch (e) { console.error("!!! ERROR setting body size explicitly:", e); }
+            } else {
+                 console.error(`!!! ERROR: Calculated hitbox size is zero or negative (${hitboxWidth.toFixed(1)}x${hitboxHeight.toFixed(1)}) in updateBossSizeAfterIntro!`);
+                 // フォールバックで最小サイズを設定
+                 try {
+                      this.boss.body.setSize(10, 10).setOffset(this.boss.displayWidth/2 - 5, this.boss.displayHeight/2 - 5);
+                      console.warn("[updateBossSizeAfterIntro] Applied fallback minimum body size (10x10).");
+                 } catch(e) { console.error("!!! ERROR setting fallback body size:", e); }
+            }
+            // ★★★----------------------------------------------------★★★
+
+            // updateFromGameObject() は実行しない
+            // this.boss.body.updateFromGameObject();
+
+            console.log(`[updateBossSizeAfterIntro] Body enabled. Final Size check: ${this.boss.body.width.toFixed(0)}x${this.boss.body.height.toFixed(0)}`);
+        } else {
              console.error("!!! ERROR: Boss body missing in updateBossSizeAfterIntro !!!");
         }
     }
