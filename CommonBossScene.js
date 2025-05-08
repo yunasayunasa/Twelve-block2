@@ -250,6 +250,9 @@ export default class CommonBossScene extends Phaser.Scene {
         // ★ 新しい演出メソッドを直接呼び出す ★
         this.startFusionIntro();
 
+          // ★ カットイン演出メソッドを呼び出す ★
+          this.startIntroCutscene();
+
         console.log(`--- ${this.scene.key} CREATE End - Fusion Intro Started ---`);
     }
 
@@ -282,8 +285,8 @@ export default class CommonBossScene extends Phaser.Scene {
                      else if (this.bossAfterImageEmitter.emitting && this.boss.body?.velocity.lengthSq() <= 10) { this.bossAfterImageEmitter.stop(); }
                 }
                 // ★★★ ボス固有行動の呼び出しを一時的にコメントアウト ★★★
-                // console.log("[Update] Calling updateSpecificBossBehavior..."); // 呼び出す前のログ
-                // this.updateSpecificBossBehavior(time, delta);
+                 console.log("[Update] Calling updateSpecificBossBehavior..."); // 呼び出す前のログ
+                 this.updateSpecificBossBehavior(time, delta);
                 // ★★★-----------------------------------------------★★★
             }
     
@@ -299,6 +302,37 @@ export default class CommonBossScene extends Phaser.Scene {
                  }
             });
         }
+
+          // startIntroCutscene メソッドを復活させ、最後に fusionIntro を呼ぶ
+    startIntroCutscene() {
+        console.log("[Intro Cutscene] Starting..."); // ログ変更
+        // this.cameras.main.flash(...); // カットイン開始フラッシュは任意
+        this.sound.play(AUDIO_KEYS.SE_CUTSCENE_START);
+
+        const overlay = this.add.rectangle(0, 0, this.gameWidth, this.gameHeight, 0x000000, 0.75)
+            .setOrigin(0,0).setDepth(900);
+
+        const bossImage = this.add.image(this.gameWidth / 2, this.gameHeight / 2, this.bossData.textureKey || 'bossStand')
+            .setOrigin(0.5, 0.5).setDepth(901);
+        const targetImageWidth = this.gameWidth * 0.75;
+        bossImage.displayWidth = targetImageWidth;
+        bossImage.scaleY = bossImage.scaleX;
+
+        const textContent = this.bossData.cutsceneText || `VS BOSS ${this.currentBossIndex}`;
+        const textStyle = { /* ... */ }; // 以前のスタイル設定
+        const vsText = this.add.text(this.gameWidth / 2, bossImage.getBounds().bottom + this.gameHeight * 0.05, textContent, textStyle)
+            .setOrigin(0.5, 0).setDepth(902);
+
+        this.time.delayedCall(CUTSCENE_DURATION, () => {
+            console.log("[Intro Cutscene] End. Starting Fusion Intro."); // ログ変更
+            overlay.destroy();
+            bossImage.destroy();
+            vsText.destroy();
+            // ★ 次の演出として startFusionIntro を呼び出す ★
+            this.startFusionIntro();
+        }, [], this);
+    }
+
 
          // --- ▼▼▼ 新しい「左右分身合体」演出メソッド ▼▼▼ ---
     startFusionIntro() {
