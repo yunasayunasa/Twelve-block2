@@ -1311,37 +1311,7 @@ export default class CommonBossScene extends Phaser.Scene {
 
         // CommonBossScene.js 内
 
-    /**
-     * 登場演出完了後、ボスの物理ボディを有効化し、最終的なサイズ/オフセットを適用する
-     * (左右合体演出の場合は、主にボディ有効化が目的。サイズ/オフセットは finalize... で復元される)
-     * (ズーム演出の場合は、updateBossSize を呼んで計算・適用する)
-     */
-    updateBossSizeAfterIntro() {
-        // このメソッドは主にズーム演出後に呼ばれることを想定していましたが、
-        // 左右合体演出では finalizeBossAppearanceAndStart で復元するため、
-        // こちらは主にボディの有効化確認と、念のためのサイズ更新と考えるのが良いでしょう。
-
-        if (!this.boss?.active) {
-             console.warn("[updateBossSizeAfterIntro] Boss inactive, cannot update size.");
-             return;
-        }
-        console.log("[updateBossSizeAfterIntro] Ensuring boss body is enabled and size is updated.");
-
-        // updateBossSize を呼び出して、現在の表示スケールに基づいた
-        // 正しい物理ボディサイズとオフセットが適用されるようにする
-        this.updateBossSize(this.boss, this.bossData.textureKey, this.bossData.widthRatio);
-
-        // ボディを有効化する（enableBody が呼ばれていれば不要かもしれないが念のため）
-        if (this.boss.body) {
-            if (!this.boss.body.enable) { // もし無効になっていたら有効化
-                console.warn("[updateBossSizeAfterIntro] Body was disabled, re-enabling.");
-                this.boss.body.enable = true;
-            }
-            console.log(`[updateBossSizeAfterIntro] Body enabled state: ${this.boss.body.enable}. Final Size check: ${this.boss.body.width.toFixed(0)}x${this.boss.body.height.toFixed(0)}`);
-        } else {
-             console.error("!!! ERROR: Boss body missing in updateBossSizeAfterIntro AFTER updateBossSize call !!!");
-        }
-    }
+    
       
     applySpeedModifier(ball,type){if(!ball?.active||!ball.body)return;const mod=(type===POWERUP_TYPES.SHATORA)?BALL_SPEED_MODIFIERS[POWERUP_TYPES.SHATORA]:(type===POWERUP_TYPES.HAILA)?BALL_SPEED_MODIFIERS[POWERUP_TYPES.HAILA]:1.0;const cV=ball.body.velocity;const dir=cV.lengthSq()>0?cV.clone().normalize():new Phaser.Math.Vector2(0,-1);const nS=NORMAL_BALL_SPEED*mod;ball.setVelocity(dir.x*nS,dir.y*nS);}
     resetBallSpeed(ball){if(!ball?.active||!ball.body)return;const cV=ball.body.velocity;const dir=cV.lengthSq()>0?cV.clone().normalize():new Phaser.Math.Vector2(0,-1);ball.setVelocity(dir.x*NORMAL_BALL_SPEED,dir.y*NORMAL_BALL_SPEED);}
