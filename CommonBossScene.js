@@ -1014,8 +1014,52 @@ export default class CommonBossScene extends Phaser.Scene {
     destroyAttackBrick(brick, triggerItemDropLogic = false) { if (!brick?.active) return; this.sound.play(AUDIO_KEYS.SE_DESTROY); this.createImpactParticles(brick.x,brick.y,[0,360],brick.tintTopLeft||0xaa88ff,10); brick.destroy(); this.increaseVajraGauge(); }
     dropSpecificPowerUp(x,y,type){if(!type||!this.powerUps)return;let tK=POWERUP_ICON_KEYS[type]||'whitePixel';const iS=this.gameWidth*POWERUP_SIZE_RATIO;let tC=(tK==='whitePixel'&&type===POWERUP_TYPES.BAISRAVA)?0xffd700:(tK==='whitePixel'?0xcccccc:null);const pU=this.powerUps.create(x,y,tK).setDisplaySize(iS,iS).setData('type',type);if(tC)pU.setTint(tC);if(pU.body){pU.setVelocity(0,POWERUP_SPEED_Y);pU.body.setCollideWorldBounds(false).setAllowGravity(false);}else if(pU)pU.destroy();}
     handlePaddleHitByAttackBrick(paddle, attackBrick) { if (!paddle?.active || !attackBrick?.active) return; this.destroyAttackBrick(attackBrick, false); if (!this.isAnilaActive) this.loseLife(); else console.log("[Anila] Paddle hit blocked!"); }
-    hitBossWithMakiraBeam(beam, boss) { if (!beam?.active || !boss?.active || boss.getData('isInvulnerable')) return; beam.destroy(); this.applyBossDamage(boss, 1, "Makira Beam"); }
-    // --- ▲ 衝突処理メソッド ▲ ---
+     // マキラビームがボスに当たった時の処理 (超シンプル版 - デバッグ用)
+     hitBossWithMakiraBeam(beam, boss) {
+        // オブジェクトの基本的な存在チェック
+        if (!beam || !boss || !beam.scene || !boss.scene) {
+            console.warn("[Makira Hit - Simple] Invalid beam or boss object received.");
+            return;
+        }
+        // アクティブ状態チェック (消える前の状態を確認)
+        console.log(`[Makira Hit - Simple] Beam active: ${beam.active}, Boss active: ${boss.active}`);
+
+        // ★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★
+        // ★ ここで絶対に boss を destroy/setActive(false) しない ★
+        // ★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★
+
+        console.log(">>> Makira beam hit boss! (Simple Log Only) <<<");
+
+        // ビームだけを安全に破棄
+        try {
+             if(beam.active) { //アクティブな場合のみ破棄試行
+                  beam.destroy();
+                  console.log("[Makira Hit - Simple] Beam destroyed.");
+             } else {
+                  console.log("[Makira Hit - Simple] Beam was already inactive before destroy.");
+             }
+        } catch (e) {
+             console.error("!!! Error destroying beam in simple hit handler:", e);
+        }
+
+        // ★★★ ダメージ処理 (applyBossDamage) は【呼ばない】 ★★★
+        // console.log("[Makira Hit - Simple] Skipping applyBossDamage for debug.");
+        // // this.applyBossDamage(boss, 1, "Makira Beam");
+
+        // ★★★ 処理後のボスの状態を再度確認 ★★★
+        // 少し時間をおいてから確認する (非同期処理の影響を考慮)
+        this.time.delayedCall(10, () => {
+             if (boss && boss.scene) { // まだシーンに存在するか？
+                  console.log(`[Makira Hit - Simple] Boss active state AFTER simple hit handler: ${boss.active}`);
+                  if (!boss.active) {
+                       console.error("!!! Boss became inactive AFTER simple hit handler !!!");
+                  }
+             } else {
+                  console.error("!!! Boss object no longer exists or has no scene AFTER simple hit handler !!!");
+             }
+        }, [], this);
+   }
+// --- ▲ 衝突処理メソッド ▲ ---
 
     // --- ▼ ヘルパーメソッド (主要部分) ▼ ---
     createAndAddBall(x, y, vx = 0, vy = 0, dataToCopy = null) {
