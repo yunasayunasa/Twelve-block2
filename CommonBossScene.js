@@ -721,7 +721,17 @@ export default class CommonBossScene extends Phaser.Scene {
                                   console.log("[Intro][Shrink] Attempting updateBossSizeAfterIntro...");
                                   this.updateBossSizeAfterIntro();
                                   console.log("[Intro][Shrink] updateBossSizeAfterIntro OK.");
+                                  this.updateBossSizeAfterIntro(); // <--- このメソッド呼び出しを確認！
+                    console.log("[Intro][Shrink] updateBossSizeAfterIntro OK.");
+                    // 元に戻った後のボディサイズを確認
+                    if(this.boss.body){
+                        console.log(`[Intro][Shrink] Boss body size AFTER restore: ${this.boss.body.width.toFixed(0)}x${this.boss.body.height.toFixed(0)}`);
+                    } else {
+                        console.warn("[Intro][Shrink] Boss body missing AFTER restore attempt!");
+                    }
                              } catch(e) { console.error("!!! ERROR during updateBossSizeAfterIntro:", e); }
+
+                             
     
                              try {
                                   console.log("[Intro][Shrink] Attempting delayed call to startGameplay...");
