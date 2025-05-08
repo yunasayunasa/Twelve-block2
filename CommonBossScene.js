@@ -47,7 +47,7 @@ const DEFAULT_BOSS_MOVE_RANGE_X_RATIO = 0.7;
 const CUTSCENE_DURATION = 1800;
 const CUTSCENE_FLASH_DURATION = 200;
 const INTRO_FLASH_DURATION = 200;
-const ZOOM_IN_DURATION = 1000;
+const ZOOM_IN_DURATION = 800;
 const ZOOM_WAIT_DURATION = 200;
 const SHRINK_DURATION = 50;
 const SHRINK_FLASH_DURATION = 150;
@@ -535,7 +535,7 @@ export default class CommonBossScene extends Phaser.Scene {
         const zoomInStartY = this.gameHeight * 0.8;
         const zoomInStartScale = 0.05;
         const baseWidthForScale = (this.boss.width > 0 && this.boss.scaleX !== 0) ? (this.boss.width / this.boss.scaleX) : (this.gameWidth * (this.bossData.widthRatio || 0.25)); // ゼロ除算防止強化
-        const zoomInEndScale = Math.min(20, this.gameWidth / baseWidthForScale * 5.5);
+        const zoomInEndScale = Math.min(25, this.gameWidth / baseWidthForScale * 6.5);
         const zoomInEndY = this.gameHeight / 2;
         console.log(`[Intro] Zoom params: StartY=${zoomInStartY}, StartScale=${zoomInStartScale}, EndScale=${zoomInEndScale}, EndY=${zoomInEndY}`);
 
