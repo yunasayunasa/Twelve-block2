@@ -248,7 +248,7 @@ export default class CommonBossScene extends Phaser.Scene {
         this.stopBgm();
 
         // ★ 新しい演出メソッドを直接呼び出す ★
-        this.startFusionIntro();
+       // this.startFusionIntro();
 
           // ★ カットイン演出メソッドを呼び出す ★
           this.startIntroCutscene();
