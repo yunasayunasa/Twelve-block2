@@ -460,7 +460,7 @@ export default class CommonBossScene extends Phaser.Scene {
         // ★★★ 物理ワールドの上端境界を調整 ★★★
         // 計算済みの画面上部マージン (this.topMargin) を使うか、固定ピクセル値を使う
         // this.topMargin は calculateDynamicMargins で計算されている想定
-        const physicsTopBoundY = this.topMargin > 10 ? this.topMargin : 40; // 例: マージンがあればそれを、なければ最低20px確保
+        const physicsTopBoundY = this.topMargin > 10 ? this.topMargin : 50; // 例: マージンがあればそれを、なければ最低20px確保
         // setBounds(x, y, width, height)
         this.physics.world.setBounds(
             0,                     // X座標の開始は0
@@ -986,19 +986,51 @@ export default class CommonBossScene extends Phaser.Scene {
 
     // --- ▼ ヘルパーメソッド (主要部分) ▼ ---
     createAndAddBall(x, y, vx = 0, vy = 0, dataToCopy = null) {
-        if (!this.balls) return null; const ballRadius = this.gameWidth * BALL_RADIUS_RATIO; const physicsRadius = ballRadius * 0.9;
-        const ball = this.balls.create(x, y, 'ball_image').setOrigin(0.5).setDisplaySize(ballRadius*2, ballRadius*2).setCircle(physicsRadius).setCollideWorldBounds(true).setBounce(1);
+        if (!this.balls) return null;
+
+        // 1. 見た目の半径を計算
+        const visualRadius = this.gameWidth * BALL_RADIUS_RATIO;
+        const visualDiameter = visualRadius * 2;
+
+        // 2. ★ 当たり判定の半径を計算 (見た目より大きくする) ★
+        //    この倍率を調整して当たり判定の大きさを変えます (例: 1.0なら見た目と同じ)
+        const hitboxRadiusMultiplier = 5.0; // <--- この値を調整 (例: 1.2, 1.8, 2.0 など)
+        const hitboxRadius = visualRadius * hitboxRadiusMultiplier;
+
+        console.log(`[Create Ball] Visual Radius: ${visualRadius.toFixed(1)}, Hitbox Radius: ${hitboxRadius.toFixed(1)} (Multiplier: ${hitboxRadiusMultiplier})`);
+
+        // 3. ボールオブジェクトを生成し、見た目のサイズを設定
+        const ball = this.balls.create(x, y, 'ball_image')
+            .setOrigin(0.5)
+            .setDisplaySize(visualDiameter, visualDiameter); // 見た目のサイズはそのまま
+
+        // 4. 物理ボディを円形にし、計算した「当たり判定の半径」を設定
         if (ball.body) {
-            ball.setVelocity(vx, vy);
-            // ★★★ isBallLaunched フラグが false の場合に初期ボールを確実に停止 ★★★
-            if (!this.isBallLaunched && vx === 0 && vy === 0) {
-                ball.body.stop();
-                 console.log(`[createAndAddBall] Ball ${ball.name} stopped as initial ball (isBallLaunched: ${this.isBallLaunched}).`);
-            }
-            // ★★★-----------------------------------------------★★★
-            ball.body.onWorldBounds = true;
-        } // ...
-        return ball;
+             // ★★★ setCircle で当たり判定用の半径 hitboxRadius を使う ★★★
+             ball.setCircle(hitboxRadius);
+             // ★★★----------------------------------------------------★★★
+
+             // setCircle は通常、GameObjectの中心基準で円を設定するため、
+             // 見た目と当たり判定の中心がずれている場合を除き、
+             // オフセットの手動調整は不要なことが多いです。
+             // もし当たり判定の中心がズレる場合は、以下のコメントアウトを解除して調整してください。
+             // const centerOffset = 0; // 基本的にズレないはずなので0
+             // ball.body.setOffset(ball.body.offset.x + centerOffset, ball.body.offset.y + centerOffset);
+
+             ball.setVelocity(vx, vy);
+             if (!this.isBallLaunched && vx === 0 && vy === 0) {
+                 ball.body.stop();
+             }
+             ball.body.onWorldBounds = true;
+             ball.setCollideWorldBounds(true);
+             ball.setBounce(1);
+        } else {
+             console.error(`!!! Failed to get body for ball ${ball.name}`);
+             if (ball) ball.destroy();
+             return null;
+        }
+
+       
     
         ball.setData({ activePowers: dataToCopy?.activePowers ? new Set(dataToCopy.activePowers) : new Set(), lastActivatedPower: dataToCopy?.lastActivatedPower ?? null, isKubiraActive: dataToCopy?.isKubiraActive ?? false, isFast: dataToCopy?.isFast ?? false, isSlow: dataToCopy?.isSlow ?? false, isIndaraActive: dataToCopy?.isIndaraActive ?? false, isBikaraPenetrating: dataToCopy?.isBikaraPenetrating ?? false, isSindaraActive: false, isAnchiraActive: false, isMakoraActive: false });
         ball.name = `ball_${this.balls.getLength()}_${Phaser.Math.RND.uuid()}`; this.updateBallAppearance(ball); return ball;
@@ -1056,17 +1088,28 @@ export default class CommonBossScene extends Phaser.Scene {
             // this.gameWidth を参照していれば自動的に範囲が変わる可能性あり。要確認。
         }
 
-        // 3. ボール (表示サイズを更新)
+      
+        // 3. ボール (表示サイズと物理ボディサイズを更新)
         this.balls?.getChildren().forEach(ball => {
             if (ball.active) { // アクティブなボールのみ処理
-                const newBallRadius = this.gameWidth * BALL_RADIUS_RATIO;
+                const newVisualRadius = this.gameWidth * BALL_RADIUS_RATIO;
+                const newVisualDiameter = newVisualRadius * 2;
+
+                // ★ 当たり判定の倍率を createAndAddBall と同じにする ★
+                const hitboxMultiplier = 1.5; // ← createAndAddBall と同じ値を使用
+                const newHitboxRadius = newVisualRadius * hitboxMultiplier;
+
                 try {
-                    ball.setDisplaySize(newBallRadius * 2, newBallRadius * 2);
+                    // 見た目のサイズを更新
+                    ball.setDisplaySize(newVisualDiameter, newVisualDiameter);
+
                     if (ball.body) {
-                        // 物理円のサイズも更新 (表示サイズの90%程度に)
-                        ball.setCircle(newBallRadius * 0.9);
-                        // setCircle後はupdateFromGameObjectが必要な場合がある
-                        ball.body.updateFromGameObject();
+                        // ★ 物理ボディの円サイズも更新 ★
+                        ball.setCircle(newHitboxRadius);
+                        // setCircle後はupdateFromGameObjectが必要な場合があるが、
+                        // setCircleが内部で呼ぶことも多い。必要ならコメント解除。
+                        // ball.body.updateFromGameObject();
+                        // console.log(`[Resize Ball] Updated Visual Size: ${newVisualDiameter.toFixed(1)}, Hitbox Radius: ${newHitboxRadius.toFixed(1)}`);
                     }
                 } catch (e) {
                     console.error("Error updating ball size/body on resize:", e);
