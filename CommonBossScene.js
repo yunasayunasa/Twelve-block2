@@ -508,17 +508,31 @@ export default class CommonBossScene extends Phaser.Scene {
     }
 
 
-    // startGameplay メソッドは基本的に変更なし
-    startGameplay() {
+     // startGameplay: 戦闘開始処理に加え、遅延してコライダーを設定
+     startGameplay() {
         console.log("[Gameplay Start] Enabling player control.");
         this.playerControlEnabled = true;
         if (this.boss?.body) {
             this.boss.body.enable = true; // 念のため有効化
-            console.log(`[Gameplay Start] Boss body enabled: ${this.boss.body.enable}`);
         } else { console.warn("[Gameplay Start] Boss body missing!"); }
-        this.startSpecificBossMovement(); // ボス固有の動きを開始
-        this.startRandomVoiceTimer();     // 戦闘中ランダムボイス開始
-        // updateSpecificBossBehavior が攻撃タイマーを開始することを期待
+        this.startSpecificBossMovement();
+        this.startRandomVoiceTimer();
+
+        // ★★★ 少し遅れて衝突判定を設定 ★★★
+        const colliderDelay = 50; // 50ms (約3フレーム) 遅延させる (調整可能)
+        console.log(`[Gameplay Start] Scheduling setColliders in ${colliderDelay}ms...`);
+        this.time.delayedCall(colliderDelay, () => {
+            if (!this.scene.isActive() || this.isGameOver || this.bossDefeated) return; // シーンが有効か確認
+            console.log("[Gameplay Start] Delayed: Calling setColliders NOW.");
+            this.setColliders(); // ここで全てのコライダーを設定し直す
+             // または、makiraBeamBossOverlapだけを設定し直す場合：
+             // if (this.makiraBeams && this.boss) {
+             //     this.safeDestroyCollider(this.makiraBeamBossOverlap); // 既存があれば念のため破棄
+             //     this.makiraBeamBossOverlap = this.physics.add.overlap(this.makiraBeams, this.boss, this.hitBossWithMakiraBeam, (beam, b) => !b.getData('isInvulnerable'), this);
+             //     console.log("[Gameplay Start] Delayed: Makira beam overlap re-added.");
+             // }
+        }, [], this);
+        // ★★★-----------------------------★★★
     }
 
 
@@ -746,7 +760,7 @@ export default class CommonBossScene extends Phaser.Scene {
         if (this.boss && this.balls) this.ballBossCollider = this.physics.add.collider(this.boss, this.balls, this.hitBoss, (b, ball) => !b.getData('isInvulnerable'), this);
         if (this.paddle && this.powerUps) this.paddlePowerUpOverlap = this.physics.add.overlap(this.paddle, this.powerUps, this.collectPowerUp, null, this);
         if (this.paddle && this.attackBricks) this.paddleAttackBrickCollider = this.physics.add.collider(this.paddle, this.attackBricks, this.handlePaddleHitByAttackBrick, null, this);
-      //  if (this.makiraBeams && this.boss) this.makiraBeamBossOverlap = this.physics.add.overlap(this.makiraBeams, this.boss, this.hitBossWithMakiraBeam, (beam, b) => !b.getData('isInvulnerable'), this);
+        if (this.makiraBeams && this.boss) this.makiraBeamBossOverlap = this.physics.add.overlap(this.makiraBeams, this.boss, this.hitBossWithMakiraBeam, (beam, b) => !b.getData('isInvulnerable'), this);
 
         let needsCollider = false, needsOverlap = false;
         this.balls?.getMatching('active', true).forEach(ball => {
@@ -1015,49 +1029,18 @@ export default class CommonBossScene extends Phaser.Scene {
     dropSpecificPowerUp(x,y,type){if(!type||!this.powerUps)return;let tK=POWERUP_ICON_KEYS[type]||'whitePixel';const iS=this.gameWidth*POWERUP_SIZE_RATIO;let tC=(tK==='whitePixel'&&type===POWERUP_TYPES.BAISRAVA)?0xffd700:(tK==='whitePixel'?0xcccccc:null);const pU=this.powerUps.create(x,y,tK).setDisplaySize(iS,iS).setData('type',type);if(tC)pU.setTint(tC);if(pU.body){pU.setVelocity(0,POWERUP_SPEED_Y);pU.body.setCollideWorldBounds(false).setAllowGravity(false);}else if(pU)pU.destroy();}
     handlePaddleHitByAttackBrick(paddle, attackBrick) { if (!paddle?.active || !attackBrick?.active) return; this.destroyAttackBrick(attackBrick, false); if (!this.isAnilaActive) this.loseLife(); else console.log("[Anila] Paddle hit blocked!"); }
      // マキラビームがボスに当たった時の処理 (超シンプル版 - デバッグ用)
+     // hitBossWithMakiraBeam はシンプル版から元に戻す（ただしログは残す）
      hitBossWithMakiraBeam(beam, boss) {
-        // オブジェクトの基本的な存在チェック
-        if (!beam || !boss || !beam.scene || !boss.scene) {
-            console.warn("[Makira Hit - Simple] Invalid beam or boss object received.");
-            return;
+        if (!beam || !boss || !beam.active || !boss.active || boss.getData('isInvulnerable')) {
+            if (beam?.active) beam.destroy(); return;
         }
-        // アクティブ状態チェック (消える前の状態を確認)
-        console.log(`[Makira Hit - Simple] Beam active: ${beam.active}, Boss active: ${boss.active}`);
-
-        // ★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★
-        // ★ ここで絶対に boss を destroy/setActive(false) しない ★
-        // ★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★
-
-        console.log(">>> Makira beam hit boss! (Simple Log Only) <<<");
-
-        // ビームだけを安全に破棄
-        try {
-             if(beam.active) { //アクティブな場合のみ破棄試行
-                  beam.destroy();
-                  console.log("[Makira Hit - Simple] Beam destroyed.");
-             } else {
-                  console.log("[Makira Hit - Simple] Beam was already inactive before destroy.");
-             }
-        } catch (e) {
-             console.error("!!! Error destroying beam in simple hit handler:", e);
-        }
-
-        // ★★★ ダメージ処理 (applyBossDamage) は【呼ばない】 ★★★
-        // console.log("[Makira Hit - Simple] Skipping applyBossDamage for debug.");
-        // // this.applyBossDamage(boss, 1, "Makira Beam");
-
-        // ★★★ 処理後のボスの状態を再度確認 ★★★
-        // 少し時間をおいてから確認する (非同期処理の影響を考慮)
-        this.time.delayedCall(10, () => {
-             if (boss && boss.scene) { // まだシーンに存在するか？
-                  console.log(`[Makira Hit - Simple] Boss active state AFTER simple hit handler: ${boss.active}`);
-                  if (!boss.active) {
-                       console.error("!!! Boss became inactive AFTER simple hit handler !!!");
-                  }
-             } else {
-                  console.error("!!! Boss object no longer exists or has no scene AFTER simple hit handler !!!");
-             }
-        }, [], this);
+        console.log(">>> Makira beam hit boss! <<<");
+        const hpBeforeHit = boss.getData('health');
+        console.log(`[Makira Hit] Boss HP BEFORE applying damage: ${hpBeforeHit}`);
+        beam.destroy();
+        console.log("[Makira Hit] Calling applyBossDamage with damage: 1");
+        this.applyBossDamage(boss, 1, "Makira Beam");
+        console.log(`[Makira Hit] Boss active state AFTER applyBossDamage call: ${boss.active}`);
    }
 // --- ▲ 衝突処理メソッド ▲ ---
 
