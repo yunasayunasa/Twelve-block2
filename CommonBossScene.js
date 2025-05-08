@@ -1251,8 +1251,8 @@ export default class CommonBossScene extends Phaser.Scene {
             // const hitboxWidth = this.boss.displayWidth;
             // const hitboxHeight = this.boss.displayHeight;
             // 例2: 表示サイズの80%にする (少し小さめ)
-            const hitboxWidth = this.boss.displayWidth * 0.8;
-            const hitboxHeight = this.boss.displayHeight * 0.8;
+            const hitboxWidth = this.boss.displayWidth * 1.5;
+            const hitboxHeight = this.boss.displayHeight * 1.5;
 
             // サイズが0より大きいことを確認してから設定
             if (hitboxWidth > 1 && hitboxHeight > 1) { // 最小サイズを1より大きくするなど調整
