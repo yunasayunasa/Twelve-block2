@@ -90,6 +90,7 @@ export default class CommonBossScene extends Phaser.Scene {
         this.randomVoiceTimer = null;
         this.lastDamageVoiceTime = 0;
         this.bossVoiceKeys = [];
+        this.startIntroPending = false; // ★ 登場演出開始待ちフラグを追加
 
         // --- 攻撃ブロック関連 ---
         this.attackBricks = null;
@@ -182,6 +183,10 @@ export default class CommonBossScene extends Phaser.Scene {
         this.randomVoiceTimer?.remove(); this.randomVoiceTimer = null;
         this.lastDamageVoiceTime = 0;
 
+        this.startIntroPending = false; // ★ init でもリセット
+        this.isBallLaunched = false;
+        this.playerControlEnabled = true; // ★ init時点ではtrue
+
         this.initializeBossData(); // ボス固有データ初期化
         console.log(`Boss data for ${this.scene.key}:`, this.bossData);
 
@@ -203,19 +208,22 @@ export default class CommonBossScene extends Phaser.Scene {
         this.setupUI();
         this.setupPhysics();
 
+        // ★★★ create 内でのフラグ設定 ★★★
+        this.playerControlEnabled = false; // まず操作不可に
+        this.isBallLaunched = false;     // ボール未発射状態
+        // ★★★----------------------★★★
+
         this.createPaddle();
         this.createBalls();
         this.createPowerUpsGroup();
         this.createAttackBricksGroup();
         this.createMakiraGroups();
 
-        this.createSpecificBoss(); // ボス固有オブジェクト生成
+        this.createSpecificBoss(); // ボスオブジェクト生成
         if (!this.boss) {
-            console.error("!!!!!! BOSS OBJECT WAS NOT CREATED BY createSpecificBoss() !!!!!!");
-            // ダミーボス生成
-            this.boss = this.physics.add.image(this.gameWidth / 2, this.gameHeight * 0.2, 'whitePixel').setTint(0xff00ff).setVisible(false);
-            this.boss.setData('health', 1).setData('maxHealth', 1).setData('isInvulnerable', false);
-            this.updateBossSize(this.boss, this.bossData.textureKey || 'bossStand', this.bossData.widthRatio || 0.2);
+            console.error("BOSS WAS NOT CREATED!");
+            // エラー処理 or ダミー生成
+            return; // ボスがいないと進めないので終了
         }
         this.setupAfterImageEmitter();
 
@@ -225,20 +233,30 @@ export default class CommonBossScene extends Phaser.Scene {
         this.createGameClearText();
         this.setupInputAndEvents();
 
-        // 5. 登場演出開始 (少し遅延させる) <--- ★変更点
-        this.playerControlEnabled = false; // 操作不可に
-        this.isBallLaunched = false;     // ボール未発射状態に
-        this.sound.stopAll();           // サウンド停止
-        this.stopBgm();                 // BGM停止
+        // 5. 登場演出開始待ちフラグを立てる ★変更点★
+        this.startIntroPending = true; // update ループで開始を待つ
+        this.sound.stopAll();
+        this.stopBgm();
 
-        // ★★★ 50ms 遅延させてから登場演出を開始 ★★★
-        this.time.delayedCall(50, this.startIntroCutscene, [], this);
-
-        console.log(`--- ${this.scene.key} CREATE End - Intro scheduled ---`); // ログ変更
+        console.log(`--- ${this.scene.key} CREATE End - Waiting for update loop to start intro ---`); // ログ変更
     }
 
     update(time, delta) {
-        if (this.isGameOver || this.bossDefeated) {
+        // ★★★ 登場演出開始チェック (updateループの最初で行う) ★★★
+        if (this.startIntroPending) {
+            // ボスオブジェクトと物理ボディが利用可能かチェック
+            if (this.boss && this.boss.active && this.boss.body /* && this.boss.body.enable ??? */ ) {
+                 console.log("[Update Check] Boss object and body seem ready. Starting intro now.");
+                 this.startIntroPending = false; // フラグを解除して再実行を防ぐ
+                 this.startIntroCutscene();      // 登場演出を開始
+            } else {
+                 // まだ準備できていない場合は次のフレームで再チェック
+                 console.log("[Update Check] Waiting for boss object/body to be ready...");
+                 return; // 準備ができるまで他のupdate処理はスキップしても良いかも
+            }
+        }
+        // ★★★---------------------------------------★★★
+        if (this.isGameOver || this.bossDefeated || this.startIntroPending) { // 演出開始待ちの間も何もしない
             this.bossAfterImageEmitter?.stop();
             return;
         }
@@ -698,6 +716,28 @@ export default class CommonBossScene extends Phaser.Scene {
     playPowerUpVoice(type) { let vK = AUDIO_KEYS[`VOICE_${type.toUpperCase()}`]; if (type === POWERUP_TYPES.VAJRA) vK = AUDIO_KEYS.VOICE_VAJRA_GET; if (type === POWERUP_TYPES.BIKARA) vK = AUDIO_KEYS.VOICE_BIKARA_YIN; if (vK && (this.time.now - (this.lastPlayedVoiceTime[vK] || 0) > this.voiceThrottleTime)) try { this.sound.play(vK); this.lastPlayedVoiceTime[vK] = this.time.now; } catch (e) { console.error(`Error playing voice ${vK}:`, e); } }
     // --- ▲ パワーアップ関連メソッド ▲ ---
 
+     // launchBall の再確認
+     launchBall() {
+        // ★ isBallLaunched と playerControlEnabled のチェックが最初にあるか確認
+        if (!this.isBallLaunched && this.playerControlEnabled && this.balls?.countActive(true) > 0) {
+            const ballToLaunch = this.balls.getFirstAlive();
+            if (ballToLaunch) {
+                 console.log(">>> launchBall() called! Launching ball."); // ログ追加
+                 ballToLaunch.setVelocity(
+                     Phaser.Math.Between(BALL_INITIAL_VELOCITY_X_RANGE[0], BALL_INITIAL_VELOCITY_X_RANGE[1]),
+                     BALL_INITIAL_VELOCITY_Y
+                 );
+                 // ★ isBallLaunched を true にするタイミングが重要 ★
+                 this.isBallLaunched = true;
+                 this.sound.play(AUDIO_KEYS.SE_LAUNCH);
+            }
+        } else {
+             console.log(">>> launchBall() called but conditions not met (isBallLaunched:", this.isBallLaunched, "playerControlEnabled:", this.playerControlEnabled, ")");
+        }
+    }
+
+
+
     // --- ▼ 衝突処理メソッド (主要部分) ▼ ---
     hitPaddle(paddle, ball) { /* ... (CommonBossScene.js 前回のコードと同様、内容は省略) ... */ if (!paddle || !ball?.active || !ball.body) return; let diff = ball.x - paddle.x; let influence = Phaser.Math.Clamp(diff / (paddle.displayWidth / 2), -1, 1); let newVx = (NORMAL_BALL_SPEED * 0.85) * influence; let newVyAbs = Math.sqrt(Math.pow(NORMAL_BALL_SPEED, 2) - Math.pow(newVx, 2)) || NORMAL_BALL_SPEED * 0.5; let newVy = -Math.abs(newVyAbs); if (Math.abs(newVy) < NORMAL_BALL_SPEED * 0.3) newVy = -NORMAL_BALL_SPEED * 0.3; let speedMultiplier = 1.0; if (ball.getData('isFast')) speedMultiplier = BALL_SPEED_MODIFIERS[POWERUP_TYPES.SHATORA]; else if (ball.getData('isSlow')) speedMultiplier = BALL_SPEED_MODIFIERS[POWERUP_TYPES.HAILA]; const targetSpeed = NORMAL_BALL_SPEED * speedMultiplier; const finalVel = new Phaser.Math.Vector2(newVx, newVy).normalize().scale(targetSpeed); ball.setVelocity(finalVel.x, finalVel.y); this.sound.play(AUDIO_KEYS.SE_REFLECT); this.createImpactParticles(ball.x, ball.y + ball.displayHeight/2 * 0.8, [240, 300], 0xffffcc); if (ball.getData('isIndaraActive')) this.deactivateIndara(ball); }
     hitBoss(boss, ball) { /* ... (CommonBossScene.js 前回のコードと同様、内容は省略) ... */  if (!boss || !ball?.active || boss.getData('isInvulnerable')) return; let damage = 1; if (ball.getData('isKubiraActive')) damage += 1; this.applyBossDamage(boss, damage, "Ball Hit"); if (ball.getData('isIndaraActive')) this.deactivateIndara(ball); else { let speedMultiplier = 1.0; if (ball.getData('isFast')) speedMultiplier = BALL_SPEED_MODIFIERS[POWERUP_TYPES.SHATORA]; else if (ball.getData('isSlow')) speedMultiplier = BALL_SPEED_MODIFIERS[POWERUP_TYPES.HAILA]; const targetSpeed = NORMAL_BALL_SPEED * speedMultiplier; const bounceVy = -ball.body.velocity.y; const minBounceSpeedY = NORMAL_BALL_SPEED * 0.4; const finalVy = Math.abs(bounceVy) < minBounceSpeedY ? -minBounceSpeedY * Math.sign(bounceVy || -1) : bounceVy; const finalVel = new Phaser.Math.Vector2(ball.body.velocity.x, finalVy).normalize().scale(targetSpeed); ball.setVelocity(finalVel.x, finalVel.y); } }
@@ -717,16 +757,21 @@ export default class CommonBossScene extends Phaser.Scene {
         const ball = this.balls.create(x, y, 'ball_image').setOrigin(0.5).setDisplaySize(ballRadius*2, ballRadius*2).setCircle(physicsRadius).setCollideWorldBounds(true).setBounce(1);
         if (ball.body) {
             ball.setVelocity(vx, vy);
-            // ★★★ 確実に初期停止させる ★★★
-            if (vx === 0 && vy === 0 && !this.isBallLaunched) { // isBallLaunchedがfalseの時だけ初期停止
+            // ★★★ isBallLaunched フラグが false の場合に初期ボールを確実に停止 ★★★
+            if (!this.isBallLaunched && vx === 0 && vy === 0) {
                 ball.body.stop();
-                console.log(`[createAndAddBall] Ball ${ball.name} explicitly stopped as initial ball.`);
+                 console.log(`[createAndAddBall] Ball ${ball.name} stopped as initial ball (isBallLaunched: ${this.isBallLaunched}).`);
             }
-            // ★★★--------------------★★★
-            ball.body.onWorldBounds = true; } else { if (ball) ball.destroy(); return null; }
+            // ★★★-----------------------------------------------★★★
+            ball.body.onWorldBounds = true;
+        } // ...
+        return ball;
+    
         ball.setData({ activePowers: dataToCopy?.activePowers ? new Set(dataToCopy.activePowers) : new Set(), lastActivatedPower: dataToCopy?.lastActivatedPower ?? null, isKubiraActive: dataToCopy?.isKubiraActive ?? false, isFast: dataToCopy?.isFast ?? false, isSlow: dataToCopy?.isSlow ?? false, isIndaraActive: dataToCopy?.isIndaraActive ?? false, isBikaraPenetrating: dataToCopy?.isBikaraPenetrating ?? false, isSindaraActive: false, isAnchiraActive: false, isMakoraActive: false });
         ball.name = `ball_${this.balls.getLength()}_${Phaser.Math.RND.uuid()}`; this.updateBallAppearance(ball); return ball;
     }
+
+    
     keepFurthestBallAndClearOthers() { const aB=this.balls?.getMatching('active',true); if(!aB||aB.length===0)return null; if(aB.length===1)return aB[0]; let fB=aB[0],mDSq=-1;const pY=this.paddle?.y??this.gameHeight;aB.forEach(b=>{const dSq=Phaser.Math.Distance.Squared(b.x,b.y,this.paddle?.x??this.gameWidth/2,pY);if(dSq>mDSq){mDSq=dSq;fB=b;}});aB.forEach(b=>{if(b!==fB)b.destroy();});return fB; }
     updatePaddleSize() { if(!this.paddle)return; const nW=this.gameWidth*(this.paddle.getData('originalWidthRatio')||PADDLE_WIDTH_RATIO); this.paddle.setDisplaySize(nW,PADDLE_HEIGHT); const hW=this.paddle.displayWidth/2; this.paddle.x=Phaser.Math.Clamp(this.paddle.x,hW,this.gameWidth-hW); if(this.paddle.body)this.paddle.body.updateFromGameObject(); }
     clampPaddleYPosition() { if(!this.paddle)return; const pHH=this.paddle.displayHeight/2; const dSH=this.gameHeight*0.05; const mY=this.gameHeight-pHH-dSH; const maY=this.gameHeight*0.75; const tY=this.gameHeight*(1-PADDLE_Y_OFFSET_RATIO); this.paddle.y=Phaser.Math.Clamp(tY,maY,mY); if(this.paddle.body)this.paddle.body.updateFromGameObject(); }
