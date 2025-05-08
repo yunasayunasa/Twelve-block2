@@ -656,26 +656,31 @@ export default class CommonBossScene extends Phaser.Scene {
                 duration: ZOOM_IN_DURATION,
                 ease: 'Quad.easeIn',
                    // CommonBossScene.js の startBossZoomIn メソッド内、Tweenの onComplete
-    onComplete: () => {
-        console.log("[Intro] Visual zoom tween completed.");
+    // CommonBossScene.js の startBossZoomIn の onComplete を修正
+onComplete: () => {
+    console.log("[Intro] Visual zoom tween completed.");
+    console.log("[Intro][Zoom onComplete] Checking this.boss BEFORE calling/scheduling shrink:", this.boss);
 
-        // ★★★ Check this.boss right after tween completion ★★★
-        console.log("[Intro][Zoom onComplete] Checking this.boss BEFORE calling/scheduling shrink:", this.boss);
-        if (!this.boss || !this.boss.active) {
-             console.error("!!! ERROR: Boss missing or inactive IMMEDIATELY AFTER zoom tween completion !!!");
-             return; // Stop here if boss is already gone
-        }
-        // ★★★------------------------------------------------------★★★
+    // ★★★ 詳細な状態チェック ★★★
+    if (this.boss) {
+        console.log(`[Intro][Zoom onComplete] Boss is NOT null. Active state: ${this.boss.active}`);
+         // active が false なら、なぜ false になったのかを探る必要がある
+         if (!this.boss.active) {
+              console.error("!!! Boss is inactive immediately after zoom tween !!!");
+              // ここで処理を止めるか、デバッグ情報をさらに出力
+              return;
+         }
+    } else {
+        // boss が null なら、どこで null になったのか？
+         console.error("!!! Boss is null immediately after zoom tween !!!");
+         return; // 処理中断
+    }
+    // ★★★----------------------★★★
 
-        // --- Option A: Original Delayed Call (コメントアウト) ---
-        // console.log("[Intro][Zoom onComplete] Scheduling startBossQuickShrink with delay.");
-        // this.time.delayedCall(ZOOM_WAIT_DURATION, this.startBossQuickShrink, [], this);
-
-        // --- Option B: Direct Call (テスト用にこちらを実行) ---
-        console.log("[Intro][Zoom onComplete] Calling startBossQuickShrink directly NOW (TEST).");
-        this.startBossQuickShrink(); // ★ 遅延なしで直接呼び出す
-
-    } // onComplete end
+    // エラーが出なければ shrink を直接呼び出す (テスト用)
+    console.log("[Intro][Zoom onComplete] Boss seems OK. Calling startBossQuickShrink directly NOW (TEST).");
+    this.startBossQuickShrink();
+}
             });
             console.log("[Intro] Visual zoom tween added.");
         } catch (e) { console.error("!!! ERROR adding visual zoom tween:", e); }
