@@ -331,24 +331,24 @@ export default class CommonBossScene extends Phaser.Scene {
         // --- ▼▼▼ VS テキスト表示 ▼▼▼ ---
         // bossData からテキストを取得、なければデフォルト
         const textContent = this.bossData.cutsceneText || `VS BOSS ${this.currentBossIndex}`;
-        // フォントサイズを動的に計算
-        const fontSize = this.calculateDynamicFontSize(38); // 最大38px程度
+
+        // ★★★ calculateDynamicFontSize の最大値を調整 ★★★
+        const desiredMaxSize = 56; // ← ウィンドウ幅が広い時に最大でこのpxサイズになるように調整
+        const fontSize = this.calculateDynamicFontSize(desiredMaxSize);
+        // ★★★------------------------------------------★★★
+
         const textStyle = {
             fontSize: `${fontSize}px`,
             fill: '#ffffff',
             stroke: '#000000',
-            strokeThickness: Math.max(3, fontSize * 0.1), // フォントサイズに応じて縁取り調整
-            fontFamily: 'MyGameFont, sans-serif', // カスタムフォント指定
+            strokeThickness: Math.max(3, fontSize * 0.1), // 縁取りも調整
+            fontFamily: 'MyGameFont, sans-serif',
             align: 'center',
-            // 必要ならシャドウも追加
-            // shadow: { offsetX: 2, offsetY: 2, color: '#111', blur: 4, stroke: true, fill: true }
         };
-        // テキストのY座標をボス画像の下に設定
-        const textY = bossImage.getBounds().bottom + this.gameHeight * 0.04; // 画像下端から少し下
-        // テキストオブジェクト生成
+        const textY = bossImage.getBounds().bottom + this.gameHeight * 0.04;
         const vsText = this.add.text(this.gameWidth / 2, textY, textContent, textStyle)
-            .setOrigin(0.5, 0) // 上端中央基準
-            .setDepth(902); // ボス画像より手前
+            .setOrigin(0.5, 0).setDepth(902);
+
         console.log(`[Intro Cutscene] Displaying text: "${textContent}"`);
         // --- ▲▲▲ VS テキスト表示 ▲▲▲ ---
 
@@ -466,7 +466,7 @@ export default class CommonBossScene extends Phaser.Scene {
     }
 
     // ボス本体の最終的な表示設定とゲームプレイ開始
-    finalizeBossAppearanceAndStart() {
+   finalizeBossAppearanceAndStart() {
         if (!this.boss) { console.error("!!! ERROR: Boss object missing in finalizeBossAppearanceAndStart!"); return; }
 
         console.log("[Intro Fusion] Finalizing boss appearance...");
@@ -1237,23 +1237,36 @@ export default class CommonBossScene extends Phaser.Scene {
         desiredScale = Phaser.Math.Clamp(desiredScale, 0.05, 2.0);
 
         try {
-            bossInstance.setScale(desiredScale); // 見た目のスケールを設定
+            // 1. 見た目のスケールを設定
+            bossInstance.setScale(desiredScale);
             console.log(`[updateBossSize] Set scale to ${desiredScale.toFixed(3)}`);
             console.log(`[updateBossSize] AFTER setScale - Display Size: ${bossInstance.displayWidth?.toFixed(1)}x${bossInstance.displayHeight?.toFixed(1)}`);
 
-            // ★★★ 物理ボディを GameObject の見た目に合わせる ★★★
+            // 2. 物理ボディを GameObject の見た目に合わせる
             if (bossInstance.body) {
-                 // updateFromGameObject() を呼び出す
-                 bossInstance.body.updateFromGameObject();
-                 console.log(`[updateBossSize] Updated body from GameObject. Size: ${bossInstance.body.width.toFixed(0)}x${bossInstance.body.height.toFixed(0)}, Offset: (${bossInstance.body.offset.x.toFixed(1)}, ${bossInstance.body.offset.y.toFixed(1)})`);
+                 try {
+                     bossInstance.body.updateFromGameObject();
+                     console.log(`[updateBossSize] Updated body from GameObject. Initial Size: ${bossInstance.body.width.toFixed(0)}x${bossInstance.body.height.toFixed(0)}`);
+
+                     // 3. ★★★ ボディのスケールを少しだけ縮小 ★★★
+                     const hitboxScaleMultiplier = 0.9; // ← 1.0 より少し小さく (90%にする例)
+                     bossInstance.body.transform.scaleX = hitboxScaleMultiplier;
+                     bossInstance.body.transform.scaleY = hitboxScaleMultiplier;
+                     // スケール変更後はサイズを再計算させる必要があるかもしれない
+                     // (Phaserバージョンによるが、通常スケール変更でサイズは自動更新されるはず)
+                     // 必要なら: bossInstance.body.setSize(bossInstance.displayWidth * hitboxScaleMultiplier, bossInstance.displayHeight * hitboxScaleMultiplier);
+                     // オフセットは自動調整されるはずなので setOffset は不要
+
+                     console.log(`[updateBossSize] Applied body scale multiplier: ${hitboxScaleMultiplier}. Final Body Size approx: ${(bossInstance.body.width * hitboxScaleMultiplier).toFixed(0)}x${(bossInstance.body.height * hitboxScaleMultiplier).toFixed(0)}`);
+                 } catch (e) { console.error("!!! ERROR updating body from GameObject or scaling body:", e); }
+
             } else {
-                console.warn("[updateBossSize] Boss body does not exist, cannot update from GameObject.");
+                console.warn("[updateBossSize] Boss body does not exist.");
             }
             // ★★★------------------------------------------★★★
 
-        } catch(e) { console.error(`!!! ERROR setting scale or updating body in updateBossSize for ${textureKey}:`, e); }
+        } catch(e) { console.error(`!!! ERROR setting scale in updateBossSize for ${textureKey}:`, e); }
     }
-        // CommonBossScene.js 内
 
     
       
