@@ -1254,29 +1254,35 @@ export default class CommonBossScene extends Phaser.Scene {
             const hitboxWidth = this.boss.displayWidth * 1.5;
             const hitboxHeight = this.boss.displayHeight * 1.5;
 
-            // サイズが0より大きいことを確認してから設定
-            if (hitboxWidth > 1 && hitboxHeight > 1) { // 最小サイズを1より大きくするなど調整
-                 try {
-                     this.boss.body.setSize(hitboxWidth, hitboxHeight);
-                     // setSize後はオフセット調整が必要なことが多い
-                     // ボディの中心が見た目の中心に来るように調整
-                     // (元画像の中心が原点(0.5, 0.5)であると仮定)
-                     this.boss.body.setOffset(
-                         (this.boss.displayWidth - hitboxWidth) / 2,
-                         (this.boss.displayHeight - hitboxHeight) / 2
-                     );
-                     console.log(`[updateBossSizeAfterIntro] Explicitly set body size to: ${hitboxWidth.toFixed(0)}x${hitboxHeight.toFixed(0)}`);
-                 } catch (e) { console.error("!!! ERROR setting body size explicitly:", e); }
-            } else {
-                 console.error(`!!! ERROR: Calculated hitbox size is zero or negative (${hitboxWidth.toFixed(1)}x${hitboxHeight.toFixed(1)}) in updateBossSizeAfterIntro!`);
-                 // フォールバックで最小サイズを設定
-                 try {
-                      this.boss.body.setSize(10, 10).setOffset(this.boss.displayWidth/2 - 5, this.boss.displayHeight/2 - 5);
-                      console.warn("[updateBossSizeAfterIntro] Applied fallback minimum body size (10x10).");
-                 } catch(e) { console.error("!!! ERROR setting fallback body size:", e); }
-            }
-            // ★★★----------------------------------------------------★★★
+            // サイズが0より大きいことを確認
+            if (hitboxWidth > 1 && hitboxHeight > 1) {
+                try {
+                    // 1. ボディサイズを設定
+                    this.boss.body.setSize(hitboxWidth, hitboxHeight);
 
+                    // 2. ★★★ オフセットを再計算して設定 ★★★
+                    const offsetX = (this.boss.displayWidth - hitboxWidth) / 2;
+                    const offsetY = (this.boss.displayHeight - hitboxHeight) / 2;
+                    this.boss.body.setOffset(offsetX, offsetY);
+                    // ★★★---------------------------------★★★
+
+                    console.log(`[updateBossSizeAfterIntro] Explicitly set body size to: ${hitboxWidth.toFixed(0)}x${hitboxHeight.toFixed(0)} with offset (${offsetX.toFixed(1)}, ${offsetY.toFixed(1)})`);
+
+                } catch (e) { console.error("!!! ERROR setting body size/offset explicitly:", e); }
+           } else {
+                console.error(`!!! ERROR: Calculated hitbox size is zero or negative (${hitboxWidth.toFixed(1)}x${hitboxHeight.toFixed(1)})! Applying fallback.`);
+                try {
+                    // フォールバック時もオフセットを考慮 (見た目の中心に小さな箱を置く)
+                    const fallbackSize = 10;
+                    this.boss.body.setSize(fallbackSize, fallbackSize);
+                    this.boss.body.setOffset(
+                        (this.boss.displayWidth - fallbackSize) / 2,
+                        (this.boss.displayHeight - fallbackSize) / 2
+                    );
+                    console.warn("[updateBossSizeAfterIntro] Applied fallback minimum body size (10x10) with offset.");
+                } catch(e) { console.error("!!! ERROR setting fallback body size/offset:", e); }
+           }
+           // ★★★----------------------------------------------------★★★
             // updateFromGameObject() は実行しない
             // this.boss.body.updateFromGameObject();
 
