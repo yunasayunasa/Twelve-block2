@@ -304,31 +304,62 @@ export default class CommonBossScene extends Phaser.Scene {
         }
 
           // startIntroCutscene メソッドを復活させ、最後に fusionIntro を呼ぶ
+      // CommonBossScene.js 内
+
+    /**
+     * ボス登場演出：カットイン表示
+     * 完了後、次の演出 (startFusionIntro) を呼び出す
+     */
     startIntroCutscene() {
-        console.log("[Intro Cutscene] Starting..."); // ログ変更
-        // this.cameras.main.flash(...); // カットイン開始フラッシュは任意
-        this.sound.play(AUDIO_KEYS.SE_CUTSCENE_START);
+        console.log("[Intro Cutscene] Starting...");
+        // カメラフラッシュ (任意)
+        // this.cameras.main.flash(CUTSCENE_FLASH_DURATION, 255, 255, 255);
+        try { this.sound.play(AUDIO_KEYS.SE_CUTSCENE_START); } catch(e) { console.error("Error playing cutscene SE:", e); }
 
+        // 背景暗転用オーバーレイ
         const overlay = this.add.rectangle(0, 0, this.gameWidth, this.gameHeight, 0x000000, 0.75)
-            .setOrigin(0,0).setDepth(900);
+            .setOrigin(0,0).setDepth(900); // UI(1000)より奥、カットイン要素より奥
 
+        // ボス画像表示
         const bossImage = this.add.image(this.gameWidth / 2, this.gameHeight / 2, this.bossData.textureKey || 'bossStand')
-            .setOrigin(0.5, 0.5).setDepth(901);
-        const targetImageWidth = this.gameWidth * 0.75;
+            .setOrigin(0.5, 0.5).setDepth(901); // オーバーレイより手前
+        // サイズ調整
+        const targetImageWidth = this.gameWidth * 0.75; // 画面幅の75%程度
         bossImage.displayWidth = targetImageWidth;
-        bossImage.scaleY = bossImage.scaleX;
+        bossImage.scaleY = bossImage.scaleX; // アスペクト比維持
 
+        // --- ▼▼▼ VS テキスト表示 ▼▼▼ ---
+        // bossData からテキストを取得、なければデフォルト
         const textContent = this.bossData.cutsceneText || `VS BOSS ${this.currentBossIndex}`;
-        const textStyle = { /* ... */ }; // 以前のスタイル設定
-        const vsText = this.add.text(this.gameWidth / 2, bossImage.getBounds().bottom + this.gameHeight * 0.05, textContent, textStyle)
-            .setOrigin(0.5, 0).setDepth(902);
+        // フォントサイズを動的に計算
+        const fontSize = this.calculateDynamicFontSize(38); // 最大38px程度
+        const textStyle = {
+            fontSize: `${fontSize}px`,
+            fill: '#ffffff',
+            stroke: '#000000',
+            strokeThickness: Math.max(3, fontSize * 0.1), // フォントサイズに応じて縁取り調整
+            fontFamily: 'MyGameFont, sans-serif', // カスタムフォント指定
+            align: 'center',
+            // 必要ならシャドウも追加
+            // shadow: { offsetX: 2, offsetY: 2, color: '#111', blur: 4, stroke: true, fill: true }
+        };
+        // テキストのY座標をボス画像の下に設定
+        const textY = bossImage.getBounds().bottom + this.gameHeight * 0.04; // 画像下端から少し下
+        // テキストオブジェクト生成
+        const vsText = this.add.text(this.gameWidth / 2, textY, textContent, textStyle)
+            .setOrigin(0.5, 0) // 上端中央基準
+            .setDepth(902); // ボス画像より手前
+        console.log(`[Intro Cutscene] Displaying text: "${textContent}"`);
+        // --- ▲▲▲ VS テキスト表示 ▲▲▲ ---
 
+        // 一定時間後に要素を破棄し、次の演出へ
         this.time.delayedCall(CUTSCENE_DURATION, () => {
-            console.log("[Intro Cutscene] End. Starting Fusion Intro."); // ログ変更
-            overlay.destroy();
-            bossImage.destroy();
-            vsText.destroy();
-            // ★ 次の演出として startFusionIntro を呼び出す ★
+            console.log("[Intro Cutscene] End. Starting Fusion Intro.");
+            // 安全に破棄
+            if (overlay && overlay.scene) overlay.destroy();
+            if (bossImage && bossImage.scene) bossImage.destroy();
+            if (vsText && vsText.scene) vsText.destroy();
+            // 次の演出を呼び出す
             this.startFusionIntro();
         }, [], this);
     }
@@ -1205,8 +1236,15 @@ export default class CommonBossScene extends Phaser.Scene {
         }
     }
     
-     // updateBossSize メソッドも修正
-     updateBossSize(bossInstance, textureKey, widthRatio) {
+         // CommonBossScene.js 内
+
+    /**
+     * ボスオブジェクトの表示スケール、物理ボディサイズ、オフセットを更新する
+     * @param {Phaser.Physics.Arcade.Image} bossInstance 更新対象のボスオブジェクト
+     * @param {string} textureKey 使用するテクスチャキー（ログ・確認用）
+     * @param {number} widthRatio 画面幅に対するボスの目標表示幅の割合
+     */
+    updateBossSize(bossInstance, textureKey, widthRatio) {
         // テクスチャとソースの存在チェックを強化
         if (!bossInstance || !bossInstance.texture || !bossInstance.texture.key || bossInstance.texture.key === '__MISSING' || !bossInstance.texture.source || !bossInstance.texture.source[0]?.width) {
             console.warn(`[updateBossSize] Invalid bossInstance or texture not ready for key: ${textureKey}. Cannot update size.`);
@@ -1217,32 +1255,93 @@ export default class CommonBossScene extends Phaser.Scene {
             }
             return;
         }
+
         const originalWidth = bossInstance.texture.source[0].width;
         const targetBossWidth = this.gameWidth * widthRatio;
         let desiredScale = (originalWidth > 0) ? targetBossWidth / originalWidth : 1; // ゼロ除算防止
+
         if (!Number.isFinite(desiredScale)) { // 計算結果が不正な場合
             console.error(`[updateBossSize] Invalid scale calculation (NaN or Infinity) for ${textureKey}. Using default scale 1.`);
             desiredScale = 1;
         }
-        desiredScale = Phaser.Math.Clamp(desiredScale, 0.05, 2.0);
+        desiredScale = Phaser.Math.Clamp(desiredScale, 0.05, 2.0); // 極端なスケールを防止
 
         try { // スケール設定
             bossInstance.setScale(desiredScale);
             console.log(`[updateBossSize] Set scale to ${desiredScale.toFixed(3)}`);
-            // ★★★ スケール設定直後の表示サイズを確認 ★★★
             console.log(`[updateBossSize] AFTER setScale - Display Size: ${bossInstance.displayWidth?.toFixed(1)}x${bossInstance.displayHeight?.toFixed(1)}`);
-            // ★★★-------------------------------------★★★
-        } catch(e) { console.error(`!!! ERROR setting scale in updateBossSize for ${textureKey}:`, e); }
-    
-        try { // ボディ更新
-            if (bossInstance.body) {
-                bossInstance.body.updateFromGameObject();
-                console.log(`[updateBossSize] Updated body from GameObject. New size: ${bossInstance.body.width.toFixed(0)}x${bossInstance.body.height.toFixed(0)}`);  }
-        } catch(e) { console.error(`!!! ERROR updating body in updateBossSize for ${textureKey}:`, e); }
 
-        console.log(`Boss (${textureKey}) size updated. Final Scale: ${bossInstance.scale.toFixed(3)}`);
+            // ★★★ スケール設定直後にボディサイズとオフセットも設定 ★★★
+            if (bossInstance.body) {
+                // 表示サイズに基づいて当たり判定サイズを計算 (例: 表示サイズの80% - この倍率を調整)
+                const hitboxWidthMultiplier = 0.8;
+                const hitboxHeightMultiplier = 0.8;
+                const hitboxWidth = bossInstance.displayWidth * hitboxWidthMultiplier;
+                const hitboxHeight = bossInstance.displayHeight * hitboxHeightMultiplier;
+
+                if (hitboxWidth > 1 && hitboxHeight > 1) { // サイズが有効かチェック
+                    bossInstance.body.setSize(hitboxWidth, hitboxHeight);
+
+                    // オフセット計算して中心を合わせる
+                    const offsetX = (bossInstance.displayWidth - hitboxWidth) / 2;
+                    const offsetY = (bossInstance.displayHeight - hitboxHeight) / 2;
+                    bossInstance.body.setOffset(offsetX, offsetY);
+
+                    console.log(`[updateBossSize] Set body size to: ${hitboxWidth.toFixed(0)}x${hitboxHeight.toFixed(0)} with offset (${offsetX.toFixed(1)}, ${offsetY.toFixed(1)})`);
+                } else {
+                    // フォールバック処理
+                    console.warn(`[updateBossSize] Calculated hitbox size zero or negative (${hitboxWidth.toFixed(1)}x${hitboxHeight.toFixed(1)}). Applying fallback.`);
+                    const fallbackSize = 10;
+                    bossInstance.body.setSize(fallbackSize, fallbackSize);
+                    // フォールバック時もオフセット計算
+                    const fallbackOffsetX = (bossInstance.displayWidth - fallbackSize) / 2;
+                    const fallbackOffsetY = (bossInstance.displayHeight - fallbackSize) / 2;
+                    bossInstance.body.setOffset(fallbackOffsetX, fallbackOffsetY);
+                }
+            } else {
+                console.warn("[updateBossSize] Boss body does not exist, cannot update body size/offset.");
+            }
+            // ★★★-----------------------------------------------★★★
+
+        } catch(e) { console.error(`!!! ERROR setting scale/body in updateBossSize for ${textureKey}:`, e); }
+
+        // メソッド全体の終了ログ (任意)
+        // console.log(`Boss (${textureKey}) size updated. Final Scale: ${bossInstance.scale.toFixed(3)}`);
     }
 
+        // CommonBossScene.js 内
+
+    /**
+     * 登場演出完了後、ボスの物理ボディを有効化し、最終的なサイズ/オフセットを適用する
+     * (左右合体演出の場合は、主にボディ有効化が目的。サイズ/オフセットは finalize... で復元される)
+     * (ズーム演出の場合は、updateBossSize を呼んで計算・適用する)
+     */
+    updateBossSizeAfterIntro() {
+        // このメソッドは主にズーム演出後に呼ばれることを想定していましたが、
+        // 左右合体演出では finalizeBossAppearanceAndStart で復元するため、
+        // こちらは主にボディの有効化確認と、念のためのサイズ更新と考えるのが良いでしょう。
+
+        if (!this.boss?.active) {
+             console.warn("[updateBossSizeAfterIntro] Boss inactive, cannot update size.");
+             return;
+        }
+        console.log("[updateBossSizeAfterIntro] Ensuring boss body is enabled and size is updated.");
+
+        // updateBossSize を呼び出して、現在の表示スケールに基づいた
+        // 正しい物理ボディサイズとオフセットが適用されるようにする
+        this.updateBossSize(this.boss, this.bossData.textureKey, this.bossData.widthRatio);
+
+        // ボディを有効化する（enableBody が呼ばれていれば不要かもしれないが念のため）
+        if (this.boss.body) {
+            if (!this.boss.body.enable) { // もし無効になっていたら有効化
+                console.warn("[updateBossSizeAfterIntro] Body was disabled, re-enabling.");
+                this.boss.body.enable = true;
+            }
+            console.log(`[updateBossSizeAfterIntro] Body enabled state: ${this.boss.body.enable}. Final Size check: ${this.boss.body.width.toFixed(0)}x${this.boss.body.height.toFixed(0)}`);
+        } else {
+             console.error("!!! ERROR: Boss body missing in updateBossSizeAfterIntro AFTER updateBossSize call !!!");
+        }
+    }
       
     applySpeedModifier(ball,type){if(!ball?.active||!ball.body)return;const mod=(type===POWERUP_TYPES.SHATORA)?BALL_SPEED_MODIFIERS[POWERUP_TYPES.SHATORA]:(type===POWERUP_TYPES.HAILA)?BALL_SPEED_MODIFIERS[POWERUP_TYPES.HAILA]:1.0;const cV=ball.body.velocity;const dir=cV.lengthSq()>0?cV.clone().normalize():new Phaser.Math.Vector2(0,-1);const nS=NORMAL_BALL_SPEED*mod;ball.setVelocity(dir.x*nS,dir.y*nS);}
     resetBallSpeed(ball){if(!ball?.active||!ball.body)return;const cV=ball.body.velocity;const dir=cV.lengthSq()>0?cV.clone().normalize():new Phaser.Math.Vector2(0,-1);ball.setVelocity(dir.x*NORMAL_BALL_SPEED,dir.y*NORMAL_BALL_SPEED);}
