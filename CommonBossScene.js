@@ -1112,7 +1112,7 @@ export default class CommonBossScene extends Phaser.Scene {
     // ★★★--------------------------------★★★
                         // setCircle後はupdateFromGameObjectが必要な場合があるが、
                         // setCircleが内部で呼ぶことも多い。必要ならコメント解除。
-                        ball.body.updateFromGameObject();
+                      //  ball.body.updateFromGameObject();
                         // console.log(`[Resize Ball] Updated Visual Size: ${newVisualDiameter.toFixed(1)}, Hitbox Radius: ${newHitboxRadius.toFixed(1)}`);
                     }
                 } catch (e) {
