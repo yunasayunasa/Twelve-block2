@@ -62,21 +62,27 @@ export default class Boss1Scene extends CommonBossScene {
         console.log("Boss1 Specific Data Initialized:", this.bossData);
     }
 
-    /**
-     * ボス1のオブジェクトを生成・初期化 (必須)
-     * CommonBossSceneの汎用生成メソッドを呼び出す
-     */
     createSpecificBoss() {
         console.log("--- Boss1Scene createSpecificBoss ---");
-        // Commonの汎用生成メソッドを呼び出し、this.bossData を使ってボスを生成・初期化
-        super.createSpecificBoss();
+        // ★ super を呼ぶ前後の this.boss の状態を確認
+        console.log("[Boss1Scene] Value of this.boss BEFORE calling super.createSpecificBoss:", this.boss);
+        super.createSpecificBoss(); // Commonの汎用生成メソッドを呼び出す
+        console.log("[Boss1Scene] Value of this.boss AFTER calling super.createSpecificBoss:", this.boss);
+        if (this.boss) {
+            console.log("[Boss1Scene] Boss body object AFTER super call:", this.boss.body);
+             console.log(`[Boss1Scene] Boss body enabled state AFTER super call: ${this.boss.body?.enable}`);
+        }
+        // ★------------------------------------------★
 
         if(this.boss) {
             console.log("Boss1 created successfully using CommonBossScene method.");
-            // ★重要★ UIに初期HPを反映させるイベントを発行 (createSpecificBossの最後に呼ぶ)
-            this.events.emit('updateBossHp', this.boss.getData('health'), this.boss.getData('maxHealth'));
+            // UIへのHP反映イベント発行
+             try {
+                 this.events.emit('updateBossHp', this.boss.getData('health'), this.boss.getData('maxHealth'));
+                 console.log("[Boss1Scene] Emitted updateBossHp event.");
+             } catch (e) { console.error("!!! Error emitting updateBossHp event:", e); }
         } else {
-            console.error("Boss1 could not be created!");
+            console.error("!!! Boss1 could not be created after calling super.createSpecificBoss !!!");
         }
     }
 

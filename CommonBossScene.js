@@ -312,14 +312,45 @@ export default class CommonBossScene extends Phaser.Scene {
         const bossX = this.gameWidth / 2;
         const bossY = this.gameHeight * 0.25;
 
-        this.boss = this.physics.add.image(bossX, bossY, this.bossData.textureKey || 'bossStand')
-            .setImmovable(true).setVisible(false).setAlpha(0);
-        this.boss.setData('health', this.bossData.health || COMMON_BOSS_MAX_HEALTH);
-        this.boss.setData('maxHealth', this.bossData.health || COMMON_BOSS_MAX_HEALTH);
-        this.boss.setData('isInvulnerable', false);
-        this.boss.setData('targetY', bossY);
-        this.updateBossSize(this.boss, this.bossData.textureKey || 'bossStand', this.bossData.widthRatio || 0.25);
-        this.boss.setData('targetScale', this.boss.scale);
+        try { // ★ オブジェクト生成を try-catch
+            console.log(`[CommonBossScene] Attempting physics.add.image with key: ${this.bossData.textureKey || 'bossStand'}`);
+            this.boss = this.physics.add.image(bossX, bossY, this.bossData.textureKey || 'bossStand')
+                .setImmovable(true).setVisible(false).setAlpha(0);
+
+            // ★★★ 生成直後の boss オブジェクトと body をログ出力 ★★★
+            console.log("[CommonBossScene] Boss object created (result of physics.add.image):", this.boss);
+            // bodyプロパティが存在するか、またそのenable状態も確認
+            console.log("[CommonBossScene] Boss body object:", this.boss.body);
+            if (!this.boss.body) {
+                 console.error("!!! CRITICAL: Physics body was NOT created for the boss !!!");
+            } else {
+                 console.log(`[CommonBossScene] Boss body enabled state: ${this.boss.body.enable}`);
+            }
+            // ★★★------------------------------------------★★★
+
+        } catch (e) {
+            console.error("!!! FATAL ERROR during physics.add.image for boss:", e);
+            this.boss = null; // エラー時は boss を null にしておく
+            return; // ボス生成失敗
+        }
+
+        // ボスオブジェクトが正常に生成された場合のみデータ設定に進む
+        if (this.boss) {
+            try { // ★ データ設定も try-catch
+                this.boss.setData('health', this.bossData.health || DEFAULT_BOSS_MAX_HEALTH);
+                this.boss.setData('maxHealth', this.bossData.health || DEFAULT_BOSS_MAX_HEALTH); // maxHealthも設定
+                this.boss.setData('isInvulnerable', false);
+                this.boss.setData('targetY', bossY);
+                console.log("[CommonBossScene] Boss data set (health, invulnerable, targetY).");
+            } catch(e) { console.error("!!! ERROR setting boss data:", e); }
+
+            try { // ★ サイズ更新も try-catch
+                this.updateBossSize(this.boss, this.bossData.textureKey || 'bossStand', this.bossData.widthRatio || 0.25);
+                // targetScaleはupdateBossSizeの後でないと正しい値が入らない
+                this.boss.setData('targetScale', this.boss.scale);
+                console.log("[CommonBossScene] Boss size updated and targetScale set.");
+            } catch(e) { console.error("!!! ERROR updating boss size / setting targetScale:", e); }
+        }
     }
 
     startSpecificBossMovement() {
@@ -479,68 +510,100 @@ export default class CommonBossScene extends Phaser.Scene {
         this.time.delayedCall(INTRO_FLASH_DURATION, this.startBossZoomIn, [], this);
     }
     startBossZoomIn() {
-        console.log("[Intro] === Entering startBossZoomIn ==="); // ★追加
-       // ★★★ ここから追加チェック ★★★
-       if (!this.boss.scene) {
-        console.error("!!! ERROR: this.boss has no scene property in startBossZoomIn! Not fully added to scene?");
-        return;
-    }
-    if (!this.boss.active) {
-        // activeでないのはおかしいが、もしそうなら警告
-        console.warn("!!! WARNING: this.boss is inactive in startBossZoomIn !!!");
-    }
-    // 基本的なプロパティが存在するか簡易チェック
-    if (typeof this.boss.x !== 'number' || typeof this.boss.y !== 'number' || typeof this.boss.alpha !== 'number' || typeof this.boss.scale !== 'number') {
-         console.error("!!! ERROR: Boss properties (x, y, alpha, scale) seem invalid before setting!");
-         return;
-    }
-    // ★★★ 追加チェックここまで ★★★
-
-    console.log("[Intro] Boss object exists. Visible:", this.boss.visible, "Active:", this.boss.active); // ★追加
-    this.playBossBgm(); // BGM再生開始
-    console.log("[Intro] playBossBgm called."); // ★追加
-
-    try { // ★ try-catch で囲む
-        this.boss.setPosition(this.gameWidth / 2, zoomInStartY);
-        console.log("[Intro] Boss position set."); // ★追加
-        this.boss.setScale(zoomInStartScale);
-        console.log("[Intro] Boss scale set."); // ★追加
-        this.boss.setAlpha(0);
-        console.log("[Intro] Boss alpha set."); // ★追加
-        this.boss.setVisible(true);
-        console.log("[Intro] Boss visibility set to true."); // ★追加
-    } catch(e) { console.error("!!! ERROR setting boss position/scale/alpha/visibility:", e); return; } // ★追加
-
-    if (this.boss.body) {
-         try { // ★ try-catch で囲む
-             this.boss.body.setSize(1,1); // 物理ボディを一時的に最小化
-             console.log("[Intro] Boss body size temporarily set to 1x1."); // ★追加
-         } catch(e) { console.error("!!! ERROR setting boss body size:", e); } // ★追加
-    } else {
-         console.warn("!!! WARNING: Boss body does not exist when trying to set size in startBossZoomIn !!!"); // ★追加
-    }
-
-    try { // ★ try-catch で囲む
-        this.sound.play(this.bossData.voiceAppear || AUDIO_KEYS.VOICE_BOSS_APPEAR);
-        console.log("[Intro] Boss appear voice played (or attempted)."); // ★追加
-        this.sound.play(AUDIO_KEYS.SE_BOSS_ZOOM);
-        console.log("[Intro] Boss zoom SE played (or attempted)."); // ★追加
-    } catch(e) { console.error("!!! ERROR playing intro sounds:", e); } // ★追加
-
-    console.log("[Intro] Preparing zoom tween..."); // ★追加
-    try { // ★ try-catch で囲む
-        this.tweens.add({
-            targets: this.boss, y: zoomInEndY, scale: zoomInEndScale, alpha: 1,
-            duration: ZOOM_IN_DURATION, ease: 'Quad.easeIn',
-            onComplete: () => {
-                console.log("[Intro] Zoom tween completed."); // ★追加
-                this.time.delayedCall(ZOOM_WAIT_DURATION, this.startBossQuickShrink, [], this);
+        console.log("[Intro] === Entering startBossZoomIn ===");
+        // ★★★ ボスオブジェクトの詳細な状態を出力 ★★★
+        console.log("[Intro] Checking this.boss object at start:", this.boss);
+        if (this.boss) {
+            // 存在する場合のみプロパティアクセス
+            console.log(`[Intro] Boss properties: x=${this.boss.x}, y=${this.boss.y}, scale=${this.boss.scale}, alpha=${this.boss.alpha}, visible=${this.boss.visible}, active=${this.boss.active}, scene=${this.boss.scene ? 'Exists' : 'null'}, body=${this.boss.body ? 'Exists' : 'null'}`);
+            if(this.boss.body) {
+                 console.log(`[Intro] Boss body enabled: ${this.boss.body.enable}`);
             }
-        });
-        console.log("[Intro] Zoom tween added successfully."); // ★追加
-    } catch (e) { console.error("!!! ERROR adding zoom tween:", e); } // ★追加
-    console.log("[Intro] === Exiting startBossZoomIn ==="); // ★追加
-}
+        } else {
+             // boss が null または undefined の場合
+             console.error("!!! ERROR: this.boss is null or undefined at start of startBossZoomIn !!!");
+             return; // 処理中断
+        }
+        // ★★★--------------------------------------★★★
+
+        // シーンが存在しない場合もエラー
+        if (!this.boss.scene) { console.error("!!! ERROR: this.boss has no scene property!"); return; }
+
+        this.playBossBgm();
+        console.log("[Intro] playBossBgm called.");
+
+        const zoomInStartY = this.gameHeight * 0.8;
+        const zoomInStartScale = 0.05;
+        const baseWidthForScale = (this.boss.width > 0 && this.boss.scaleX !== 0) ? (this.boss.width / this.boss.scaleX) : (this.gameWidth * (this.bossData.widthRatio || 0.25)); // ゼロ除算防止強化
+        const zoomInEndScale = Math.min(5, this.gameWidth / baseWidthForScale * 1.5);
+        const zoomInEndY = this.gameHeight / 2;
+        console.log(`[Intro] Zoom params: StartY=${zoomInStartY}, StartScale=${zoomInStartScale}, EndScale=${zoomInEndScale}, EndY=${zoomInEndY}`);
+
+        // ★★★ エラー箇所を特定するため、try-catch を細分化 ★★★
+        let errorOccurred = false;
+        try {
+            console.log("[Intro] Attempting setPosition...");
+            this.boss.setPosition(this.gameWidth / 2, zoomInStartY);
+            console.log("[Intro] setPosition OK."); // ★成功ログ
+        } catch(e) { console.error("!!! ERROR during setPosition:", e); errorOccurred = true; }
+
+        if (!errorOccurred) try {
+            console.log("[Intro] Attempting setScale...");
+            this.boss.setScale(zoomInStartScale);
+            console.log("[Intro] setScale OK."); // ★成功ログ
+        } catch(e) { console.error("!!! ERROR during setScale:", e); errorOccurred = true; }
+
+        if (!errorOccurred) try {
+            console.log("[Intro] Attempting setAlpha...");
+            this.boss.setAlpha(0);
+            console.log("[Intro] setAlpha OK."); // ★成功ログ
+        } catch(e) { console.error("!!! ERROR during setAlpha:", e); errorOccurred = true; }
+
+        if (!errorOccurred) try {
+            console.log("[Intro] Attempting setVisible...");
+            this.boss.setVisible(true);
+            console.log("[Intro] setVisible OK."); // ★成功ログ
+            console.log("[Intro] Position/Scale/Alpha/Visibility calls completed.");
+        } catch(e) { console.error("!!! ERROR during setVisible:", e); errorOccurred = true; }
+        // ★★★----------------------------------------------★★★
+
+        // 以降の処理はエラーが発生していなければ続行
+        if (errorOccurred) {
+            console.error("!!! Aborting further actions in startBossZoomIn due to previous errors !!!");
+            return;
+        }
+
+        // ... (物理ボディ設定、サウンド再生、Tween作成 - 前回のログ追加版のまま) ...
+        if (this.boss.body) {
+            try { this.boss.body.setSize(1,1); console.log("[Intro] Boss body size temporarily set.");}
+            catch(e) { console.error("!!! ERROR setting boss body size:", e); }
+        } else console.warn("!!! WARNING: Boss body does not exist in startBossZoomIn !!!");
+
+        try { this.sound.play(this.bossData.voiceAppear || AUDIO_KEYS.VOICE_BOSS_APPEAR); console.log("[Intro] Appear voice played.");}
+        catch(e) { console.error("!!! ERROR playing appear voice:", e); }
+        try { this.sound.play(AUDIO_KEYS.SE_BOSS_ZOOM); console.log("[Intro] Zoom SE played.");}
+        catch(e) { console.error("!!! ERROR playing zoom SE:", e); }
+
+
+        console.log("[Intro] Preparing zoom tween...");
+        try {
+            this.tweens.add({
+                 targets: this.boss, y: zoomInEndY, scale: zoomInEndScale, alpha: 1,
+                 duration: ZOOM_IN_DURATION, ease: 'Quad.easeIn',
+                 onComplete: () => {
+                     console.log("[Intro] Zoom tween completed.");
+                     // ★ onComplete でもボスが存在するかチェック
+                     if (this.boss && this.boss.active) {
+                          this.time.delayedCall(ZOOM_WAIT_DURATION, this.startBossQuickShrink, [], this);
+                     } else {
+                          console.warn("[Intro] Boss became inactive before quick shrink could start.");
+                     }
+                 }
+             });
+            console.log("[Intro] Zoom tween added successfully.");
+        } catch (e) { console.error("!!! ERROR adding zoom tween:", e); }
+        console.log("[Intro] === Exiting startBossZoomIn ===");
+    }
     startBossQuickShrink() {
         if (!this.boss?.active) return; console.log("[Intro] Starting Boss Quick Shrink..."); this.sound.play(AUDIO_KEYS.SE_SHRINK); this.cameras.main.flash(SHRINK_FLASH_DURATION, 255, 255, 255);
         this.tweens.add({ targets: this.boss, x: this.gameWidth / 2, y: this.boss.getData('targetY'), scale: this.boss.getData('targetScale'), alpha: 1, duration: SHRINK_DURATION, ease: 'Expo.easeOut', onComplete: () => { this.sound.play(AUDIO_KEYS.SE_FIGHT_START); this.updateBossSizeAfterIntro(); this.time.delayedCall(GAMEPLAY_START_DELAY, this.startGameplay, [], this); } });
@@ -775,7 +838,46 @@ export default class CommonBossScene extends Phaser.Scene {
     keepFurthestBallAndClearOthers() { const aB=this.balls?.getMatching('active',true); if(!aB||aB.length===0)return null; if(aB.length===1)return aB[0]; let fB=aB[0],mDSq=-1;const pY=this.paddle?.y??this.gameHeight;aB.forEach(b=>{const dSq=Phaser.Math.Distance.Squared(b.x,b.y,this.paddle?.x??this.gameWidth/2,pY);if(dSq>mDSq){mDSq=dSq;fB=b;}});aB.forEach(b=>{if(b!==fB)b.destroy();});return fB; }
     updatePaddleSize() { if(!this.paddle)return; const nW=this.gameWidth*(this.paddle.getData('originalWidthRatio')||PADDLE_WIDTH_RATIO); this.paddle.setDisplaySize(nW,PADDLE_HEIGHT); const hW=this.paddle.displayWidth/2; this.paddle.x=Phaser.Math.Clamp(this.paddle.x,hW,this.gameWidth-hW); if(this.paddle.body)this.paddle.body.updateFromGameObject(); }
     clampPaddleYPosition() { if(!this.paddle)return; const pHH=this.paddle.displayHeight/2; const dSH=this.gameHeight*0.05; const mY=this.gameHeight-pHH-dSH; const maY=this.gameHeight*0.75; const tY=this.gameHeight*(1-PADDLE_Y_OFFSET_RATIO); this.paddle.y=Phaser.Math.Clamp(tY,maY,mY); if(this.paddle.body)this.paddle.body.updateFromGameObject(); }
-    updateBossSize(bossInstance, textureKey, widthRatio) { if(!bossInstance?.texture?.source[0]?.width){ if(bossInstance)bossInstance.setDisplaySize(this.gameWidth*0.2,this.gameWidth*0.2);return;} const oW=bossInstance.texture.source[0].width; const tBW=this.gameWidth*widthRatio; let dS=tBW/oW; dS=Phaser.Math.Clamp(dS,0.05,2.0); bossInstance.setScale(dS); if(bossInstance.body)bossInstance.body.updateFromGameObject(); console.log(`Boss (${textureKey}) size updated. Scale: ${dS.toFixed(2)}`); }
+    
+     // updateBossSize メソッドも修正
+     updateBossSize(bossInstance, textureKey, widthRatio) {
+        // テクスチャとソースの存在チェックを強化
+        if (!bossInstance || !bossInstance.texture || !bossInstance.texture.key || bossInstance.texture.key === '__MISSING' || !bossInstance.texture.source || !bossInstance.texture.source[0]?.width) {
+            console.warn(`[updateBossSize] Invalid bossInstance or texture not ready for key: ${textureKey}. Cannot update size.`);
+            if (bossInstance) { // フォールバック
+                const fallbackSize = this.gameWidth * 0.2;
+                try { bossInstance.setDisplaySize(fallbackSize, fallbackSize); } catch(e) { console.error("Error setting fallback display size:", e); }
+                console.log("[updateBossSize] Applied fallback display size.");
+            }
+            return;
+        }
+        const originalWidth = bossInstance.texture.source[0].width;
+        const targetBossWidth = this.gameWidth * widthRatio;
+        let desiredScale = (originalWidth > 0) ? targetBossWidth / originalWidth : 1; // ゼロ除算防止
+        if (!Number.isFinite(desiredScale)) { // 計算結果が不正な場合
+            console.error(`[updateBossSize] Invalid scale calculation (NaN or Infinity) for ${textureKey}. Using default scale 1.`);
+            desiredScale = 1;
+        }
+        desiredScale = Phaser.Math.Clamp(desiredScale, 0.05, 2.0);
+
+        try { // スケール設定
+            bossInstance.setScale(desiredScale);
+            console.log(`[updateBossSize] Set scale to ${desiredScale.toFixed(3)}`);
+        } catch(e) { console.error(`!!! ERROR setting scale in updateBossSize for ${textureKey}:`, e); }
+
+        try { // ボディ更新
+            if (bossInstance.body) {
+                // ボディが存在するか確認してから更新
+                bossInstance.body.updateFromGameObject();
+                console.log("[updateBossSize] Updated body from GameObject.");
+            } else {
+                 console.warn("[updateBossSize] Boss body does not exist, cannot update.");
+            }
+        } catch(e) { console.error(`!!! ERROR updating body in updateBossSize for ${textureKey}:`, e); }
+
+        console.log(`Boss (${textureKey}) size updated. Final Scale: ${bossInstance.scale.toFixed(3)}`);
+    }
+
     updateBossSizeAfterIntro() { if(!this.boss?.active)return; this.updateBossSize(this.boss,this.bossData.textureKey,this.bossData.widthRatio); if(this.boss.body){this.boss.body.enable=true;this.boss.body.updateFromGameObject();} }
     applySpeedModifier(ball,type){if(!ball?.active||!ball.body)return;const mod=(type===POWERUP_TYPES.SHATORA)?BALL_SPEED_MODIFIERS[POWERUP_TYPES.SHATORA]:(type===POWERUP_TYPES.HAILA)?BALL_SPEED_MODIFIERS[POWERUP_TYPES.HAILA]:1.0;const cV=ball.body.velocity;const dir=cV.lengthSq()>0?cV.clone().normalize():new Phaser.Math.Vector2(0,-1);const nS=NORMAL_BALL_SPEED*mod;ball.setVelocity(dir.x*nS,dir.y*nS);}
     resetBallSpeed(ball){if(!ball?.active||!ball.body)return;const cV=ball.body.velocity;const dir=cV.lengthSq()>0?cV.clone().normalize():new Phaser.Math.Vector2(0,-1);ball.setVelocity(dir.x*NORMAL_BALL_SPEED,dir.y*NORMAL_BALL_SPEED);}
