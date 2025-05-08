@@ -460,7 +460,7 @@ export default class CommonBossScene extends Phaser.Scene {
         // ★★★ 物理ワールドの上端境界を調整 ★★★
         // 計算済みの画面上部マージン (this.topMargin) を使うか、固定ピクセル値を使う
         // this.topMargin は calculateDynamicMargins で計算されている想定
-        const physicsTopBoundY = this.topMargin > 10 ? this.topMargin : 50; // 例: マージンがあればそれを、なければ最低20px確保
+        const physicsTopBoundY = this.topMargin > 10 ? this.topMargin : 100; // 例: マージンがあればそれを、なければ最低20px確保
         // setBounds(x, y, width, height)
         this.physics.world.setBounds(
             0,                     // X座標の開始は0
@@ -994,7 +994,7 @@ export default class CommonBossScene extends Phaser.Scene {
 
         // 2. ★ 当たり判定の半径を計算 (見た目より大きくする) ★
         //    この倍率を調整して当たり判定の大きさを変えます (例: 1.0なら見た目と同じ)
-        const hitboxRadiusMultiplier = 3.0; // <--- この値を調整 (例: 1.2, 1.8, 2.0 など)
+        const hitboxRadiusMultiplier = 4.0; // <--- この値を調整 (例: 1.2, 1.8, 2.0 など)
         const hitboxRadius = visualRadius * hitboxRadiusMultiplier;
 
         console.log(`[Create Ball] Visual Radius: ${visualRadius.toFixed(1)}, Hitbox Radius: ${hitboxRadius.toFixed(1)} (Multiplier: ${hitboxRadiusMultiplier})`);
