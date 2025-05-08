@@ -746,7 +746,7 @@ export default class CommonBossScene extends Phaser.Scene {
         if (this.boss && this.balls) this.ballBossCollider = this.physics.add.collider(this.boss, this.balls, this.hitBoss, (b, ball) => !b.getData('isInvulnerable'), this);
         if (this.paddle && this.powerUps) this.paddlePowerUpOverlap = this.physics.add.overlap(this.paddle, this.powerUps, this.collectPowerUp, null, this);
         if (this.paddle && this.attackBricks) this.paddleAttackBrickCollider = this.physics.add.collider(this.paddle, this.attackBricks, this.handlePaddleHitByAttackBrick, null, this);
-        if (this.makiraBeams && this.boss) this.makiraBeamBossOverlap = this.physics.add.overlap(this.makiraBeams, this.boss, this.hitBossWithMakiraBeam, (beam, b) => !b.getData('isInvulnerable'), this);
+      //  if (this.makiraBeams && this.boss) this.makiraBeamBossOverlap = this.physics.add.overlap(this.makiraBeams, this.boss, this.hitBossWithMakiraBeam, (beam, b) => !b.getData('isInvulnerable'), this);
 
         let needsCollider = false, needsOverlap = false;
         this.balls?.getMatching('active', true).forEach(ball => {
