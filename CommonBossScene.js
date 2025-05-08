@@ -642,7 +642,7 @@ export default class CommonBossScene extends Phaser.Scene {
         // --- サウンド再生 ---
         this.playBossBgm();
         try { this.sound.play(this.bossData.voiceAppear || AUDIO_KEYS.VOICE_BOSS_APPEAR); } catch(e) { console.error("!!! ERROR playing appear voice:", e); }
-        try { this.sound.play(AUDIO_KEYS.SE_BOSS_ZOOM); } catch(e) { console.error("!!! ERROR playing zoom SE:", e); }
+        //try { this.sound.play(AUDIO_KEYS.SE_BOSS_ZOOM); } catch(e) { console.error("!!! ERROR playing zoom SE:", e); }
 
 
         // --- 見た目だけを動かすTween ---
