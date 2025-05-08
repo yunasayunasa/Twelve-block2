@@ -68,7 +68,7 @@ this.load.image('bossNegative', 'assets/bossNegative.png'); // ボス撃墜、�
         this.load.audio(AUDIO_KEYS.SE_CUTSCENE_START, 'assets/se_cutscene_start.mp3');
         this.load.audio(AUDIO_KEYS.SE_IMPACT_FLASH, 'assets/se_impact_flash.mp3');
         this.load.audio(AUDIO_KEYS.VOICE_BOSS_APPEAR, 'assets/voice_boss_appear.mp3');
-        this.load.audio(AUDIO_KEYS.SE_BOSS_ZOOM, 'assets/se_boss_zoom.mp3');
+       // this.load.audio(AUDIO_KEYS.SE_BOSS_ZOOM, 'assets/se_boss_zoom.mp3');
         this.load.audio(AUDIO_KEYS.SE_SHRINK, 'assets/se_shrink.mp3');
         this.load.audio(AUDIO_KEYS.SE_FIGHT_START, 'assets/se_fight_start.mp3');
         this.load.audio(AUDIO_KEYS.VOICE_BOSS_DAMAGE, 'assets/voice_boss_damage.mp3');

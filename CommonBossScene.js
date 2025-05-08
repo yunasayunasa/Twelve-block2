@@ -604,10 +604,96 @@ export default class CommonBossScene extends Phaser.Scene {
         } catch (e) { console.error("!!! ERROR adding zoom tween:", e); }
         console.log("[Intro] === Exiting startBossZoomIn ===");
     }
-    startBossQuickShrink() {
-        if (!this.boss?.active) return; console.log("[Intro] Starting Boss Quick Shrink..."); this.sound.play(AUDIO_KEYS.SE_SHRINK); this.cameras.main.flash(SHRINK_FLASH_DURATION, 255, 255, 255);
-        this.tweens.add({ targets: this.boss, x: this.gameWidth / 2, y: this.boss.getData('targetY'), scale: this.boss.getData('targetScale'), alpha: 1, duration: SHRINK_DURATION, ease: 'Expo.easeOut', onComplete: () => { this.sound.play(AUDIO_KEYS.SE_FIGHT_START); this.updateBossSizeAfterIntro(); this.time.delayedCall(GAMEPLAY_START_DELAY, this.startGameplay, [], this); } });
-    }
+        // CommonBossScene.js 内の startBossQuickShrink メソッド
+        startBossQuickShrink() {
+            // ★★★ メソッド開始ログとボス状態チェック ★★★
+            console.log("[Intro] === Entering startBossQuickShrink ===");
+            if (!this.boss || !this.boss.active) {
+                console.error("!!! ERROR: Boss object missing or inactive at start of startBossQuickShrink!");
+                // 必要ならここで処理を中断
+                // return;
+            } else {
+                 console.log("[Intro][Shrink] Boss object seems valid.");
+            }
+            // ★★★-------------------------------------★★★
+    
+            const shrinkDuration = SHRINK_DURATION;
+            const targetX = this.gameWidth / 2;
+            const targetY = this.boss?.getData('targetY'); // Optional chaining で安全に
+            const targetScale = this.boss?.getData('targetScale'); // Optional chaining
+    
+            // ★ targetY や targetScale が取得できなかった場合のフォールバック
+            if (targetY === undefined || targetY === null) {
+                console.warn("!!! WARNING: targetY not found in boss data! Using default.");
+                // targetY = this.gameHeight * 0.25; // デフォルト値など
+            }
+            if (targetScale === undefined || targetScale === null) {
+                console.warn("!!! WARNING: targetScale not found in boss data! Using current scale or default.");
+                // targetScale = this.boss?.scale ?? 0.2; // 現在のスケールかデフォルト値
+            }
+            console.log(`[Intro][Shrink] Target Pos: (${targetX}, ${targetY}), Target Scale: ${targetScale}`); // ★ 目標値ログ
+    
+            // --- 各処理を try-catch で囲む ---
+            let errorOccurred = false;
+            try {
+                console.log("[Intro][Shrink] Attempting to play shrink SE...");
+                this.sound.play(AUDIO_KEYS.SE_SHRINK);
+                console.log("[Intro][Shrink] Shrink SE played (or attempted).");
+            } catch(e) { console.error("!!! ERROR playing shrink SE:", e); errorOccurred = true; }
+    
+            if (!errorOccurred && this.boss?.active) try { // ボスが存在する場合のみTween
+                console.log("[Intro][Shrink] Attempting to add shrink tween...");
+                this.tweens.add({
+                    targets: this.boss,
+                    x: targetX,
+                    y: targetY, // targetY が null でないことを確認
+                    scale: targetScale, // targetScale が null でないことを確認
+                    alpha: 1, // 念のためalphaも1に
+                    duration: shrinkDuration,
+                    ease: 'Expo.easeOut',
+                    onComplete: () => {
+                        console.log("[Intro][Shrink] Shrink tween completed."); // ★ Tween完了ログ
+                        // ★ onComplete内でもボスが存在するかチェック ★
+                        if (this.boss && this.boss.active) {
+                             try {
+                                 console.log("[Intro][Shrink] Attempting completion flash...");
+                                 this.cameras.main.flash(SHRINK_FLASH_DURATION, 255, 255, 255);
+                                 console.log("[Intro][Shrink] Completion flash OK.");
+                             } catch(e) { console.error("!!! ERROR during shrink completion flash:", e); }
+    
+                             try {
+                                  console.log("[Intro][Shrink] Attempting fight start SE...");
+                                  this.sound.play(AUDIO_KEYS.SE_FIGHT_START);
+                                  console.log("[Intro][Shrink] Fight start SE OK.");
+                             } catch (e) { console.error("!!! ERROR playing fight start SE:", e); }
+    
+                             try {
+                                  console.log("[Intro][Shrink] Attempting updateBossSizeAfterIntro...");
+                                  this.updateBossSizeAfterIntro();
+                                  console.log("[Intro][Shrink] updateBossSizeAfterIntro OK.");
+                             } catch(e) { console.error("!!! ERROR during updateBossSizeAfterIntro:", e); }
+    
+                             try {
+                                  console.log("[Intro][Shrink] Attempting delayed call to startGameplay...");
+                                  this.time.delayedCall(GAMEPLAY_START_DELAY, this.startGameplay, [], this);
+                                  console.log("[Intro][Shrink] startGameplay scheduled.");
+                             } catch(e) { console.error("!!! ERROR scheduling startGameplay:", e); }
+                        } else {
+                             console.warn("[Intro][Shrink] Boss became inactive before tween completion actions.");
+                        }
+                    } // onComplete end
+                }); // tween end
+                console.log("[Intro][Shrink] Shrink tween added successfully.");
+            } catch (e) {
+                 console.error("!!! ERROR adding shrink tween:", e);
+                 errorOccurred = true;
+            } else if (!this.boss?.active) {
+                 console.warn("[Intro][Shrink] Skipping tween because boss is inactive.");
+                 errorOccurred = true; // Tweenが実行されなかったのでエラー扱いにする
+            }
+    
+            console.log("[Intro] === Exiting startBossQuickShrink === Error Occurred:", errorOccurred); // ★ 終了ログ
+        }
     startGameplay() {
         console.log("[Intro] Enabling player control. Boss fight start!"); this.playerControlEnabled = true;
         if (this.boss?.body) this.boss.body.enable = true; this.startSpecificBossMovement(); this.startRandomVoiceTimer();
