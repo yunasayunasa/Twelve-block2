@@ -91,6 +91,8 @@ export default class CommonBossScene extends Phaser.Scene {
         this.lastDamageVoiceTime = 0;
         this.bossVoiceKeys = [];
         this.startIntroPending = false; // ★ 登場演出開始待ちフラグを追加
+        this.originalBodySize = { width: 0, height: 0 }; // ★ ボディサイズ保存用
+        this.originalBodyOffset = { x: 0, y: 0 };   // ★ ボディオフセット保存用
 
         // --- 攻撃ブロック関連 ---
         this.attackBricks = null;
@@ -312,52 +314,81 @@ export default class CommonBossScene extends Phaser.Scene {
         this.bossVoiceKeys = this.bossData.voiceRandom;
     }
 
-    createSpecificBoss() {
-        console.warn(`CommonBossScene: createSpecificBoss() not implemented in ${this.scene.key}. Creating generic boss.`);
-        if (this.boss) this.boss.destroy();
+      /**
+     * ボスオブジェクトを生成・初期化し、初期の物理ボディ情報を保存する
+     * (createSpecificBoss 自体は CommonBossScene にあり、
+     *  Boss1Scene などで super.createSpecificBoss() を呼ぶか、
+     *  完全にオーバーライドしてこの内容を参考に実装する)
+     */
+      createSpecificBoss() {
+        // このメソッドは CommonBossScene にありますが、
+        // 継承先 (例: Boss1Scene) で super.createSpecificBoss() として
+        // 呼び出されるか、または継承先で完全にオーバーライドされます。
+        // ここでは、継承先で super を呼んだ場合の動作を示します。
+        console.warn(`CommonBossScene: createSpecificBoss() called. Ensure derived scene sets bossData first.`);
+        if (this.boss) this.boss.destroy(); // 念のため既存を破棄
+
         const bossX = this.gameWidth / 2;
-        const bossY = this.gameHeight * 0.25;
+        const bossY = this.gameHeight * 0.25; // 基準Y座標
+        const textureKey = this.bossData.textureKey || 'bossStand'; // bossDataから取得
 
-        try { // ★ オブジェクト生成を try-catch
-            console.log(`[CommonBossScene] Attempting physics.add.image with key: ${this.bossData.textureKey || 'bossStand'}`);
-            this.boss = this.physics.add.image(bossX, bossY, this.bossData.textureKey || 'bossStand')
-                .setImmovable(true).setVisible(false).setAlpha(0);
+        try {
+            console.log(`[CommonBossScene] Attempting physics.add.image with key: ${textureKey}`);
+            this.boss = this.physics.add.image(bossX, bossY, textureKey)
+                .setImmovable(true)
+                .setVisible(false) // 最初は見えない
+                .setAlpha(0);
 
-            // ★★★ 生成直後の boss オブジェクトと body をログ出力 ★★★
-            console.log("[CommonBossScene] Boss object created (result of physics.add.image):", this.boss);
-            // bodyプロパティが存在するか、またそのenable状態も確認
+            console.log("[CommonBossScene] Boss object created:", this.boss);
             console.log("[CommonBossScene] Boss body object:", this.boss.body);
             if (!this.boss.body) {
                  console.error("!!! CRITICAL: Physics body was NOT created for the boss !!!");
             } else {
                  console.log(`[CommonBossScene] Boss body enabled state: ${this.boss.body.enable}`);
             }
-            // ★★★------------------------------------------★★★
 
         } catch (e) {
             console.error("!!! FATAL ERROR during physics.add.image for boss:", e);
-            this.boss = null; // エラー時は boss を null にしておく
+            this.boss = null;
             return; // ボス生成失敗
         }
 
-        // ボスオブジェクトが正常に生成された場合のみデータ設定に進む
         if (this.boss) {
-            try { // ★ データ設定も try-catch
+            try {
                 this.boss.setData('health', this.bossData.health || DEFAULT_BOSS_MAX_HEALTH);
-                this.boss.setData('maxHealth', this.bossData.health || DEFAULT_BOSS_MAX_HEALTH); // maxHealthも設定
+                this.boss.setData('maxHealth', this.bossData.health || DEFAULT_BOSS_MAX_HEALTH);
                 this.boss.setData('isInvulnerable', false);
                 this.boss.setData('targetY', bossY);
-                console.log("[CommonBossScene] Boss data set (health, invulnerable, targetY).");
+                console.log("[CommonBossScene] Boss data set.");
             } catch(e) { console.error("!!! ERROR setting boss data:", e); }
 
-            try { // ★ サイズ更新も try-catch
-                this.updateBossSize(this.boss, this.bossData.textureKey || 'bossStand', this.bossData.widthRatio || 0.25);
-                // targetScaleはupdateBossSizeの後でないと正しい値が入らない
+            try {
+                // 初期サイズとオフセットを設定 (updateBossSize内でsetSize/setOffsetも実行)
+                this.updateBossSize(this.boss, textureKey, this.bossData.widthRatio || 0.25);
+
+                // ★★★ 初期状態のボディ情報を保存 ★★★
+                if (this.boss.body) {
+                    this.originalBodySize.width = this.boss.body.width;
+                    this.originalBodySize.height = this.boss.body.height;
+                    this.originalBodyOffset.x = this.boss.body.offset.x;
+                    this.originalBodyOffset.y = this.boss.body.offset.y;
+                    console.log(`[CreateBoss] Stored original body - Size: ${this.originalBodySize.width.toFixed(0)}x${this.originalBodySize.height.toFixed(0)}, Offset: (${this.originalBodyOffset.x.toFixed(1)}, ${this.originalBodyOffset.y.toFixed(1)})`);
+                } else {
+                     console.error("!!! Cannot store original body info: Boss body missing after updateBossSize!");
+                }
+                // ★★★-----------------------------★★★
+
+                // 最終的なターゲットスケールも保存
                 this.boss.setData('targetScale', this.boss.scale);
                 console.log("[CommonBossScene] Boss size updated and targetScale set.");
-            } catch(e) { console.error("!!! ERROR updating boss size / setting targetScale:", e); }
+
+                // UI更新イベント発行 (継承先で行う方が良い場合もある)
+                // this.events.emit('updateBossHp', this.boss.getData('health'), this.boss.getData('maxHealth'));
+
+            } catch(e) { console.error("!!! ERROR during initial boss size update / data storage:", e); }
         }
     }
+
 
     startSpecificBossMovement() {
         console.warn(`CommonBossScene: startSpecificBossMovement() not implemented in ${this.scene.key}. Starting generic movement.`);
@@ -559,199 +590,167 @@ export default class CommonBossScene extends Phaser.Scene {
         this.sound.play(AUDIO_KEYS.SE_IMPACT_FLASH); this.cameras.main.flash(INTRO_FLASH_DURATION, 255, 255, 255);
         this.time.delayedCall(INTRO_FLASH_DURATION, this.startBossZoomIn, [], this);
     }
-    startBossZoomIn() {
+      /**
+     * ボスの登場演出：ズームイン（見た目のみ）
+     * 物理ボディを無効化し、Tweenで見た目を変化させる
+     */
+      startBossZoomIn() {
         console.log("[Intro] === Entering startBossZoomIn ===");
-        // ★★★ ボスオブジェクトの詳細な状態を出力 ★★★
-        console.log("[Intro] Checking this.boss object at start:", this.boss);
-        if (this.boss) {
-            // 存在する場合のみプロパティアクセス
-            console.log(`[Intro] Boss properties: x=${this.boss.x}, y=${this.boss.y}, scale=${this.boss.scale}, alpha=${this.boss.alpha}, visible=${this.boss.visible}, active=${this.boss.active}, scene=${this.boss.scene ? 'Exists' : 'null'}, body=${this.boss.body ? 'Exists' : 'null'}`);
-            if(this.boss.body) {
-                 console.log(`[Intro] Boss body enabled: ${this.boss.body.enable}`);
-            }
-        } else {
-             // boss が null または undefined の場合
-             console.error("!!! ERROR: this.boss is null or undefined at start of startBossZoomIn !!!");
-             return; // 処理中断
+        if (!this.boss || !this.boss.active) {
+            console.error("!!! ERROR: Boss object missing or inactive at start of startBossZoomIn!");
+            return;
         }
-        // ★★★--------------------------------------★★★
+        console.log("[Intro] Checking this.boss object at start:", this.boss);
+        console.log(`[Intro] Boss properties: x=${this.boss.x}, y=${this.boss.y}, scale=${this.boss.scale}, alpha=${this.boss.alpha}, visible=${this.boss.visible}, active=${this.boss.active}, scene=${this.boss.scene ? 'Exists' : 'null'}, body=${this.boss.body ? 'Exists' : 'null'}`);
+        if(this.boss.body) {
+             console.log(`[Intro] Boss body enabled: ${this.boss.body.enable}`);
+        }
 
-        // シーンが存在しない場合もエラー
-        if (!this.boss.scene) { console.error("!!! ERROR: this.boss has no scene property!"); return; }
+        // --- 物理ボディを無効化 ---
+        if (this.boss.body) {
+            // ボディ情報を再確認・保存
+            this.originalBodySize.width = this.boss.body.width;
+            this.originalBodySize.height = this.boss.body.height;
+            this.originalBodyOffset.x = this.boss.body.offset.x;
+            this.originalBodyOffset.y = this.boss.body.offset.y;
+             console.log(`[Intro] Storing body info before disable - Size: ${this.originalBodySize.width}x${this.originalBodySize.height}, Offset: (${this.originalBodyOffset.x}, ${this.originalBodyOffset.y})`);
 
-        this.playBossBgm();
-        console.log("[Intro] playBossBgm called.");
+            try {
+                this.boss.disableBody(true, false); // ボディ無効化、GameObjectは残す
+                console.log(`[Intro] Boss physics body disabled. Current enabled state: ${this.boss.body.enable}`);
+            } catch(e) { console.error("!!! ERROR disabling boss body:", e); }
+        } else {
+             console.warn("!!! WARNING: Boss body missing, cannot disable for zoom !!!");
+        }
 
+        // --- 見た目の初期設定 ---
         const zoomInStartY = this.gameHeight * 0.8;
         const zoomInStartScale = 0.05;
-        const baseWidthForScale = (this.boss.width > 0 && this.boss.scaleX !== 0) ? (this.boss.width / this.boss.scaleX) : (this.gameWidth * (this.bossData.widthRatio || 0.25)); // ゼロ除算防止強化
-        const zoomInEndScale = Math.min(25, this.gameWidth / baseWidthForScale * 6.5);
+        const baseWidthForScale = (this.boss.width > 0 && this.boss.scaleX !== 0) ? (this.boss.width / this.boss.scaleX) : (this.gameWidth * (this.bossData.widthRatio || 0.25));
+        const zoomInEndScale = Math.min(8, this.gameWidth / baseWidthForScale * 2.0); // 最大8倍、画面幅の2倍程度まで拡大（調整可能）
         const zoomInEndY = this.gameHeight / 2;
         console.log(`[Intro] Zoom params: StartY=${zoomInStartY}, StartScale=${zoomInStartScale}, EndScale=${zoomInEndScale}, EndY=${zoomInEndY}`);
 
-        // ★★★ エラー箇所を特定するため、try-catch を細分化 ★★★
-        let errorOccurred = false;
         try {
-            console.log("[Intro] Attempting setPosition...");
             this.boss.setPosition(this.gameWidth / 2, zoomInStartY);
-            console.log("[Intro] setPosition OK."); // ★成功ログ
-        } catch(e) { console.error("!!! ERROR during setPosition:", e); errorOccurred = true; }
-
-        if (!errorOccurred) try {
-            console.log("[Intro] Attempting setScale...");
-            this.boss.setScale(zoomInStartScale);
-            console.log("[Intro] setScale OK."); // ★成功ログ
-        } catch(e) { console.error("!!! ERROR during setScale:", e); errorOccurred = true; }
-
-        if (!errorOccurred) try {
-            console.log("[Intro] Attempting setAlpha...");
+            this.boss.setScale(zoomInStartScale); // 見た目のスケールだけ小さく
             this.boss.setAlpha(0);
-            console.log("[Intro] setAlpha OK."); // ★成功ログ
-        } catch(e) { console.error("!!! ERROR during setAlpha:", e); errorOccurred = true; }
-
-        if (!errorOccurred) try {
-            console.log("[Intro] Attempting setVisible...");
             this.boss.setVisible(true);
-            console.log("[Intro] setVisible OK."); // ★成功ログ
-            console.log("[Intro] Position/Scale/Alpha/Visibility calls completed.");
-        } catch(e) { console.error("!!! ERROR during setVisible:", e); errorOccurred = true; }
-        // ★★★----------------------------------------------★★★
+            console.log("[Intro] Visual properties set for zoom start.");
+        } catch(e) { console.error("!!! ERROR setting visual properties for zoom:", e); return; }
 
-        // 以降の処理はエラーが発生していなければ続行
-        if (errorOccurred) {
-            console.error("!!! Aborting further actions in startBossZoomIn due to previous errors !!!");
-            return;
-        }
-
-        // ... (物理ボディ設定、サウンド再生、Tween作成 - 前回のログ追加版のまま) ...
-        if (this.boss.body) {
-            try { this.boss.body.setSize(1,1); console.log("[Intro] Boss body size temporarily set.");}
-            catch(e) { console.error("!!! ERROR setting boss body size:", e); }
-        } else console.warn("!!! WARNING: Boss body does not exist in startBossZoomIn !!!");
-
-        try { this.sound.play(this.bossData.voiceAppear || AUDIO_KEYS.VOICE_BOSS_APPEAR); console.log("[Intro] Appear voice played.");}
-        catch(e) { console.error("!!! ERROR playing appear voice:", e); }
-        //try { this.sound.play(AUDIO_KEYS.SE_BOSS_ZOOM); console.log("[Intro] Zoom SE played.");}
-        //catch(e) { console.error("!!! ERROR playing zoom SE:", e); }
+        // --- サウンド再生 ---
+        this.playBossBgm();
+        try { this.sound.play(this.bossData.voiceAppear || AUDIO_KEYS.VOICE_BOSS_APPEAR); } catch(e) { console.error("!!! ERROR playing appear voice:", e); }
+        try { this.sound.play(AUDIO_KEYS.SE_BOSS_ZOOM); } catch(e) { console.error("!!! ERROR playing zoom SE:", e); }
 
 
-        console.log("[Intro] Preparing zoom tween...");
+        // --- 見た目だけを動かすTween ---
+        console.log("[Intro] Preparing visual zoom tween...");
         try {
             this.tweens.add({
-                 targets: this.boss, y: zoomInEndY, scale: zoomInEndScale, alpha: 1,
-                 duration: ZOOM_IN_DURATION, ease: 'Quad.easeIn',
-                 onComplete: () => {
-                     console.log("[Intro] Zoom tween completed.");
-                     // ★ onComplete でもボスが存在するかチェック
-                     if (this.boss && this.boss.active) {
-                          this.time.delayedCall(ZOOM_WAIT_DURATION, this.startBossQuickShrink, [], this);
-                     } else {
-                          console.warn("[Intro] Boss became inactive before quick shrink could start.");
-                     }
-                 }
-             });
-            console.log("[Intro] Zoom tween added successfully.");
-        } catch (e) { console.error("!!! ERROR adding zoom tween:", e); }
+                targets: this.boss,
+                y: zoomInEndY,
+                scale: zoomInEndScale, // 見た目のスケールを変更
+                alpha: 1,
+                duration: ZOOM_IN_DURATION,
+                ease: 'Quad.easeIn',
+                onComplete: () => {
+                    console.log("[Intro] Visual zoom tween completed.");
+                    // ボディは無効なまま QuickShrink へ
+                    this.time.delayedCall(ZOOM_WAIT_DURATION, this.startBossQuickShrink, [], this);
+                }
+            });
+            console.log("[Intro] Visual zoom tween added.");
+        } catch (e) { console.error("!!! ERROR adding visual zoom tween:", e); }
         console.log("[Intro] === Exiting startBossZoomIn ===");
     }
-        // CommonBossScene.js 内の startBossQuickShrink メソッド
-        startBossQuickShrink() {
-            // ★★★ メソッド開始ログとボス状態チェック ★★★
-            console.log("[Intro] === Entering startBossQuickShrink ===");
-            if (!this.boss || !this.boss.active) {
-                console.error("!!! ERROR: Boss object missing or inactive at start of startBossQuickShrink!");
-                // 必要ならここで処理を中断
-                // return;
-            } else {
-                 console.log("[Intro][Shrink] Boss object seems valid.");
-            }
-            // ★★★-------------------------------------★★★
-    
-            const shrinkDuration = SHRINK_DURATION;
-            const targetX = this.gameWidth / 2;
-            const targetY = this.boss?.getData('targetY'); // Optional chaining で安全に
-            const targetScale = this.boss?.getData('targetScale'); // Optional chaining
-    
-            // ★ targetY や targetScale が取得できなかった場合のフォールバック
-            if (targetY === undefined || targetY === null) {
-                console.warn("!!! WARNING: targetY not found in boss data! Using default.");
-                // targetY = this.gameHeight * 0.25; // デフォルト値など
-            }
-            if (targetScale === undefined || targetScale === null) {
-                console.warn("!!! WARNING: targetScale not found in boss data! Using current scale or default.");
-                // targetScale = this.boss?.scale ?? 0.2; // 現在のスケールかデフォルト値
-            }
-            console.log(`[Intro][Shrink] Target Pos: (${targetX}, ${targetY}), Target Scale: ${targetScale}`); // ★ 目標値ログ
-    
-            // --- 各処理を try-catch で囲む ---
-            let errorOccurred = false;
-            try {
-                console.log("[Intro][Shrink] Attempting to play shrink SE...");
-                this.sound.play(AUDIO_KEYS.SE_SHRINK);
-                console.log("[Intro][Shrink] Shrink SE played (or attempted).");
-            } catch(e) { console.error("!!! ERROR playing shrink SE:", e); errorOccurred = true; }
-    
-            if (!errorOccurred && this.boss?.active) try { // ボスが存在する場合のみTween
-                console.log("[Intro][Shrink] Attempting to add shrink tween...");
-                this.tweens.add({
-                    targets: this.boss,
-                    x: targetX,
-                    y: targetY, // targetY が null でないことを確認
-                    scale: targetScale, // targetScale が null でないことを確認
-                    alpha: 1, // 念のためalphaも1に
-                    duration: shrinkDuration,
-                    ease: 'Expo.easeOut',
-                    onComplete: () => {
-                        console.log("[Intro][Shrink] Shrink tween completed."); // ★ Tween完了ログ
-                        // ★ onComplete内でもボスが存在するかチェック ★
-                        if (this.boss && this.boss.active) {
-                             try {
-                                 console.log("[Intro][Shrink] Attempting completion flash...");
-                                 this.cameras.main.flash(SHRINK_FLASH_DURATION, 255, 255, 255);
-                                 console.log("[Intro][Shrink] Completion flash OK.");
-                             } catch(e) { console.error("!!! ERROR during shrink completion flash:", e); }
-    
-                            // try {
-                                //  console.log("[Intro][Shrink] Attempting fight start SE...");
-                                //  this.sound.play(AUDIO_KEYS.SE_FIGHT_START);
-                                 // console.log("[Intro][Shrink] Fight start SE OK.");
-                         //    } catch (e) { console.error("!!! ERROR playing fight start SE:", e); }
-    
-                             try {
-                                  console.log("[Intro][Shrink] updateBossSizeAfterIntro OK.");
-                                  this.updateBossSizeAfterIntro(); // <--- このメソッド呼び出しを確認！
-                    console.log("[Intro][Shrink] updateBossSizeAfterIntro OK.");
-                    // 元に戻った後のボディサイズを確認
-                    if(this.boss.body){
-                        console.log(`[Intro][Shrink] Boss body size AFTER restore: ${this.boss.body.width.toFixed(0)}x${this.boss.body.height.toFixed(0)}`);
-                    } else {
-                        console.warn("[Intro][Shrink] Boss body missing AFTER restore attempt!");
-                    }
-                             } catch(e) { console.error("!!! ERROR during updateBossSizeAfterIntro:", e); }
-
-                             
-    
-                             try {
-                                  console.log("[Intro][Shrink] Attempting delayed call to startGameplay...");
-                                  this.time.delayedCall(GAMEPLAY_START_DELAY, this.startGameplay, [], this);
-                                  console.log("[Intro][Shrink] startGameplay scheduled.");
-                             } catch(e) { console.error("!!! ERROR scheduling startGameplay:", e); }
-                        } else {
-                             console.warn("[Intro][Shrink] Boss became inactive before tween completion actions.");
-                        }
-                    } // onComplete end
-                }); // tween end
-                console.log("[Intro][Shrink] Shrink tween added successfully.");
-            } catch (e) {
-                 console.error("!!! ERROR adding shrink tween:", e);
-                 errorOccurred = true;
-            } else if (!this.boss?.active) {
-                 console.warn("[Intro][Shrink] Skipping tween because boss is inactive.");
-                 errorOccurred = true; // Tweenが実行されなかったのでエラー扱いにする
-            }
-    
-            console.log("[Intro] === Exiting startBossQuickShrink === Error Occurred:", errorOccurred); // ★ 終了ログ
+         /**
+     * ボスの登場演出：ドアップから定位置へ瞬間縮小（見た目のみ）
+     * Tween完了後に物理ボディを復元・有効化する
+     */
+    startBossQuickShrink() {
+        console.log("[Intro] === Entering startBossQuickShrink ===");
+        if (!this.boss || !this.boss.active) {
+            console.error("!!! ERROR: Boss object missing or inactive at start of startBossQuickShrink!");
+            return;
+        } else {
+             console.log("[Intro][Shrink] Boss object seems valid.");
         }
+
+        const shrinkDuration = SHRINK_DURATION;
+        const targetX = this.gameWidth / 2;
+        const targetY = this.boss.getData('targetY');
+        const targetScale = this.boss.getData('targetScale'); // 保存しておいた戦闘時のスケール
+
+        if (targetY === undefined || targetY === null || targetScale === undefined || targetScale === null) {
+            console.error("!!! ERROR: targetY or targetScale not found in boss data! Cannot perform shrink.");
+            // 緊急停止またはデフォルト値での復元などを検討
+            // this.updateBossSizeAfterIntro(); // 強制的にデフォルトサイズに戻すなど
+            return;
+        }
+        console.log(`[Intro][Shrink] Target Pos: (${targetX}, ${targetY}), Target Scale: ${targetScale}`);
+
+        // --- SE再生 ---
+        try {
+            this.sound.play(AUDIO_KEYS.SE_SHRINK);
+            console.log("[Intro][Shrink] Shrink SE played (or attempted).");
+        } catch(e) { console.error("!!! ERROR playing shrink SE:", e); }
+
+
+        // --- 見た目だけを戻すTween ---
+        console.log("[Intro][Shrink] Attempting to add visual shrink tween...");
+        try {
+            this.tweens.add({
+                targets: this.boss,
+                x: targetX,
+                y: targetY,
+                scale: targetScale, // 見た目を戦闘時のスケールに戻す
+                alpha: 1,
+                duration: shrinkDuration,
+                ease: 'Expo.easeOut',
+                onComplete: () => {
+                    console.log("[Intro][Shrink] Visual shrink tween completed.");
+                    if (this.boss && this.boss.active) {
+                        // ★★★ 物理ボディを再有効化し、サイズ/オフセットを復元 ★★★
+                        try {
+                            console.log("[Intro][Shrink] Attempting to re-enable and restore physics body...");
+                            if (this.boss.body) {
+                                // 1. ボディを有効化し、位置を合わせる
+                                // enableBody(reset, x, y, enableGameObject, showGameObject)
+                                this.boss.enableBody(true, targetX, targetY, true, true);
+                                console.log(`[Intro][Shrink] Body enabled. Current enabled state: ${this.boss.body.enable}`);
+
+                                // 2. 保存しておいたサイズとオフセットで再設定
+                                if (this.originalBodySize.width > 0 && this.originalBodySize.height > 0) {
+                                    this.boss.body.setSize(this.originalBodySize.width, this.originalBodySize.height);
+                                    this.boss.body.setOffset(this.originalBodyOffset.x, this.originalBodyOffset.y);
+                                    console.log(`[Intro][Shrink] Body restored. Size: ${this.boss.body.width.toFixed(0)}x${this.boss.body.height.toFixed(0)}, Offset: (${this.boss.body.offset.x.toFixed(1)}, ${this.boss.body.offset.y.toFixed(1)})`);
+                                } else {
+                                     console.warn("[Intro][Shrink] Original body size invalid, attempting to recalculate with updateBossSize.");
+                                     this.updateBossSize(this.boss, this.bossData.textureKey, this.bossData.widthRatio); // サイズ/オフセット再計算
+                                     console.log(`[Intro][Shrink] Body recalculated. Size: ${this.boss.body.width.toFixed(0)}x${this.boss.body.height.toFixed(0)}, Offset: (${this.boss.body.offset.x.toFixed(1)}, ${this.boss.body.offset.y.toFixed(1)})`);
+                                }
+                            } else {
+                                console.error("!!! ERROR: Boss body missing when trying to re-enable!");
+                            }
+                        } catch(e) { console.error("!!! ERROR re-enabling/restoring physics body:", e); }
+                        // ★★★---------------------------------------------------★★★
+
+                        // --- 残りの処理 (フラッシュ、SE、ゲーム開始) ---
+                        try { this.cameras.main.flash(SHRINK_FLASH_DURATION, 255, 255, 255); } catch(e) { console.error("!!! ERROR during shrink completion flash:", e); }
+                        try { this.sound.play(AUDIO_KEYS.SE_FIGHT_START); } catch (e) { console.error("!!! ERROR playing fight start SE:", e); }
+                        try { this.time.delayedCall(GAMEPLAY_START_DELAY, this.startGameplay, [], this); } catch(e) { console.error("!!! ERROR scheduling startGameplay:", e); }
+
+                    } else { console.warn("[Intro][Shrink] Boss inactive before tween completion actions."); }
+                } // onComplete end
+            }); // tween end
+            console.log("[Intro][Shrink] Visual shrink tween added.");
+        } catch (e) { console.error("!!! ERROR adding visual shrink tween:", e); }
+
+        console.log("[Intro] === Exiting startBossQuickShrink ===");
+    }
+
     startGameplay() {
         console.log("[Intro] Enabling player control. Boss fight start!"); this.playerControlEnabled = true;
         if (this.boss?.body) this.boss.body.enable = true; this.startSpecificBossMovement(); this.startRandomVoiceTimer();
@@ -1232,64 +1231,15 @@ export default class CommonBossScene extends Phaser.Scene {
 
        // CommonBossScene.js の updateBossSizeAfterIntro メソッド
        updateBossSizeAfterIntro() {
-        if (!this.boss?.active) {
-             console.warn("[updateBossSizeAfterIntro] Boss inactive, cannot update size.");
+        if (!this.boss?.body) {
+             console.error("!!! ERROR: Boss body missing in updateBossSizeAfterIntro !!!");
              return;
         }
-        console.log("[updateBossSizeAfterIntro] Updating boss size using final data.");
-        // スケール等を更新する updateBossSize を先に呼ぶ
-        this.updateBossSize(this.boss, this.bossData.textureKey, this.bossData.widthRatio);
-
-        if (this.boss.body) {
-            this.boss.body.enable = true; // ボディを有効化
-
-            console.log(`[updateBossSizeAfterIntro] BEFORE size set - Display Size: ${this.boss.displayWidth?.toFixed(1)}x${this.boss.displayHeight?.toFixed(1)}`);
-
-            // ★★★ updateFromGameObject() の代わりに setSize で明示的に設定 ★★★
-            // 当たり判定のサイズを表示サイズに合わせるか、少し調整するか決める
-            // 例1: 表示サイズと同じにする
-            // const hitboxWidth = this.boss.displayWidth;
-            // const hitboxHeight = this.boss.displayHeight;
-            // 例2: 表示サイズの80%にする (少し小さめ)
-            const hitboxWidth = this.boss.displayWidth * 1.5;
-            const hitboxHeight = this.boss.displayHeight * 1.5;
-
-            // サイズが0より大きいことを確認
-            if (hitboxWidth > 1 && hitboxHeight > 1) {
-                try {
-                    // 1. ボディサイズを設定
-                    this.boss.body.setSize(hitboxWidth, hitboxHeight);
-
-                    // 2. ★★★ オフセットを再計算して設定 ★★★
-                    const offsetX = (this.boss.displayWidth - hitboxWidth) / 2;
-                    const offsetY = (this.boss.displayHeight - hitboxHeight) / 2;
-                    this.boss.body.setOffset(offsetX, offsetY);
-                    // ★★★---------------------------------★★★
-
-                    console.log(`[updateBossSizeAfterIntro] Explicitly set body size to: ${hitboxWidth.toFixed(0)}x${hitboxHeight.toFixed(0)} with offset (${offsetX.toFixed(1)}, ${offsetY.toFixed(1)})`);
-
-                } catch (e) { console.error("!!! ERROR setting body size/offset explicitly:", e); }
-           } else {
-                console.error(`!!! ERROR: Calculated hitbox size is zero or negative (${hitboxWidth.toFixed(1)}x${hitboxHeight.toFixed(1)})! Applying fallback.`);
-                try {
-                    // フォールバック時もオフセットを考慮 (見た目の中心に小さな箱を置く)
-                    const fallbackSize = 10;
-                    this.boss.body.setSize(fallbackSize, fallbackSize);
-                    this.boss.body.setOffset(
-                        (this.boss.displayWidth - fallbackSize) / 2,
-                        (this.boss.displayHeight - fallbackSize) / 2
-                    );
-                    console.warn("[updateBossSizeAfterIntro] Applied fallback minimum body size (10x10) with offset.");
-                } catch(e) { console.error("!!! ERROR setting fallback body size/offset:", e); }
-           }
-           // ★★★----------------------------------------------------★★★
-            // updateFromGameObject() は実行しない
-            // this.boss.body.updateFromGameObject();
-
-            console.log(`[updateBossSizeAfterIntro] Body enabled. Final Size check: ${this.boss.body.width.toFixed(0)}x${this.boss.body.height.toFixed(0)}`);
-        } else {
-             console.error("!!! ERROR: Boss body missing in updateBossSizeAfterIntro !!!");
-        }
+         // ボディを有効化するだけ（念のため）
+         this.boss.body.enable = true;
+         // updateBossSize を呼ぶ必要はない（ズーム前に保存した情報で復元するため）
+         // this.updateBossSize(this.boss, this.bossData.textureKey, this.bossData.widthRatio);
+         console.log(`[updateBossSizeAfterIntro] Body already restored and enabled. Size: ${this.boss.body.width.toFixed(0)}x${this.boss.body.height.toFixed(0)}`);
     }
     applySpeedModifier(ball,type){if(!ball?.active||!ball.body)return;const mod=(type===POWERUP_TYPES.SHATORA)?BALL_SPEED_MODIFIERS[POWERUP_TYPES.SHATORA]:(type===POWERUP_TYPES.HAILA)?BALL_SPEED_MODIFIERS[POWERUP_TYPES.HAILA]:1.0;const cV=ball.body.velocity;const dir=cV.lengthSq()>0?cV.clone().normalize():new Phaser.Math.Vector2(0,-1);const nS=NORMAL_BALL_SPEED*mod;ball.setVelocity(dir.x*nS,dir.y*nS);}
     resetBallSpeed(ball){if(!ball?.active||!ball.body)return;const cV=ball.body.velocity;const dir=cV.lengthSq()>0?cV.clone().normalize():new Phaser.Math.Vector2(0,-1);ball.setVelocity(dir.x*NORMAL_BALL_SPEED,dir.y*NORMAL_BALL_SPEED);}
