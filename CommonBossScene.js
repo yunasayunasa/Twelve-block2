@@ -91,8 +91,8 @@ export default class CommonBossScene extends Phaser.Scene {
         this.lastDamageVoiceTime = 0;
         this.bossVoiceKeys = [];
      //   this.startIntroPending = false; // ★ 登場演出開始待ちフラグを追加
-        this.originalBodySize = { width: 0, height: 0 }; // ★ ボディサイズ保存用
-        this.originalBodyOffset = { x: 0, y: 0 };   // ★ ボディオフセット保存用
+      //  this.originalBodySize = { width: 0, height: 0 }; // ★ ボディサイズ保存用
+        //this.originalBodyOffset = { x: 0, y: 0 };   // ★ ボディオフセット保存用
 
         // --- 攻撃ブロック関連 ---
         this.attackBricks = null;
@@ -471,31 +471,35 @@ export default class CommonBossScene extends Phaser.Scene {
 
         console.log("[Intro Fusion] Finalizing boss appearance...");
         try {
-            // 本体を正しい位置・スケール・アルファで表示
+            // 見た目の設定
             this.boss.setPosition(this.gameWidth / 2, this.boss.getData('targetY'));
             this.boss.setScale(this.boss.getData('targetScale'));
             this.boss.setAlpha(1);
             this.boss.setVisible(true);
 
-            // 物理ボディを有効化し、保存/計算したサイズ・オフセットを適用
+            // ★ 物理ボディを有効化し、updateFromGameObject で見た目に合わせる ★
             if (this.boss.body) {
+                // 1. ボディを有効化し、位置を合わせる
                 this.boss.enableBody(true, this.boss.x, this.boss.y, true, true);
-                if (this.originalBodySize.width > 0 && this.originalBodySize.height > 0) {
-                    this.boss.body.setSize(this.originalBodySize.width, this.originalBodySize.height);
-                    this.boss.body.setOffset(this.originalBodyOffset.x, this.originalBodyOffset.y);
-                    console.log(`[Intro Fusion] Boss body re-enabled and restored. Size: ${this.boss.body.width}x${this.boss.body.height}`);
-                } else {
-                    // 保存情報がなければ再計算
-                    console.warn("[Intro Fusion] Original body info invalid, recalculating size/offset.");
-                    this.updateBossSize(this.boss, this.bossData.textureKey, this.bossData.widthRatio);
+                console.log(`[Intro Fusion] Body enabled. Current enabled state: ${this.boss.body.enable}`);
+
+                // 2. updateFromGameObject を呼び出してサイズとオフセットを同期
+                try {
+                    this.boss.body.updateFromGameObject();
+                    console.log(`[Intro Fusion] Body updated from GameObject. Size: ${this.boss.body.width.toFixed(0)}x${this.boss.body.height.toFixed(0)}, Offset: (${this.boss.body.offset.x.toFixed(1)}, ${this.boss.body.offset.y.toFixed(1)})`);
+                } catch (e) {
+                     console.error("!!! ERROR calling updateFromGameObject in finalize:", e);
+                     // エラー発生時のフォールバックとして updateBossSize を呼ぶ？
+                     // this.updateBossSize(this.boss, this.bossData.textureKey, this.bossData.widthRatio);
                 }
             } else { console.error("!!! ERROR: Boss body missing when finalizing appearance!"); }
+            // ★-------------------------------------------------------★
 
         } catch(e) { console.error("!!! ERROR finalizing boss appearance or enabling body:", e); }
 
         // --- 戦闘開始 ---
-        try { this.sound.play(AUDIO_KEYS.SE_FIGHT_START); } catch(e) { console.error("Error playing fight start SE:", e);}
-        this.time.delayedCall(GAMEPLAY_START_DELAY, this.startGameplay, [], this); // 少し遅れてゲームプレイ開始
+        try { this.sound.play(AUDIO_KEYS.SE_FIGHT_START); } catch(e) { /*...*/ }
+        this.time.delayedCall(GAMEPLAY_START_DELAY, this.startGameplay, [], this);
     }
 
 
@@ -540,32 +544,19 @@ export default class CommonBossScene extends Phaser.Scene {
      *  完全にオーバーライドしてこの内容を参考に実装する)
      */
       createSpecificBoss() {
-        // このメソッドは CommonBossScene にありますが、
-        // 継承先 (例: Boss1Scene) で super.createSpecificBoss() として
-        // 呼び出されるか、または継承先で完全にオーバーライドされます。
-        // ここでは、継承先で super を呼んだ場合の動作を示します。
         console.warn(`CommonBossScene: createSpecificBoss() called. Ensure derived scene sets bossData first.`);
-        if (this.boss) this.boss.destroy(); // 念のため既存を破棄
+        if (this.boss) this.boss.destroy();
 
         const bossX = this.gameWidth / 2;
-        const bossY = this.gameHeight * 0.25; // 基準Y座標
-        const textureKey = this.bossData.textureKey || 'bossStand'; // bossDataから取得
+        const bossY = this.gameHeight * 0.25;
+        const textureKey = this.bossData.textureKey || 'bossStand';
 
         try {
-            console.log(`[CommonBossScene] Attempting physics.add.image with key: ${textureKey}`);
             this.boss = this.physics.add.image(bossX, bossY, textureKey)
-                .setImmovable(true)
-                .setVisible(false) // 最初は見えない
-                .setAlpha(0);
-
+                .setImmovable(true).setVisible(false).setAlpha(0);
             console.log("[CommonBossScene] Boss object created:", this.boss);
             console.log("[CommonBossScene] Boss body object:", this.boss.body);
-            if (!this.boss.body) {
-                 console.error("!!! CRITICAL: Physics body was NOT created for the boss !!!");
-            } else {
-                 console.log(`[CommonBossScene] Boss body enabled state: ${this.boss.body.enable}`);
-            }
-
+            if (!this.boss.body) { console.error("!!! CRITICAL: Physics body was NOT created!"); }
         } catch (e) {
             console.error("!!! FATAL ERROR during physics.add.image for boss:", e);
             this.boss = null;
@@ -574,36 +565,20 @@ export default class CommonBossScene extends Phaser.Scene {
 
         if (this.boss) {
             try {
+                // データ設定
                 this.boss.setData('health', this.bossData.health || DEFAULT_BOSS_MAX_HEALTH);
                 this.boss.setData('maxHealth', this.bossData.health || DEFAULT_BOSS_MAX_HEALTH);
                 this.boss.setData('isInvulnerable', false);
                 this.boss.setData('targetY', bossY);
-                console.log("[CommonBossScene] Boss data set.");
+                console.log("[CommonBossScene] Boss data set."); 
             } catch(e) { console.error("!!! ERROR setting boss data:", e); }
 
             try {
-                // 初期サイズとオフセットを設定 (updateBossSize内でsetSize/setOffsetも実行)
+                // ★ updateBossSize を呼んで初期サイズ/オフセットを設定（見た目準拠）
                 this.updateBossSize(this.boss, textureKey, this.bossData.widthRatio || 0.25);
-
-                // ★★★ 初期状態のボディ情報を保存 ★★★
-                if (this.boss.body) {
-                    this.originalBodySize.width = this.boss.body.width;
-                    this.originalBodySize.height = this.boss.body.height;
-                    this.originalBodyOffset.x = this.boss.body.offset.x;
-                    this.originalBodyOffset.y = this.boss.body.offset.y;
-                    console.log(`[CreateBoss] Stored original body - Size: ${this.originalBodySize.width.toFixed(0)}x${this.originalBodySize.height.toFixed(0)}, Offset: (${this.originalBodyOffset.x.toFixed(1)}, ${this.originalBodyOffset.y.toFixed(1)})`);
-                } else {
-                     console.error("!!! Cannot store original body info: Boss body missing after updateBossSize!");
-                }
-                // ★★★-----------------------------★★★
-
-                // 最終的なターゲットスケールも保存
-                this.boss.setData('targetScale', this.boss.scale);
-                console.log("[CommonBossScene] Boss size updated and targetScale set.");
-
-                // UI更新イベント発行 (継承先で行う方が良い場合もある)
-                // this.events.emit('updateBossHp', this.boss.getData('health'), this.boss.getData('maxHealth'));
-
+                // ★ ボディ情報の保存は不要になったので削除
+                this.boss.setData('targetScale', this.boss.scale); // targetScaleは保存
+                console.log("[CommonBossScene] Boss initial size updated using updateBossSize.");
             } catch(e) { console.error("!!! ERROR during initial boss size update / data storage:", e); }
         }
     }
@@ -1258,57 +1233,26 @@ export default class CommonBossScene extends Phaser.Scene {
 
         const originalWidth = bossInstance.texture.source[0].width;
         const targetBossWidth = this.gameWidth * widthRatio;
-        let desiredScale = (originalWidth > 0) ? targetBossWidth / originalWidth : 1; // ゼロ除算防止
+        let desiredScale = (originalWidth > 0) ? targetBossWidth / originalWidth : 1;
+        desiredScale = Phaser.Math.Clamp(desiredScale, 0.05, 2.0);
 
-        if (!Number.isFinite(desiredScale)) { // 計算結果が不正な場合
-            console.error(`[updateBossSize] Invalid scale calculation (NaN or Infinity) for ${textureKey}. Using default scale 1.`);
-            desiredScale = 1;
-        }
-        desiredScale = Phaser.Math.Clamp(desiredScale, 0.05, 2.0); // 極端なスケールを防止
-
-        try { // スケール設定
-            bossInstance.setScale(desiredScale);
+        try {
+            bossInstance.setScale(desiredScale); // 見た目のスケールを設定
             console.log(`[updateBossSize] Set scale to ${desiredScale.toFixed(3)}`);
             console.log(`[updateBossSize] AFTER setScale - Display Size: ${bossInstance.displayWidth?.toFixed(1)}x${bossInstance.displayHeight?.toFixed(1)}`);
 
-            // ★★★ スケール設定直後にボディサイズとオフセットも設定 ★★★
+            // ★★★ 物理ボディを GameObject の見た目に合わせる ★★★
             if (bossInstance.body) {
-                // 表示サイズに基づいて当たり判定サイズを計算 (例: 表示サイズの80% - この倍率を調整)
-                const hitboxWidthMultiplier = 0.8;
-                const hitboxHeightMultiplier = 0.8;
-                const hitboxWidth = bossInstance.displayWidth * hitboxWidthMultiplier;
-                const hitboxHeight = bossInstance.displayHeight * hitboxHeightMultiplier;
-
-                if (hitboxWidth > 1 && hitboxHeight > 1) { // サイズが有効かチェック
-                    bossInstance.body.setSize(hitboxWidth, hitboxHeight);
-
-                    // オフセット計算して中心を合わせる
-                    const offsetX = (bossInstance.displayWidth - hitboxWidth) / 2;
-                    const offsetY = (bossInstance.displayHeight - hitboxHeight) / 2;
-                    bossInstance.body.setOffset(offsetX, offsetY);
-
-                    console.log(`[updateBossSize] Set body size to: ${hitboxWidth.toFixed(0)}x${hitboxHeight.toFixed(0)} with offset (${offsetX.toFixed(1)}, ${offsetY.toFixed(1)})`);
-                } else {
-                    // フォールバック処理
-                    console.warn(`[updateBossSize] Calculated hitbox size zero or negative (${hitboxWidth.toFixed(1)}x${hitboxHeight.toFixed(1)}). Applying fallback.`);
-                    const fallbackSize = 10;
-                    bossInstance.body.setSize(fallbackSize, fallbackSize);
-                    // フォールバック時もオフセット計算
-                    const fallbackOffsetX = (bossInstance.displayWidth - fallbackSize) / 2;
-                    const fallbackOffsetY = (bossInstance.displayHeight - fallbackSize) / 2;
-                    bossInstance.body.setOffset(fallbackOffsetX, fallbackOffsetY);
-                }
+                 // updateFromGameObject() を呼び出す
+                 bossInstance.body.updateFromGameObject();
+                 console.log(`[updateBossSize] Updated body from GameObject. Size: ${bossInstance.body.width.toFixed(0)}x${bossInstance.body.height.toFixed(0)}, Offset: (${bossInstance.body.offset.x.toFixed(1)}, ${bossInstance.body.offset.y.toFixed(1)})`);
             } else {
-                console.warn("[updateBossSize] Boss body does not exist, cannot update body size/offset.");
+                console.warn("[updateBossSize] Boss body does not exist, cannot update from GameObject.");
             }
-            // ★★★-----------------------------------------------★★★
+            // ★★★------------------------------------------★★★
 
-        } catch(e) { console.error(`!!! ERROR setting scale/body in updateBossSize for ${textureKey}:`, e); }
-
-        // メソッド全体の終了ログ (任意)
-        // console.log(`Boss (${textureKey}) size updated. Final Scale: ${bossInstance.scale.toFixed(3)}`);
+        } catch(e) { console.error(`!!! ERROR setting scale or updating body in updateBossSize for ${textureKey}:`, e); }
     }
-
         // CommonBossScene.js 内
 
     
