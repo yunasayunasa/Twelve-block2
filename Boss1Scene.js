@@ -30,7 +30,7 @@ export default class Boss1Scene extends CommonBossScene {
         const oldMoveDuration = 4000;  // 旧BossSceneの値
 
         this.bossData = {
-            health: 150,                     // HPを調整 (旧20 -> 150)
+            health: 10,                     // HPを調整 (旧20 -> 150)
             textureKey: 'bossStand',         // 旧BossSceneで使用していたテクスチャ
             negativeKey: 'bossNegative',     // 旧BossSceneで使用していたテクスチャ
             voiceAppear: AUDIO_KEYS.VOICE_BOSS_APPEAR, // 旧BossSceneで使用していたボイス
@@ -45,7 +45,7 @@ export default class Boss1Scene extends CommonBossScene {
             cutsceneText: 'VS アートマンHL',      // 旧BossSceneのカットシーンテキスト
 
             // --- ボスの見た目・動きに関するデータ ---
-            widthRatio: 0.24,                // 旧BossSceneのupdateBossSizeでの計算に近い値？ (要調整)
+            widthRatio: 0.20,                // 旧BossSceneのupdateBossSizeでの計算に近い値？ (要調整)
             moveRangeXRatio: oldMoveRangeRatio, // 旧BossSceneの移動範囲
             moveDuration: oldMoveDuration,     // 旧BossSceneの移動時間
 
