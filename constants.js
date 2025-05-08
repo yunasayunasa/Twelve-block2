@@ -9,7 +9,7 @@
 // --- サイズ・配置関連 (割合ベース) ---
 export const PADDLE_WIDTH_RATIO = 0.2;        // パドル幅 (画面幅比)
 export const PADDLE_Y_OFFSET_RATIO = 0.1;     // パドルY位置オフセット (画面下端からの高さ比)
-export const BALL_RADIUS_RATIO = 0.035;       // ボール半径 (画面幅比)
+export const BALL_RADIUS_RATIO = 0.05;       // ボール半径 (画面幅比)
 export const POWERUP_SIZE_RATIO = 0.08;       // パワーアップアイテムサイズ (画面幅比)
 export const MAKIRA_FAMILIAR_SIZE_RATIO = 0.025;// マキラ子機サイズ (画面幅比)
 export const MAKIRA_FAMILIAR_OFFSET_RATIO = 0.1; // パドルからの左右オフセット (画面幅比)

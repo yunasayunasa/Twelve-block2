@@ -460,7 +460,7 @@ export default class CommonBossScene extends Phaser.Scene {
         // ★★★ 物理ワールドの上端境界を調整 ★★★
         // 計算済みの画面上部マージン (this.topMargin) を使うか、固定ピクセル値を使う
         // this.topMargin は calculateDynamicMargins で計算されている想定
-        const physicsTopBoundY = this.topMargin > 10 ? this.topMargin : 20; // 例: マージンがあればそれを、なければ最低20px確保
+        const physicsTopBoundY = this.topMargin > 10 ? this.topMargin : 40; // 例: マージンがあればそれを、なければ最低20px確保
         // setBounds(x, y, width, height)
         this.physics.world.setBounds(
             0,                     // X座標の開始は0
