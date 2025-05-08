@@ -462,10 +462,22 @@ export default class CommonBossScene extends Phaser.Scene {
     }
     startBossZoomIn() {
         console.log("[Intro] === Entering startBossZoomIn ==="); // ★追加
-    if (!this.boss) {
-        console.error("!!! ERROR: this.boss is null or undefined at start of startBossZoomIn !!!"); // ★追加
+       // ★★★ ここから追加チェック ★★★
+       if (!this.boss.scene) {
+        console.error("!!! ERROR: this.boss has no scene property in startBossZoomIn! Not fully added to scene?");
         return;
     }
+    if (!this.boss.active) {
+        // activeでないのはおかしいが、もしそうなら警告
+        console.warn("!!! WARNING: this.boss is inactive in startBossZoomIn !!!");
+    }
+    // 基本的なプロパティが存在するか簡易チェック
+    if (typeof this.boss.x !== 'number' || typeof this.boss.y !== 'number' || typeof this.boss.alpha !== 'number' || typeof this.boss.scale !== 'number') {
+         console.error("!!! ERROR: Boss properties (x, y, alpha, scale) seem invalid before setting!");
+         return;
+    }
+    // ★★★ 追加チェックここまで ★★★
+
     console.log("[Intro] Boss object exists. Visible:", this.boss.visible, "Active:", this.boss.active); // ★追加
     this.playBossBgm(); // BGM再生開始
     console.log("[Intro] playBossBgm called."); // ★追加
@@ -703,7 +715,15 @@ export default class CommonBossScene extends Phaser.Scene {
     createAndAddBall(x, y, vx = 0, vy = 0, dataToCopy = null) {
         if (!this.balls) return null; const ballRadius = this.gameWidth * BALL_RADIUS_RATIO; const physicsRadius = ballRadius * 0.9;
         const ball = this.balls.create(x, y, 'ball_image').setOrigin(0.5).setDisplaySize(ballRadius*2, ballRadius*2).setCircle(physicsRadius).setCollideWorldBounds(true).setBounce(1);
-        if (ball.body) { ball.setVelocity(vx!==0 ? vx : Phaser.Math.Between(BALL_INITIAL_VELOCITY_X_RANGE[0]/2, BALL_INITIAL_VELOCITY_X_RANGE[1]/2), vy!==0 ? vy : BALL_INITIAL_VELOCITY_Y/1.5); ball.body.onWorldBounds = true; } else { if (ball) ball.destroy(); return null; }
+        if (ball.body) {
+            ball.setVelocity(vx, vy);
+            // ★★★ 確実に初期停止させる ★★★
+            if (vx === 0 && vy === 0 && !this.isBallLaunched) { // isBallLaunchedがfalseの時だけ初期停止
+                ball.body.stop();
+                console.log(`[createAndAddBall] Ball ${ball.name} explicitly stopped as initial ball.`);
+            }
+            // ★★★--------------------★★★
+            ball.body.onWorldBounds = true; } else { if (ball) ball.destroy(); return null; }
         ball.setData({ activePowers: dataToCopy?.activePowers ? new Set(dataToCopy.activePowers) : new Set(), lastActivatedPower: dataToCopy?.lastActivatedPower ?? null, isKubiraActive: dataToCopy?.isKubiraActive ?? false, isFast: dataToCopy?.isFast ?? false, isSlow: dataToCopy?.isSlow ?? false, isIndaraActive: dataToCopy?.isIndaraActive ?? false, isBikaraPenetrating: dataToCopy?.isBikaraPenetrating ?? false, isSindaraActive: false, isAnchiraActive: false, isMakoraActive: false });
         ball.name = `ball_${this.balls.getLength()}_${Phaser.Math.RND.uuid()}`; this.updateBallAppearance(ball); return ball;
     }
