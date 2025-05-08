@@ -333,7 +333,7 @@ export default class CommonBossScene extends Phaser.Scene {
         const textContent = this.bossData.cutsceneText || `VS BOSS ${this.currentBossIndex}`;
 
         // ★★★ calculateDynamicFontSize の最大値を調整 ★★★
-        const desiredMaxSize = 56; // ← ウィンドウ幅が広い時に最大でこのpxサイズになるように調整
+        const desiredMaxSize = 100; // ← ウィンドウ幅が広い時に最大でこのpxサイズになるように調整
         const fontSize = this.calculateDynamicFontSize(desiredMaxSize);
         // ★★★------------------------------------------★★★
 
