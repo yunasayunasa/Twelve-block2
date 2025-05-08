@@ -22,8 +22,8 @@ export const DROP_POOL_UI_ICON_SIZE_RATIO = 0.045;
 export const DROP_POOL_UI_SPACING_RATIO = 0.015;
 
 // --- ▼ UIマージン・フォントサイズ関連の定数 (UISceneで使用) ▼ ---
-export const UI_TOP_MARGIN_MIN = 10;
-export const UI_TOP_MARGIN_RATIO = 0.025;
+export const UI_TOP_MARGIN_MIN = 15;
+export const UI_TOP_MARGIN_RATIO = 0.04;
 export const UI_SIDE_MARGIN_MIN = 10;
 export const UI_SIDE_MARGIN_RATIO = 0.025;
 export const UI_FONT_SIZE_MIN = 12;
