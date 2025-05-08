@@ -345,6 +345,11 @@ export default class CommonBossScene extends Phaser.Scene {
             fontFamily: 'MyGameFont, sans-serif',
             align: 'center',
         };
+
+            // ★★★ スタイルオブジェクトとフォントサイズをログ出力 ★★★
+    console.log(`[Cutscene Text] Applying style:`, textStyle);
+    console.log(`[Cutscene Text] Applying fontSize: ${fontSize}px`);
+    // ★★★--------------------------------------------★★★
         const textY = bossImage.getBounds().bottom + this.gameHeight * 0.04;
         const vsText = this.add.text(this.gameWidth / 2, textY, textContent, textStyle)
             .setOrigin(0.5, 0).setDepth(902);
@@ -1277,7 +1282,23 @@ export default class CommonBossScene extends Phaser.Scene {
     updateAttackBricks(){this.attackBricks?.getChildren().forEach(b=>{if(b.active&&b.y>this.gameHeight+b.displayHeight)b.destroy();});}
     setupAfterImageEmitter(){if(this.bossAfterImageEmitter)this.bossAfterImageEmitter.destroy();if(!this.boss)return;this.bossAfterImageEmitter=this.add.particles(0,0,'whitePixel',{lifespan:{min:300,max:700},speed:0,scale:{start:this.boss.scale*0.7,end:0.1},alpha:{start:0.6,end:0},quantity:1,frequency:50,blendMode:'ADD',tint:[0xaaaaff,0xaaaaff,0xddddff],emitting:false});this.bossAfterImageEmitter.setDepth(this.boss.depth-1);}
     startRandomVoiceTimer(){if(this.randomVoiceTimer)this.randomVoiceTimer.remove();if(!this.bossVoiceKeys||this.bossVoiceKeys.length===0)return;const pRV=()=>{if(this.bossDefeated||this.isGameOver||!this.boss?.active){this.randomVoiceTimer?.remove();return;}this.sound.play(Phaser.Utils.Array.GetRandom(this.bossVoiceKeys));this.randomVoiceTimer=this.time.delayedCall(Phaser.Math.Between(BOSS_RANDOM_VOICE_MIN_DELAY,BOSS_RANDOM_VOICE_MAX_DELAY),pRV,[],this);};this.randomVoiceTimer=this.time.delayedCall(Phaser.Math.Between(BOSS_RANDOM_VOICE_MIN_DELAY/2,BOSS_RANDOM_VOICE_MAX_DELAY/2),pRV,[],this);}
-    calculateDynamicFontSize(baseSizeMax){const cS=Math.floor(this.gameWidth/(UI_FONT_SIZE_SCALE_DIVISOR||25));return Phaser.Math.Clamp(cS,UI_FONT_SIZE_MIN,baseSizeMax);}
+   // CommonBossScene.js に追加または修正
+calculateDynamicFontSize(baseSizeMax) {
+    const divisor = (UI_FONT_SIZE_SCALE_DIVISOR || 22); // constants.jsの値
+    const minSize = (UI_FONT_SIZE_MIN || 12); // constants.jsの値
+    // ★★★ 計算過程のログを追加 ★★★
+    console.log(`[Calc Font] Input - baseSizeMax: ${baseSizeMax}, gameWidth: ${this.gameWidth}, divisor: ${divisor}, minSize: ${minSize}`);
+    if (this.gameWidth === undefined || this.gameWidth <= 0) {
+        console.warn("[Calc Font] gameWidth is invalid! Using minSize.");
+        return minSize;
+    }
+    const calculatedSize = Math.floor(this.gameWidth / divisor);
+    console.log(`[Calc Font] Calculated size before clamp: ${calculatedSize}`);
+    const finalSize = Phaser.Math.Clamp(calculatedSize, minSize, baseSizeMax);
+    console.log(`[Calc Font] Final clamped size: ${finalSize}`);
+    // ★★★----------------------★★★
+    return finalSize;
+} 
     handlePointerMove(pointer){if(!this.playerControlEnabled||this.isGameOver||!this.paddle?.active)return;const tX=pointer.x;const hW=this.paddle.displayWidth/2;const cX=Phaser.Math.Clamp(tX,hW+this.sideMargin/2,this.gameWidth-hW-this.sideMargin/2);this.paddle.x=cX;if(!this.isBallLaunched&&this.balls?.countActive(true)>0)this.balls.getFirstAlive().x=cX;}
     handlePointerDown(){if(this.isGameOver&&this.gameOverText?.visible)this.returnToTitle();else if(this.bossDefeated&&this.gameClearText?.visible)this.returnToTitle();else if(this.playerControlEnabled&&this.lives>0&&!this.isBallLaunched&&this.balls?.countActive(true)>0)this.launchBall();}
     launchBall(){if(!this.balls?.countActive(true))return;const bTL=this.balls.getFirstAlive();if(bTL){bTL.setVelocity(Phaser.Math.Between(BALL_INITIAL_VELOCITY_X_RANGE[0],BALL_INITIAL_VELOCITY_X_RANGE[1]),BALL_INITIAL_VELOCITY_Y);this.isBallLaunched=true;this.sound.play(AUDIO_KEYS.SE_LAUNCH);}}
