@@ -225,12 +225,16 @@ export default class CommonBossScene extends Phaser.Scene {
         this.createGameClearText();
         this.setupInputAndEvents();
 
-        this.playerControlEnabled = false;
-        this.sound.stopAll();
-        this.stopBgm();
-        this.startIntroCutscene();
+        // 5. 登場演出開始 (少し遅延させる) <--- ★変更点
+        this.playerControlEnabled = false; // 操作不可に
+        this.isBallLaunched = false;     // ボール未発射状態に
+        this.sound.stopAll();           // サウンド停止
+        this.stopBgm();                 // BGM停止
 
-        console.log(`--- ${this.scene.key} CREATE End - Waiting for intro ---`);
+        // ★★★ 50ms 遅延させてから登場演出を開始 ★★★
+        this.time.delayedCall(50, this.startIntroCutscene, [], this);
+
+        console.log(`--- ${this.scene.key} CREATE End - Intro scheduled ---`); // ログ変更
     }
 
     update(time, delta) {
