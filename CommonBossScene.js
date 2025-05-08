@@ -137,6 +137,8 @@ export default class CommonBossScene extends Phaser.Scene {
         this.lastPlayedVoiceTime = {};
         this.voiceThrottleTime = 500;
 
+        this.dynamicBottomMargin = 0; // ★ 動的な下部マージン用プロパティ
+
         this.topMargin = 0;
         this.sideMargin = 0;
     }
@@ -212,6 +214,10 @@ export default class CommonBossScene extends Phaser.Scene {
         this.playerControlEnabled = false; // まず操作不可に
         this.isBallLaunched = false;     // ボール未発射状態
         // ★★★----------------------★★★
+
+        this.calculateDynamicBottomMargin(); // ★ create時にも計算
+        // ...
+        this.setupInputAndEvents(); // この中でリサイズリスナーが設定される
 
         this.createPaddle();
         this.createBalls();
@@ -396,6 +402,29 @@ export default class CommonBossScene extends Phaser.Scene {
         }
     }
     // --- ▲▲▲ プレースホルダーメソッド ▲▲▲ ---
+
+    // ★ 動的な下部マージンを計算するメソッド
+    calculateDynamicBottomMargin() {
+        // window.innerHeight は実際の表示領域の高さ
+        // this.scale.displaySize.height は Phaser が FIT モードで合わせているCanvasの表示上の高さ
+        const availableHeight = window.innerHeight;
+        const gameDisplayHeight = this.scale.displaySize.height;
+
+        if (gameDisplayHeight > availableHeight) {
+             // ゲームの表示高さが表示領域より大きい場合、差分をマージンとする
+             this.dynamicBottomMargin = gameDisplayHeight - availableHeight;
+             console.log(`[Dynamic Margin] Calculated bottom margin: ${this.dynamicBottomMargin.toFixed(0)}px`);
+        } else {
+             this.dynamicBottomMargin = 0; // はみ出てなければマージン不要
+        }
+         // セーフエリアも考慮に入れる場合 (より高度)
+         // const safeAreaBottom = parseInt(getComputedStyle(document.documentElement).getPropertyValue('--safe-area-inset-bottom') || '0');
+         // this.dynamicBottomMargin = Math.max(this.dynamicBottomMargin, safeAreaBottom);
+         // console.log(`[Dynamic Margin] Adjusted for safe area: ${this.dynamicBottomMargin.toFixed(0)}px`);
+
+         // ★★★ UIScene にマージン情報を伝える (イベント経由など) ★★★
+         this.events.emit('updateDynamicMargin', this.dynamicBottomMargin);
+    }
 
     // --- ▼ Create ヘルパーメソッド ▼ ---
     calculateDynamicMargins() {
@@ -958,7 +987,135 @@ export default class CommonBossScene extends Phaser.Scene {
     
     keepFurthestBallAndClearOthers() { const aB=this.balls?.getMatching('active',true); if(!aB||aB.length===0)return null; if(aB.length===1)return aB[0]; let fB=aB[0],mDSq=-1;const pY=this.paddle?.y??this.gameHeight;aB.forEach(b=>{const dSq=Phaser.Math.Distance.Squared(b.x,b.y,this.paddle?.x??this.gameWidth/2,pY);if(dSq>mDSq){mDSq=dSq;fB=b;}});aB.forEach(b=>{if(b!==fB)b.destroy();});return fB; }
     updatePaddleSize() { if(!this.paddle)return; const nW=this.gameWidth*(this.paddle.getData('originalWidthRatio')||PADDLE_WIDTH_RATIO); this.paddle.setDisplaySize(nW,PADDLE_HEIGHT); const hW=this.paddle.displayWidth/2; this.paddle.x=Phaser.Math.Clamp(this.paddle.x,hW,this.gameWidth-hW); if(this.paddle.body)this.paddle.body.updateFromGameObject(); }
-    clampPaddleYPosition() { if(!this.paddle)return; const pHH=this.paddle.displayHeight/2; const dSH=this.gameHeight*0.05; const mY=this.gameHeight-pHH-dSH; const maY=this.gameHeight*0.75; const tY=this.gameHeight*(1-PADDLE_Y_OFFSET_RATIO); this.paddle.y=Phaser.Math.Clamp(tY,maY,mY); if(this.paddle.body)this.paddle.body.updateFromGameObject(); }
+    clampPaddleYPosition() {
+        if (!this.paddle) return;
+        const paddleHalfHeight = this.paddle.displayHeight / 2;
+        // ★ dynamicBottomMargin を考慮に入れる ★
+        const minY = this.scale.height - paddleHalfHeight - this.dynamicBottomMargin - 5; // 5px程度の追加マージン
+        const maxY = this.gameHeight * 0.75; // 上限は変更なし (または調整)
+        const targetY = this.scale.height * (1 - PADDLE_Y_OFFSET_RATIO);
+        this.paddle.y = Phaser.Math.Clamp(targetY, maxY, minY);
+        if (this.paddle.body) this.paddle.body.updateFromGameObject();
+         console.log(`[Clamp Paddle Y] Clamped to ${this.paddle.y.toFixed(0)}, Bottom Margin: ${this.dynamicBottomMargin.toFixed(0)}`);
+    }
+
+        // CommonBossScene.js のクラス内に以下のメソッドを追加してください
+
+    /**
+     * 画面リサイズ時に呼び出されるメソッド
+     * @param {Phaser.Structs.Size} gameSize - 新しいゲームサイズオブジェクト (width, height を持つ)
+     */
+    handleResize(gameSize) {
+        // gameSize が渡されない場合 (Phaserのバージョンや呼び出し方による差異吸収)
+        if (!gameSize) {
+            gameSize = this.scale; // scaleオブジェクト自体がサイズ情報を持つことが多い
+        }
+
+        console.log(`${this.scene.key} resized to ${gameSize.width}x${gameSize.height}`);
+
+        // 内部の幅・高さを更新
+        this.gameWidth = gameSize.width;
+        this.gameHeight = gameSize.height;
+
+        // 動的なマージンを再計算 (左右、上部、そして下部隠れ対策)
+        this.calculateDynamicMargins(); // 左右・上部マージン用
+        this.calculateDynamicBottomMargin(); // 下部隠れ対策用マージン
+
+        // --- ゲーム内要素のサイズと位置を更新 ---
+
+        // 1. パドル
+        this.updatePaddleSize(); // 幅と物理ボディを更新、X座標をClamp
+        this.clampPaddleYPosition(); // Y座標をマージン考慮でClamp
+
+        // 2. ボス (存在し、アクティブなら)
+        if (this.boss?.active) {
+            this.updateBossSize(this.boss, this.bossData.textureKey, this.bossData.widthRatio);
+            // ボスの動きに関する再計算が必要な場合はここで行う
+            // (例: 移動範囲の再計算など。startSpecificBossMovementを再実行するなど)
+            // ただし、単純な左右移動なら startSpecificBossMovement 内で
+            // this.gameWidth を参照していれば自動的に範囲が変わる可能性あり。要確認。
+        }
+
+        // 3. ボール (表示サイズを更新)
+        this.balls?.getChildren().forEach(ball => {
+            if (ball.active) { // アクティブなボールのみ処理
+                const newBallRadius = this.gameWidth * BALL_RADIUS_RATIO;
+                try {
+                    ball.setDisplaySize(newBallRadius * 2, newBallRadius * 2);
+                    if (ball.body) {
+                        // 物理円のサイズも更新 (表示サイズの90%程度に)
+                        ball.setCircle(newBallRadius * 0.9);
+                        // setCircle後はupdateFromGameObjectが必要な場合がある
+                        ball.body.updateFromGameObject();
+                    }
+                } catch (e) {
+                    console.error("Error updating ball size/body on resize:", e);
+                }
+            }
+        });
+
+        // 4. パワーアップアイテム (表示サイズを更新)
+        this.powerUps?.getChildren().forEach(item => {
+            if (item.active) {
+                 try {
+                     item.setDisplaySize(this.gameWidth * POWERUP_SIZE_RATIO, this.gameWidth * POWERUP_SIZE_RATIO);
+                     if (item.body) item.body.updateFromGameObject(); // ボディも更新
+                 } catch (e) { console.error("Error updating powerup size on resize:", e); }
+            }
+        });
+
+        // 5. 攻撃ブロック (表示サイズを更新、必要なら)
+        this.attackBricks?.getChildren().forEach(brick => {
+            if (brick.active) {
+                try {
+                    // スケールは元のテクスチャサイズに依存するため、単純なsetDisplaySizeより
+                    // 再度スケール計算をする方が良い場合がある
+                    const desiredScale = (brick.width > 0) ? (this.gameWidth * (this.bossData?.attackBrickScaleRatio || DEFAULT_ATTACK_BRICK_SCALE_RATIO)) / brick.width : 1;
+                    brick.setScale(desiredScale);
+                    if (brick.body) brick.body.updateFromGameObject();
+                } catch (e) { console.error("Error updating attack brick size on resize:", e); }
+            }
+        });
+
+        // 6. マキラの子機とビーム (表示サイズを更新)
+        const familiarSize = this.gameWidth * MAKIRA_FAMILIAR_SIZE_RATIO;
+        this.familiars?.getChildren().forEach(fam => {
+            if(fam.active) {
+                try {
+                    fam.setDisplaySize(familiarSize, familiarSize);
+                    if(fam.body) fam.body.updateFromGameObject();
+                } catch(e) { console.error("Error updating familiar size on resize:", e); }
+            }
+        });
+        const beamWidth = this.gameWidth * MAKIRA_BEAM_WIDTH_RATIO;
+        const beamHeight = this.gameHeight * MAKIRA_BEAM_HEIGHT_RATIO;
+         this.makiraBeams?.getChildren().forEach(beam => {
+             if(beam.active) {
+                 try {
+                     beam.setDisplaySize(beamWidth, beamHeight);
+                     if(beam.body) beam.body.updateFromGameObject();
+                 } catch(e) { console.error("Error updating beam size on resize:", e); }
+             }
+         });
+
+
+        // 7. ゲームオーバー/クリアテキストの位置とフォントサイズを更新
+        const gameOverFontSize = this.calculateDynamicFontSize(40);
+        this.gameOverText?.setPosition(this.gameWidth / 2, this.gameHeight / 2)
+                         .setFontSize(`${gameOverFontSize}px`);
+
+        const gameClearFontSize = this.calculateDynamicFontSize(48);
+        this.gameClearText?.setPosition(this.gameWidth / 2, this.gameHeight * 0.4)
+                          .setFontSize(`${gameClearFontSize}px`)
+                          .setWordWrapWidth(this.gameWidth * 0.9); // 折り返し幅も更新
+
+        // 8. UIScene にリサイズとマージン情報を通知
+        if (this.scene.isActive('UIScene')) {
+            // 'gameResizeWithMargin' イベントを発行し、マージン情報を渡す
+            this.events.emit('gameResizeWithMargin', { margin: this.dynamicBottomMargin });
+            console.log("Emitted gameResizeWithMargin event for UIScene.");
+        }
+    }
     
      // updateBossSize メソッドも修正
      updateBossSize(bossInstance, textureKey, widthRatio) {
