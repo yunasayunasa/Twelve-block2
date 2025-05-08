@@ -1040,10 +1040,197 @@ export default class CommonBossScene extends Phaser.Scene {
 
 
     // --- ▼ 衝突処理メソッド (主要部分) ▼ ---
-    hitPaddle(paddle, ball) { /* ... (CommonBossScene.js 前回のコードと同様、内容は省略) ... */ if (!paddle || !ball?.active || !ball.body) return; let diff = ball.x - paddle.x; let influence = Phaser.Math.Clamp(diff / (paddle.displayWidth / 2), -1, 1); let newVx = (NORMAL_BALL_SPEED * 0.85) * influence; let newVyAbs = Math.sqrt(Math.pow(NORMAL_BALL_SPEED, 2) - Math.pow(newVx, 2)) || NORMAL_BALL_SPEED * 0.5; let newVy = -Math.abs(newVyAbs); if (Math.abs(newVy) < NORMAL_BALL_SPEED * 0.3) newVy = -NORMAL_BALL_SPEED * 0.3; let speedMultiplier = 1.0; if (ball.getData('isFast')) speedMultiplier = BALL_SPEED_MODIFIERS[POWERUP_TYPES.SHATORA]; else if (ball.getData('isSlow')) speedMultiplier = BALL_SPEED_MODIFIERS[POWERUP_TYPES.HAILA]; const targetSpeed = NORMAL_BALL_SPEED * speedMultiplier; const finalVel = new Phaser.Math.Vector2(newVx, newVy).normalize().scale(targetSpeed); ball.setVelocity(finalVel.x, finalVel.y); this.sound.play(AUDIO_KEYS.SE_REFLECT); this.createImpactParticles(ball.x, ball.y + ball.displayHeight/2 * 0.8, [240, 300], 0xffffcc); if (ball.getData('isIndaraActive')) this.deactivateIndara(ball); }
-    hitBoss(boss, ball) { /* ... (CommonBossScene.js 前回のコードと同様、内容は省略) ... */  if (!boss || !ball?.active || boss.getData('isInvulnerable')) return; let damage = 1; if (ball.getData('isKubiraActive')) damage += 1; this.applyBossDamage(boss, damage, "Ball Hit"); if (ball.getData('isIndaraActive')) this.deactivateIndara(ball); else { let speedMultiplier = 1.0; if (ball.getData('isFast')) speedMultiplier = BALL_SPEED_MODIFIERS[POWERUP_TYPES.SHATORA]; else if (ball.getData('isSlow')) speedMultiplier = BALL_SPEED_MODIFIERS[POWERUP_TYPES.HAILA]; const targetSpeed = NORMAL_BALL_SPEED * speedMultiplier; const bounceVy = -ball.body.velocity.y; const minBounceSpeedY = NORMAL_BALL_SPEED * 0.4; const finalVy = Math.abs(bounceVy) < minBounceSpeedY ? -minBounceSpeedY * Math.sign(bounceVy || -1) : bounceVy; const finalVel = new Phaser.Math.Vector2(ball.body.velocity.x, finalVy).normalize().scale(targetSpeed); ball.setVelocity(finalVel.x, finalVel.y); } }
-    applyBossDamage(bossInstance, damageAmount, source = "Unknown") { /* ... (CommonBossScene.js 前回のコードと同様、内容は省略) ... */ if (!bossInstance?.active || bossInstance.getData('isInvulnerable')) return; let currentHealth = bossInstance.getData('health') - damageAmount; bossInstance.setData('health', currentHealth); this.events.emit('updateBossHp', currentHealth, bossInstance.getData('maxHealth')); console.log(`[Boss Damage] ${damageAmount} by ${source}. HP: ${currentHealth}/${bossInstance.getData('maxHealth')}`); const now = this.time.now; if (now - this.lastDamageVoiceTime > BOSS_DAMAGE_VOICE_THROTTLE) { this.sound.play(this.bossData.voiceDamage || AUDIO_KEYS.VOICE_BOSS_DAMAGE); this.lastDamageVoiceTime = now; } bossInstance.setTint(0xff0000); bossInstance.setData('isInvulnerable', true); this.tweens.add({ targets: bossInstance, x: `+=${bossInstance.displayWidth * 0.03}`, duration: 40, yoyo: true, ease: 'Sine.InOut', repeat: 1 }); this.time.delayedCall(250, () => { if (bossInstance.active) { bossInstance.clearTint(); bossInstance.setData('isInvulnerable', false); } }); if (currentHealth <= 0) this.defeatBoss(bossInstance); }
-    hitAttackBrick(brick, ball) { if (!brick?.active || !ball?.active) return; this.destroyAttackBrickAndDropItem(brick); }
+        // CommonBossScene.js 内
+
+    /**
+     * ボールがパドルに衝突した際の処理
+     * @param {Phaser.Physics.Arcade.Image} paddle 衝突したパドル
+     * @param {Phaser.Physics.Arcade.Image} ball 衝突したボール
+     */
+    hitPaddle(paddle, ball) {
+        if (!paddle || !ball?.active || !ball.body) {
+             console.log("[HitPaddle] Collision ignored, invalid object state.");
+             return;
+        }
+        console.log("[HitPaddle] Ball hit detected.");
+
+        // --- 反射角度計算 ---
+        let diff = ball.x - paddle.x;
+        let influence = Phaser.Math.Clamp(diff / (paddle.displayWidth / 2), -1, 1);
+        // パドルの端に当たるほどX方向の影響を強くする（より鋭角に跳ね返る）
+        // influence = influence * 1.2; // 例: 影響を少し強くする（任意）
+        // influence = Phaser.Math.Clamp(influence, -1, 1); // 念のためClamp
+
+        let newVx = (NORMAL_BALL_SPEED * 0.85) * influence; // X速度の影響度合いを調整
+        // Y速度は Pythagoras の定理から計算し、必ず上向きに
+        let newVyAbs = Math.sqrt(Math.max(0, Math.pow(NORMAL_BALL_SPEED, 2) - Math.pow(newVx, 2))); // 負にならないようにMax(0,..)
+        // Y方向の最低速度を保証（真横に飛ばないように）
+        const minVyRatio = 0.3;
+        if (newVyAbs < NORMAL_BALL_SPEED * minVyRatio) {
+             newVyAbs = NORMAL_BALL_SPEED * minVyRatio;
+             // Yが最低速度になった場合、X速度も再計算して全体の速度をNORMAL_BALL_SPEEDに近づける
+             newVx = Math.sign(newVx) * Math.sqrt(Math.max(0, Math.pow(NORMAL_BALL_SPEED, 2) - Math.pow(newVyAbs, 2)));
+        }
+        let newVy = -newVyAbs; // 必ず上向き
+
+        // --- パワーアップによる速度補正 ---
+        let speedMultiplier = 1.0;
+        if (ball.getData('isFast') === true) {
+            speedMultiplier = BALL_SPEED_MODIFIERS[POWERUP_TYPES.SHATORA];
+            console.log("[HitPaddle] Applying Shatora speed multiplier:", speedMultiplier);
+        } else if (ball.getData('isSlow') === true) {
+            speedMultiplier = BALL_SPEED_MODIFIERS[POWERUP_TYPES.HAILA];
+            console.log("[HitPaddle] Applying Haila speed multiplier:", speedMultiplier);
+        }
+        const targetSpeed = NORMAL_BALL_SPEED * speedMultiplier; // 目標速度
+
+        // 最終的な速度ベクトルを計算・正規化・適用
+        const finalVel = new Phaser.Math.Vector2(newVx, newVy);
+        if (finalVel.lengthSq() === 0) finalVel.set(0, -1); // ゼロベクトル回避
+        finalVel.normalize().scale(targetSpeed);
+
+        console.log(`[HitPaddle] Setting velocity to (${finalVel.x.toFixed(1)}, ${finalVel.y.toFixed(1)}), Target Speed: ${targetSpeed.toFixed(0)}`);
+        try {
+             ball.setVelocity(finalVel.x, finalVel.y);
+        } catch(e) { console.error("!!! Error setting velocity in hitPaddle:", e); }
+
+        // --- SEとエフェクト ---
+        try { this.sound.play(AUDIO_KEYS.SE_REFLECT, { volume: 0.8 }); } catch (e) { /* ... */ }
+        // パドルヒットエフェクト（ボールの下端あたり）
+        this.createImpactParticles(ball.x, paddle.getBounds().top, [240, 300], 0xffffcc, 6);
+
+        // --- パドルヒットで解除される効果 ---
+        if (ball.getData('isIndaraActive') === true) {
+            console.log("[HitPaddle] Deactivating Indara due to paddle hit.");
+            this.deactivateIndara(ball); // インダラ解除
+        }
+    }
+
+    /**
+     * ボールがボスに衝突した際の処理
+     * @param {Phaser.Physics.Arcade.Image} boss 衝突したボスオブジェクト
+     * @param {Phaser.Physics.Arcade.Image} ball 衝突したボールオブジェクト
+     */
+    hitBoss(boss, ball) {
+        // オブジェクトと状態の基本的なチェック
+        if (!boss || !ball || !boss.active || !ball.active || boss.getData('isInvulnerable')) {
+             console.log("[HitBoss] Collision ignored due to invalid state (boss/ball inactive or boss invulnerable).");
+             // ボールがアクティブでない場合は何もしないが、無敵のボスに当たったボールは跳ね返すか検討
+             return;
+        }
+        console.log("[HitBoss] Ball hit detected.");
+
+        // --- ダメージ計算 ---
+        let damage = 1; // 基本ダメージ
+        if (ball.getData('isKubiraActive') === true) { damage += 1; console.log("[HitBoss] Kubira active, damage increased."); }
+        // TODO: ビカラ陽などのダメージ増加効果
+        // if (ball.getData('bikaraState') === 'yang') { damage = Math.max(damage, 2); }
+
+        // --- ダメージ適用 ---
+        console.log(`[HitBoss] Applying ${damage} damage from Ball Hit.`);
+        this.applyBossDamage(boss, damage, "Ball Hit");
+
+        // --- ボールへの影響 ---
+        if (ball.getData('isIndaraActive') === true) {
+            console.log("[HitBoss] Indara ball hit, deactivating Indara effect.");
+            this.deactivateIndara(ball);
+        } else if (ball.active && ball.body) { // ボールがまだ存在し、インダラでない場合のみ跳ね返す
+            console.log("[HitBoss] Calculating reflection velocity...");
+            let speedMultiplier = 1.0;
+            if (ball.getData('isFast') === true) { speedMultiplier = BALL_SPEED_MODIFIERS[POWERUP_TYPES.SHATORA]; }
+            else if (ball.getData('isSlow') === true) { speedMultiplier = BALL_SPEED_MODIFIERS[POWERUP_TYPES.HAILA]; }
+            const targetSpeed = NORMAL_BALL_SPEED * speedMultiplier;
+
+            let bounceVx = ball.body.velocity.x;
+            let bounceVy = -ball.body.velocity.y;
+            const minBounceSpeedY = NORMAL_BALL_SPEED * 0.4;
+            if (Math.abs(bounceVy) < minBounceSpeedY) { bounceVy = -minBounceSpeedY * Math.sign(bounceVy || -1); }
+            const bounceVel = new Phaser.Math.Vector2(bounceVx, bounceVy);
+            if (bounceVel.lengthSq() === 0) bounceVel.set(0, -1);
+            bounceVel.normalize().scale(targetSpeed);
+
+            console.log(`[HitBoss] Reflecting ball with velocity (${bounceVel.x.toFixed(1)}, ${bounceVel.y.toFixed(1)}), targetSpeed: ${targetSpeed.toFixed(0)}`);
+            try { ball.setVelocity(bounceVel.x, bounceVel.y); }
+            catch (e) { console.error("!!! ERROR setting ball velocity after hitting boss:", e); }
+        } else { console.log("[HitBoss] Skipping ball reflection (Indara active or ball/body invalid)."); }
+    }
+
+    /**
+     * ボスにダメージを与え、リアクションとHP更新、撃破判定を行う
+     * @param {Phaser.Physics.Arcade.Image} bossInstance ダメージを受けるボスオブジェクト
+     * @param {number} damageAmount ダメージ量
+     * @param {string} source ダメージ源を示す文字列（ログ用）
+     */
+    applyBossDamage(bossInstance, damageAmount, source = "Unknown") {
+        if (!bossInstance?.active || bossInstance.getData('isInvulnerable')) {
+             console.log(`[Apply Damage - ${source}] Damage (${damageAmount}) blocked: Boss inactive or invulnerable.`);
+             return;
+        }
+
+        const hpBefore = bossInstance.getData('health');
+        console.log(`[Apply Damage - ${source}] HP Before: ${hpBefore}, Damage: ${damageAmount}`);
+
+        // HPが数値でない場合のフォールバック
+        let currentHealth;
+        if (typeof hpBefore !== 'number' || isNaN(hpBefore)) {
+             console.error(`!!! ERROR: Boss HP before damage is invalid (${hpBefore})! Source: ${source}. Resetting HP to 0.`);
+             currentHealth = 0; // 不正な値なら強制的に0にする
+        } else {
+             currentHealth = hpBefore - damageAmount;
+        }
+
+        console.log(`[Apply Damage - ${source}] Calculated HP After: ${currentHealth}`);
+
+        // HPがマイナスにならないようにする場合
+        currentHealth = Math.max(0, currentHealth);
+
+        // NaNチェック (念のため)
+        if (isNaN(currentHealth)) {
+            console.error(`!!! ERROR: Calculated health became NaN! Source: ${source}. Setting health to 0.`);
+            currentHealth = 0;
+        }
+
+        bossInstance.setData('health', currentHealth);
+        console.log(`[Apply Damage - ${source}] Set boss data health to: ${currentHealth}`);
+        try {
+             this.events.emit('updateBossHp', currentHealth, bossInstance.getData('maxHealth'));
+        } catch (e) { console.error("Error emitting updateBossHp:", e); }
+
+        // --- ダメージリアクション ---
+        const now = this.time.now;
+        if (now - (this.lastDamageVoiceTime || 0) > BOSS_DAMAGE_VOICE_THROTTLE) {
+            try { this.sound.play(this.bossData.voiceDamage || AUDIO_KEYS.VOICE_BOSS_DAMAGE); } catch(e) {/* ... */}
+            this.lastDamageVoiceTime = now;
+        }
+        try {
+            bossInstance.setTint(0xff0000); // 赤点滅
+            bossInstance.setData('isInvulnerable', true); // 短い無敵時間
+            // 揺れ演出
+            const shakeAmount = bossInstance.displayWidth * 0.03;
+            this.tweens.add({ targets: bossInstance, x: `+=${shakeAmount}`, duration: 40, yoyo: true, ease: 'Sine.InOut', repeat: 1 });
+            // 一定時間後にTint解除と無敵解除
+            this.time.delayedCall(250, () => {
+                 if (bossInstance?.active) { // オブジェクトがまだ存在・アクティブか確認
+                     bossInstance.clearTint();
+                     bossInstance.setData('isInvulnerable', false);
+                 }
+            }, [], this);
+        } catch (e) { console.error("Error during boss damage reaction:", e); }
+
+
+        // --- 体力ゼロ判定と撃破処理 ---
+        console.log(`[Apply Damage - ${source}] Checking if health <= 0: (${currentHealth} <= 0) is ${currentHealth <= 0}`);
+        if (currentHealth <= 0) {
+            console.log(`[Apply Damage - ${source}] Health is zero or below. Calling defeatBoss...`);
+            if (bossInstance.active) {
+                this.defeatBoss(bossInstance);
+            } else {
+                console.warn(`[Apply Damage - ${source}] Boss became inactive BEFORE calling defeatBoss!`);
+            }
+        } else {
+             console.log(`[Apply Damage - ${source}] Health > 0. Boss survives.`);
+        }
+    }hitAttackBrick(brick, ball) { if (!brick?.active || !ball?.active) return; this.destroyAttackBrickAndDropItem(brick); }
     handleBallAttackBrickOverlap(brick, ball) { if (!brick?.active || !ball?.active) return; this.destroyAttackBrick(brick, false); }
     destroyAttackBrickAndDropItem(brick) { const bX=brick.x, bY=brick.y; this.destroyAttackBrick(brick,true); if(Phaser.Math.Between(1,100)<=this.chaosSettings.ratePercent && this.bossDropPool?.length>0){ const pool=this.bossDropPool.filter(t=>t!==POWERUP_TYPES.BAISRAVA); if(pool.length>0)this.dropSpecificPowerUp(bX,bY,Phaser.Utils.Array.GetRandom(pool));} if(Phaser.Math.FloatBetween(0,1)<BAISRAVA_DROP_RATE)this.dropSpecificPowerUp(bX,bY,POWERUP_TYPES.BAISRAVA); }
     destroyAttackBrick(brick, triggerItemDropLogic = false) { if (!brick?.active) return; this.sound.play(AUDIO_KEYS.SE_DESTROY); this.createImpactParticles(brick.x,brick.y,[0,360],brick.tintTopLeft||0xaa88ff,10); brick.destroy(); this.increaseVajraGauge(); }
