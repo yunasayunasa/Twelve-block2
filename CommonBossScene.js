@@ -1216,8 +1216,10 @@ export default class CommonBossScene extends Phaser.Scene {
         try { // スケール設定
             bossInstance.setScale(desiredScale);
             console.log(`[updateBossSize] Set scale to ${desiredScale.toFixed(3)}`);
+            // ★★★ スケール設定直後の表示サイズを確認 ★★★
+            console.log(`[updateBossSize] AFTER setScale - Display Size: ${bossInstance.displayWidth?.toFixed(1)}x${bossInstance.displayHeight?.toFixed(1)}`);
+            // ★★★-------------------------------------★★★
         } catch(e) { console.error(`!!! ERROR setting scale in updateBossSize for ${textureKey}:`, e); }
-
         try { // ボディ更新
             if (bossInstance.body) {
                 // ボディが存在するか確認してから更新
