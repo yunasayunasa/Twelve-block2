@@ -236,7 +236,7 @@ export default class CommonBossScene extends Phaser.Scene {
         this.setupAfterImageEmitter();
 
         this.setupBossDropPool();
-        this.setColliders();
+       // this.setColliders();
         this.createGameOverText();
         this.createGameClearText();
         this.setupInputAndEvents();
