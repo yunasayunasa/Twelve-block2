@@ -655,11 +655,27 @@ export default class CommonBossScene extends Phaser.Scene {
                 alpha: 1,
                 duration: ZOOM_IN_DURATION,
                 ease: 'Quad.easeIn',
-                onComplete: () => {
-                    console.log("[Intro] Visual zoom tween completed.");
-                    // ボディは無効なまま QuickShrink へ
-                    this.time.delayedCall(ZOOM_WAIT_DURATION, this.startBossQuickShrink, [], this);
-                }
+                   // CommonBossScene.js の startBossZoomIn メソッド内、Tweenの onComplete
+    onComplete: () => {
+        console.log("[Intro] Visual zoom tween completed.");
+
+        // ★★★ Check this.boss right after tween completion ★★★
+        console.log("[Intro][Zoom onComplete] Checking this.boss BEFORE calling/scheduling shrink:", this.boss);
+        if (!this.boss || !this.boss.active) {
+             console.error("!!! ERROR: Boss missing or inactive IMMEDIATELY AFTER zoom tween completion !!!");
+             return; // Stop here if boss is already gone
+        }
+        // ★★★------------------------------------------------------★★★
+
+        // --- Option A: Original Delayed Call (コメントアウト) ---
+        // console.log("[Intro][Zoom onComplete] Scheduling startBossQuickShrink with delay.");
+        // this.time.delayedCall(ZOOM_WAIT_DURATION, this.startBossQuickShrink, [], this);
+
+        // --- Option B: Direct Call (テスト用にこちらを実行) ---
+        console.log("[Intro][Zoom onComplete] Calling startBossQuickShrink directly NOW (TEST).");
+        this.startBossQuickShrink(); // ★ 遅延なしで直接呼び出す
+
+    } // onComplete end
             });
             console.log("[Intro] Visual zoom tween added.");
         } catch (e) { console.error("!!! ERROR adding visual zoom tween:", e); }
