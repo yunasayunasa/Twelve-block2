@@ -250,10 +250,13 @@ export default class CommonBossScene extends Phaser.Scene {
     }
 
     update(time, delta) {
+         // ★ update内の処理をすべてスキップして、問題が解消するか確認 ★
+         console.log("CommonBossScene update skipped for debugging boss inactivity."); // スキップしていることがわかるログ
+         return;
         // ★★★ 登場演出開始チェック (updateループの最初で行う) ★★★
-        if (this.startIntroPending) {
+     /*   if (this.startIntroPending) {
             // ボスオブジェクトと物理ボディが利用可能かチェック
-            if (this.boss && this.boss.active && this.boss.body /* && this.boss.body.enable ??? */ ) {
+            if (this.boss && this.boss.active && this.boss.body /* && this.boss.body.enable ??? ) {
                  console.log("[Update Check] Boss object and body seem ready. Starting intro now.");
                  this.startIntroPending = false; // フラグを解除して再実行を防ぐ
                  this.startIntroCutscene();      // 登場演出を開始
@@ -291,7 +294,7 @@ export default class CommonBossScene extends Phaser.Scene {
                 const homingSpeed = NORMAL_BALL_SPEED * INDARA_HOMING_SPEED_MULTIPLIER;
                 this.physics.velocityFromAngle(Phaser.Math.RadToDeg(direction), homingSpeed, ball.body.velocity);
             }
-        });
+        });*/
     }
 
     // --- ▼▼▼ プレースホルダーメソッド (継承先で実装) ▼▼▼ ---
