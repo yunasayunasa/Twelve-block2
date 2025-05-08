@@ -535,8 +535,8 @@ export default class CommonBossScene extends Phaser.Scene {
         const zoomInStartY = this.gameHeight * 0.8;
         const zoomInStartScale = 0.05;
         const baseWidthForScale = (this.boss.width > 0 && this.boss.scaleX !== 0) ? (this.boss.width / this.boss.scaleX) : (this.gameWidth * (this.bossData.widthRatio || 0.25)); // ゼロ除算防止強化
-        const zoomInEndScale = Math.min(10, this.gameWidth / baseWidthForScale * 2.5);
-        const zoomInEndY = this.gameHeight / 2;
+        const zoomInEndScale = Math.min(20, this.gameWidth / baseWidthForScale * 5.5);
+        const zoomInEndY = this.gameHeight * 2;
         console.log(`[Intro] Zoom params: StartY=${zoomInStartY}, StartScale=${zoomInStartScale}, EndScale=${zoomInEndScale}, EndY=${zoomInEndY}`);
 
         // ★★★ エラー箇所を特定するため、try-catch を細分化 ★★★
@@ -732,10 +732,45 @@ export default class CommonBossScene extends Phaser.Scene {
         else this.createAndAddBall(this.gameWidth / 2, this.gameHeight * 0.7);
         this.isBallLaunched = false; this.playerControlEnabled = true;
     }
-    gameOver() {
-        if (this.isGameOver) return; console.log("GAME OVER"); this.isGameOver = true; this.playerControlEnabled = false;
-        this.gameOverText?.setVisible(true); this.physics.pause(); this.balls?.children.each(ball => ball.setVelocity(0,0).setActive(false));
-        this.bossMoveTween?.pause(); this.attackBrickTimer?.pause(); this.randomVoiceTimer?.remove();
+      // CommonBossScene.js 内の gameOver メソッド
+      gameOver() {
+        if (this.isGameOver) return;
+        console.log(">>> Entering gameOver() <<<");
+        this.isGameOver = true;
+        this.playerControlEnabled = false;
+
+        console.log("[gameOver] Checking gameOverText object:", this.gameOverText);
+        if (this.gameOverText) {
+            console.log(`[gameOver] gameOverText visible before setVisible: ${this.gameOverText.visible}, active: ${this.gameOverText.active}, depth: ${this.gameOverText.depth}`);
+            try {
+                this.gameOverText.setVisible(true);
+                console.log(`[gameOver] gameOverText.setVisible(true) called. Now visible: ${this.gameOverText.visible}`);
+            } catch (e) { console.error("!!! ERROR setting gameOverText visible:", e); }
+        } else { console.error("!!! ERROR: this.gameOverText is null or undefined in gameOver() !!!"); }
+
+        try { if (this.physics.world.running) this.physics.pause(); } catch(e) { console.error("Error pausing physics:", e); }
+        this.balls?.children.each(ball => { if(ball.active) ball.setVelocity(0,0).setActive(false); });
+        this.bossMoveTween?.pause(); // Tween は pause できる
+
+        // ★★★ タイマーイベントの停止（削除） ★★★
+        if (this.attackBrickTimer) {
+             try {
+                 this.attackBrickTimer.remove(); // pause() ではなく remove()
+                 this.attackBrickTimer = null; // 参照もクリア
+                 console.log("[gameOver] Attack brick timer removed.");
+             } catch (e) { console.error("!!! ERROR removing attackBrickTimer:", e); }
+        }
+        if (this.randomVoiceTimer) {
+             try {
+                 this.randomVoiceTimer.remove(); // こちらも remove()
+                 this.randomVoiceTimer = null;
+                 console.log("[gameOver] Random voice timer removed.");
+             } catch (e) { console.error("!!! ERROR removing randomVoiceTimer:", e); }
+        }
+        // 他にも remove() すべきタイマーがあればここに追加 (パワーアップタイマーなどは loseLife で解除済みのはず)
+        // ★★★-----------------------------★★★
+
+        console.log("<<< Exiting gameOver() >>>");
     }
     triggerGameClear() {
         console.log("GAME CLEAR SEQUENCE TRIGGERED!"); this.stopBgm(); this.sound.play(AUDIO_KEYS.SE_STAGE_CLEAR);
