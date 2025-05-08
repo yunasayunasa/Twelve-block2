@@ -1233,8 +1233,24 @@ export default class CommonBossScene extends Phaser.Scene {
         console.log(`Boss (${textureKey}) size updated. Final Scale: ${bossInstance.scale.toFixed(3)}`);
     }
 
-    updateBossSizeAfterIntro() { if(!this.boss?.active)return; this.updateBossSize(this.boss,this.bossData.textureKey,this.bossData.widthRatio); if(this.boss.body){this.boss.body.enable=true;this.boss.body.updateFromGameObject();} }
-    applySpeedModifier(ball,type){if(!ball?.active||!ball.body)return;const mod=(type===POWERUP_TYPES.SHATORA)?BALL_SPEED_MODIFIERS[POWERUP_TYPES.SHATORA]:(type===POWERUP_TYPES.HAILA)?BALL_SPEED_MODIFIERS[POWERUP_TYPES.HAILA]:1.0;const cV=ball.body.velocity;const dir=cV.lengthSq()>0?cV.clone().normalize():new Phaser.Math.Vector2(0,-1);const nS=NORMAL_BALL_SPEED*mod;ball.setVelocity(dir.x*nS,dir.y*nS);}
+    updateBossSizeAfterIntro() { // 登場演出後のボスサイズ最終調整
+        if (!this.boss?.active) {
+             console.warn("[updateBossSizeAfterIntro] Boss inactive, cannot update size.");
+             return;
+        }
+        console.log("[updateBossSizeAfterIntro] Updating boss size using final data.");
+        // createSpecificBossで設定された widthRatio を使う
+        this.updateBossSize(this.boss, this.bossData.textureKey, this.bossData.widthRatio);
+    
+        // ボディを確実に有効化し、表示に合わせて更新
+        if (this.boss.body) {
+            this.boss.body.enable = true; // ★ enable を true にする
+            this.boss.body.updateFromGameObject(); // ★ 表示に合わせて更新
+            console.log(`[updateBossSizeAfterIntro] Body enabled and updated. Size: ${this.boss.body.width.toFixed(0)}x${this.boss.body.height.toFixed(0)}`);
+        } else {
+             console.error("!!! ERROR: Boss body missing in updateBossSizeAfterIntro !!!");
+        }
+    }applySpeedModifier(ball,type){if(!ball?.active||!ball.body)return;const mod=(type===POWERUP_TYPES.SHATORA)?BALL_SPEED_MODIFIERS[POWERUP_TYPES.SHATORA]:(type===POWERUP_TYPES.HAILA)?BALL_SPEED_MODIFIERS[POWERUP_TYPES.HAILA]:1.0;const cV=ball.body.velocity;const dir=cV.lengthSq()>0?cV.clone().normalize():new Phaser.Math.Vector2(0,-1);const nS=NORMAL_BALL_SPEED*mod;ball.setVelocity(dir.x*nS,dir.y*nS);}
     resetBallSpeed(ball){if(!ball?.active||!ball.body)return;const cV=ball.body.velocity;const dir=cV.lengthSq()>0?cV.clone().normalize():new Phaser.Math.Vector2(0,-1);ball.setVelocity(dir.x*NORMAL_BALL_SPEED,dir.y*NORMAL_BALL_SPEED);}
     scheduleNextGenericAttackBrick(){if(this.attackBrickTimer)this.attackBrickTimer.remove();this.attackBrickTimer=this.time.addEvent({delay:Phaser.Math.Between(DEFAULT_ATTACK_BRICK_SPAWN_DELAY_MIN,DEFAULT_ATTACK_BRICK_SPAWN_DELAY_MAX),callback:this.spawnGenericAttackBrick,callbackScope:this,loop:false});}
     spawnGenericAttackBrick(){if(!this.attackBricks||!this.boss?.active||this.isGameOver||this.bossDefeated){this.scheduleNextGenericAttackBrick();return;}const sX=Phaser.Math.FloatBetween(0,1)<0.6?Phaser.Math.Between(this.sideMargin,this.gameWidth-this.sideMargin):this.boss.x;const attackBrick=this.attackBricks.create(sX,-30,'attackBrick');if(attackBrick){const bS=this.gameWidth*(DEFAULT_ATTACK_BRICK_SCALE_RATIO||0.08)/attackBrick.width;attackBrick.setScale(bS).setVelocityY(DEFAULT_ATTACK_BRICK_VELOCITY_Y||ATTACK_BRICK_VELOCITY_Y);if(attackBrick.body)attackBrick.body.setAllowGravity(false).setCollideWorldBounds(false);}this.scheduleNextGenericAttackBrick();}
