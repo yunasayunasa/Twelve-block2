@@ -994,7 +994,7 @@ export default class CommonBossScene extends Phaser.Scene {
 
         // 2. ★ 当たり判定の半径を計算 (見た目より大きくする) ★
         //    この倍率を調整して当たり判定の大きさを変えます (例: 1.0なら見た目と同じ)
-        const hitboxRadiusMultiplier = 2.5; // <--- この値を調整 (例: 1.2, 1.8, 2.0 など)
+        const hitboxRadiusMultiplier = 3.0; // <--- この値を調整 (例: 1.2, 1.8, 2.0 など)
         const hitboxRadius = visualRadius * hitboxRadiusMultiplier;
 
         console.log(`[Create Ball] Visual Radius: ${visualRadius.toFixed(1)}, Hitbox Radius: ${hitboxRadius.toFixed(1)} (Multiplier: ${hitboxRadiusMultiplier})`);
@@ -1096,7 +1096,7 @@ export default class CommonBossScene extends Phaser.Scene {
                 const newVisualDiameter = newVisualRadius * 2;
 
                 // ★ 当たり判定の倍率を createAndAddBall と同じにする ★
-                const hitboxMultiplier = 2.5; // ← createAndAddBall と同じ値を使用
+                const hitboxMultiplier = 3.0; // ← createAndAddBall と同じ値を使用
                 const newHitboxRadius = newVisualRadius * hitboxMultiplier;
 
                 try {
