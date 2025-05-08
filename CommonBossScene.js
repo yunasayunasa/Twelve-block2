@@ -430,6 +430,8 @@ export default class CommonBossScene extends Phaser.Scene {
     calculateDynamicMargins() {
         this.topMargin = Math.max(UI_TOP_MARGIN_MIN, this.gameHeight * UI_TOP_MARGIN_RATIO);
         this.sideMargin = Math.max(UI_SIDE_MARGIN_MIN, this.gameWidth * UI_SIDE_MARGIN_RATIO);
+        // デバッグ用に topMargin の値を確認
+        console.log(`[Calculate Margins] Top: ${this.topMargin.toFixed(1)}, Side: ${this.sideMargin.toFixed(1)}`);
     }
     setupBackground() {
         this.add.image(this.gameWidth / 2, this.gameHeight / 2, this.bossData.backgroundKey || 'gameBackground3')
@@ -452,9 +454,27 @@ export default class CommonBossScene extends Phaser.Scene {
         }, [], this);
     }
     setupPhysics() {
+        // 物理世界の衝突設定 (左、右、上は衝突、下は衝突しない)
         this.physics.world.setBoundsCollision(true, true, true, false);
+
+        // ★★★ 物理ワールドの上端境界を調整 ★★★
+        // 計算済みの画面上部マージン (this.topMargin) を使うか、固定ピクセル値を使う
+        // this.topMargin は calculateDynamicMargins で計算されている想定
+        const physicsTopBoundY = this.topMargin > 10 ? this.topMargin : 20; // 例: マージンがあればそれを、なければ最低20px確保
+        // setBounds(x, y, width, height)
+        this.physics.world.setBounds(
+            0,                     // X座標の開始は0
+            physicsTopBoundY,      // Y座標の開始を少し下げる
+            this.gameWidth,        // 幅はゲーム幅全体
+            this.gameHeight - physicsTopBoundY // 高さは開始位置を下げた分だけ減らす
+        );
+        console.log(`[Physics] World bounds set. Top bound at Y: ${physicsTopBoundY}`);
+        // ★★★----------------------------------★★★
+
+        // ワールド境界衝突イベントの設定 (変更なし)
         this.physics.world.off('worldbounds', this.handleWorldBounds, this);
         this.physics.world.on('worldbounds', this.handleWorldBounds, this);
+        console.log("Physics world setup complete.");
     }
     createPaddle() {
         if (this.paddle) this.paddle.destroy();
