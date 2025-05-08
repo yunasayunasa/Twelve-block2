@@ -535,7 +535,7 @@ export default class CommonBossScene extends Phaser.Scene {
         const zoomInStartY = this.gameHeight * 0.8;
         const zoomInStartScale = 0.05;
         const baseWidthForScale = (this.boss.width > 0 && this.boss.scaleX !== 0) ? (this.boss.width / this.boss.scaleX) : (this.gameWidth * (this.bossData.widthRatio || 0.25)); // ゼロ除算防止強化
-        const zoomInEndScale = Math.min(5, this.gameWidth / baseWidthForScale * 1.5);
+        const zoomInEndScale = Math.min(10, this.gameWidth / baseWidthForScale * 2.5);
         const zoomInEndY = this.gameHeight / 2;
         console.log(`[Intro] Zoom params: StartY=${zoomInStartY}, StartScale=${zoomInStartScale}, EndScale=${zoomInEndScale}, EndY=${zoomInEndY}`);
 
@@ -581,8 +581,8 @@ export default class CommonBossScene extends Phaser.Scene {
 
         try { this.sound.play(this.bossData.voiceAppear || AUDIO_KEYS.VOICE_BOSS_APPEAR); console.log("[Intro] Appear voice played.");}
         catch(e) { console.error("!!! ERROR playing appear voice:", e); }
-        try { this.sound.play(AUDIO_KEYS.SE_BOSS_ZOOM); console.log("[Intro] Zoom SE played.");}
-        catch(e) { console.error("!!! ERROR playing zoom SE:", e); }
+        //try { this.sound.play(AUDIO_KEYS.SE_BOSS_ZOOM); console.log("[Intro] Zoom SE played.");}
+        //catch(e) { console.error("!!! ERROR playing zoom SE:", e); }
 
 
         console.log("[Intro] Preparing zoom tween...");
@@ -661,11 +661,11 @@ export default class CommonBossScene extends Phaser.Scene {
                                  console.log("[Intro][Shrink] Completion flash OK.");
                              } catch(e) { console.error("!!! ERROR during shrink completion flash:", e); }
     
-                             try {
-                                  console.log("[Intro][Shrink] Attempting fight start SE...");
-                                  this.sound.play(AUDIO_KEYS.SE_FIGHT_START);
-                                  console.log("[Intro][Shrink] Fight start SE OK.");
-                             } catch (e) { console.error("!!! ERROR playing fight start SE:", e); }
+                            // try {
+                                //  console.log("[Intro][Shrink] Attempting fight start SE...");
+                                //  this.sound.play(AUDIO_KEYS.SE_FIGHT_START);
+                                 // console.log("[Intro][Shrink] Fight start SE OK.");
+                         //    } catch (e) { console.error("!!! ERROR playing fight start SE:", e); }
     
                              try {
                                   console.log("[Intro][Shrink] Attempting updateBossSizeAfterIntro...");
