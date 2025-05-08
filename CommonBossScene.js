@@ -249,53 +249,51 @@ export default class CommonBossScene extends Phaser.Scene {
         console.log(`--- ${this.scene.key} CREATE End - Waiting for update loop to start intro ---`); // ログ変更
     }
 
-    update(time, delta) {
-         // ★ update内の処理をすべてスキップして、問題が解消するか確認 ★
-         console.log("CommonBossScene update skipped for debugging boss inactivity."); // スキップしていることがわかるログ
-         return;
-        // ★★★ 登場演出開始チェック (updateループの最初で行う) ★★★
-     /*   if (this.startIntroPending) {
-            // ボスオブジェクトと物理ボディが利用可能かチェック
-            if (this.boss && this.boss.active && this.boss.body /* && this.boss.body.enable ??? ) {
-                 console.log("[Update Check] Boss object and body seem ready. Starting intro now.");
-                 this.startIntroPending = false; // フラグを解除して再実行を防ぐ
-                 this.startIntroCutscene();      // 登場演出を開始
-            } else {
-                 // まだ準備できていない場合は次のフレームで再チェック
-                 console.log("[Update Check] Waiting for boss object/body to be ready...");
-                 return; // 準備ができるまで他のupdate処理はスキップしても良いかも
-            }
-        }
-        // ★★★---------------------------------------★★★
-        if (this.isGameOver || this.bossDefeated || this.startIntroPending) { // 演出開始待ちの間も何もしない
-            this.bossAfterImageEmitter?.stop();
-            return;
-        }
-
-        if (this.boss && this.boss.active) {
-            if (this.bossAfterImageEmitter) {
-                this.bossAfterImageEmitter.setPosition(this.boss.x, this.boss.y);
-                if (!this.bossAfterImageEmitter.emitting && this.boss.body.velocity.lengthSq() > 10) { // 少し動いていたら
-                    this.bossAfterImageEmitter.start();
-                } else if (this.bossAfterImageEmitter.emitting && this.boss.body.velocity.lengthSq() <= 10) {
-                    this.bossAfterImageEmitter.stop();
+        // CommonBossScene.js の update メソッド
+        update(time, delta) {
+            // ★★★ 登場演出開始チェック (これは必要) ★★★
+            if (this.startIntroPending) {
+                if (this.boss && this.boss.body && this.boss.active) { // activeもチェックに追加
+                     console.log("[Update Check] Boss object and body seem ready. Starting intro now.");
+                     this.startIntroPending = false;
+                     this.startIntroCutscene();
+                } else {
+                     console.log(`[Update Check] Waiting for boss ready... Boss: ${!!this.boss}, Body: ${!!this.boss?.body}, Active: ${this.boss?.active}`); // ログ追加
+                     return; // まだ準備できていなければ他の処理はしない
                 }
             }
-            this.updateSpecificBossBehavior(time, delta); // ボス固有行動
-        }
-
-        this.updateBallFall();
-        this.updateAttackBricks();
-        this.updateMakiraBeams();
-
-        this.balls?.getMatching('active', true).forEach(ball => {
-            if (ball.getData('isIndaraActive') && this.boss && this.boss.active && ball.body) {
-                const direction = Phaser.Math.Angle.BetweenPoints(ball.body.center, this.boss.body.center);
-                const homingSpeed = NORMAL_BALL_SPEED * INDARA_HOMING_SPEED_MULTIPLIER;
-                this.physics.velocityFromAngle(Phaser.Math.RadToDeg(direction), homingSpeed, ball.body.velocity);
+            // ★★★---------------------------------------★★★
+    
+            // --- 通常のUpdate処理 ---
+            if (this.isGameOver || this.bossDefeated || this.startIntroPending) {
+                this.bossAfterImageEmitter?.stop();
+                return;
             }
-        });*/
-    }
+    
+            if (this.boss && this.boss.active) {
+                if (this.bossAfterImageEmitter) {
+                     this.bossAfterImageEmitter.setPosition(this.boss.x, this.boss.y);
+                     if (!this.bossAfterImageEmitter.emitting && this.boss.body?.velocity.lengthSq() > 10) { this.bossAfterImageEmitter.start(); }
+                     else if (this.bossAfterImageEmitter.emitting && this.boss.body?.velocity.lengthSq() <= 10) { this.bossAfterImageEmitter.stop(); }
+                }
+                // ★★★ ボス固有行動の呼び出しを一時的にコメントアウト ★★★
+                // console.log("[Update] Calling updateSpecificBossBehavior..."); // 呼び出す前のログ
+                // this.updateSpecificBossBehavior(time, delta);
+                // ★★★-----------------------------------------------★★★
+            }
+    
+            // --- 残りの update 処理はそのまま実行 ---
+            this.updateBallFall();
+            this.updateAttackBricks();
+            this.updateMakiraBeams();
+            this.balls?.getMatching('active', true).forEach(ball => {
+                 if (ball.getData('isIndaraActive') && this.boss && this.boss.active && ball.body) {
+                     const direction = Phaser.Math.Angle.BetweenPoints(ball.body.center, this.boss.body.center);
+                     const homingSpeed = NORMAL_BALL_SPEED * INDARA_HOMING_SPEED_MULTIPLIER;
+                     this.physics.velocityFromAngle(Phaser.Math.RadToDeg(direction), homingSpeed, ball.body.velocity);
+                 }
+            });
+        }
 
     // --- ▼▼▼ プレースホルダーメソッド (継承先で実装) ▼▼▼ ---
     initializeBossData() {
