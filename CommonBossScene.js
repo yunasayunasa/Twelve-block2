@@ -1284,7 +1284,7 @@ export default class CommonBossScene extends Phaser.Scene {
     startRandomVoiceTimer(){if(this.randomVoiceTimer)this.randomVoiceTimer.remove();if(!this.bossVoiceKeys||this.bossVoiceKeys.length===0)return;const pRV=()=>{if(this.bossDefeated||this.isGameOver||!this.boss?.active){this.randomVoiceTimer?.remove();return;}this.sound.play(Phaser.Utils.Array.GetRandom(this.bossVoiceKeys));this.randomVoiceTimer=this.time.delayedCall(Phaser.Math.Between(BOSS_RANDOM_VOICE_MIN_DELAY,BOSS_RANDOM_VOICE_MAX_DELAY),pRV,[],this);};this.randomVoiceTimer=this.time.delayedCall(Phaser.Math.Between(BOSS_RANDOM_VOICE_MIN_DELAY/2,BOSS_RANDOM_VOICE_MAX_DELAY/2),pRV,[],this);}
    // CommonBossScene.js に追加または修正
 calculateDynamicFontSize(baseSizeMax) {
-    const divisor = (UI_FONT_SIZE_SCALE_DIVISOR || 22); // constants.jsの値
+    const divisor = (UI_FONT_SIZE_SCALE_DIVISOR || 18); // constants.jsの値
     const minSize = (UI_FONT_SIZE_MIN || 12); // constants.jsの値
     // ★★★ 計算過程のログを追加 ★★★
     console.log(`[Calc Font] Input - baseSizeMax: ${baseSizeMax}, gameWidth: ${this.gameWidth}, divisor: ${divisor}, minSize: ${minSize}`);

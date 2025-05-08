@@ -28,7 +28,7 @@ export const UI_SIDE_MARGIN_MIN = 10;
 export const UI_SIDE_MARGIN_RATIO = 0.025;
 export const UI_FONT_SIZE_MIN = 12;
 export const UI_FONT_SIZE_MAX = 26;
-export const UI_FONT_SIZE_SCALE_DIVISOR = 22;
+export const UI_FONT_SIZE_SCALE_DIVISOR = 18;
 
 // --- サイズ・配置関連 (固定ピクセル値 - 拡縮で調整) ---
 export const PADDLE_HEIGHT = 20;
