@@ -285,7 +285,7 @@ export default class CommonBossScene extends Phaser.Scene {
                      else if (this.bossAfterImageEmitter.emitting && this.boss.body?.velocity.lengthSq() <= 10) { this.bossAfterImageEmitter.stop(); }
                 }
                 // ★★★ ボス固有行動の呼び出しを一時的にコメントアウト ★★★
-                 console.log("[Update] Calling updateSpecificBossBehavior..."); // 呼び出す前のログ
+                // console.log("[Update] Calling updateSpecificBossBehavior..."); // 呼び出す前のログ
                  this.updateSpecificBossBehavior(time, delta);
                 // ★★★-----------------------------------------------★★★
             }
