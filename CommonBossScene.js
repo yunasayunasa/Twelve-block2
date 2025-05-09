@@ -285,6 +285,7 @@ export default class CommonBossScene extends Phaser.Scene {
              // ★★★ 毎フレームの表示状態をログ出力 ★★★
              console.log(`[Update Makira] Familiar visible: ${familiarBase.visible}, alpha: ${familiarBase.alpha}, x: ${familiarBase.x.toFixed(0)}, y: ${familiarBase.y.toFixed(0)}`);
              // ★★★-------------------------------★★★
+        }
 
              
     
