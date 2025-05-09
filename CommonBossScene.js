@@ -3,8 +3,8 @@ import {
     // --- 画面・オブジェクトサイズ/位置 (割合ベース) ---
     PADDLE_WIDTH_RATIO, PADDLE_Y_OFFSET_RATIO,
     BALL_RADIUS_RATIO, POWERUP_SIZE_RATIO,
-    MAKIRA_FAMILIAR_SIZE_RATIO, MAKIRA_FAMILIAR_OFFSET_RATIO,
-    MAKIRA_BEAM_WIDTH_RATIO, MAKIRA_BEAM_HEIGHT_RATIO,
+    
+    
 
     // --- UI関連 (割合ベース) ---
     UI_BOTTOM_OFFSET_RATIO, DROP_POOL_UI_ICON_SIZE_RATIO, DROP_POOL_UI_SPACING_RATIO,
@@ -108,13 +108,9 @@ export default class CommonBossScene extends Phaser.Scene {
         this.anilaTimer = null;
         this.anchiraTimer = null;
         this.bikaraTimers = {};
-        this.isMakiraActive = false;
-        this.makiraAttackTimer = null;
-        this.familiars = null;
-        this.makiraBeams = null;
+        
         this.ALL_POSSIBLE_POWERUPS = Object.values(POWERUP_TYPES); // constants.jsから移動
-         this.ballFamiliarCollider = null; // ★ 新しいコライダー参照
-
+      
         // --- ゲーム進行・状態 ---
         this.currentBossIndex = 1;
         this.totalBosses = TOTAL_BOSSES;
@@ -130,8 +126,7 @@ export default class CommonBossScene extends Phaser.Scene {
         this.ballAttackBrickOverlap = null;
         this.paddlePowerUpOverlap = null;
         this.paddleAttackBrickCollider = null;
-        this.makiraBeamBossOverlap = null;
-
+      
         // --- UI・その他 ---
         this.uiScene = null;
         this.gameWidth = 0;
@@ -179,11 +174,7 @@ export default class CommonBossScene extends Phaser.Scene {
         this.anchiraTimer?.remove(); this.anchiraTimer = null;
         Object.values(this.bikaraTimers).forEach(timer => timer?.remove());
         this.bikaraTimers = {};
-        this.isMakiraActive = false;
-        this.makiraAttackTimer?.remove(); this.makiraAttackTimer = null;
-        this.familiars?.destroy(true); this.familiars = null;
-        this.makiraBeams?.destroy(true); this.makiraBeams = null;
-
+      
         this.bossMoveTween?.stop(); this.bossMoveTween = null;
         this.randomVoiceTimer?.remove(); this.randomVoiceTimer = null;
         this.lastDamageVoiceTime = 0;
@@ -226,8 +217,7 @@ export default class CommonBossScene extends Phaser.Scene {
         this.createBalls();
         this.createPowerUpsGroup();
         this.createAttackBricksGroup();
-        this.createMakiraGroups();
-
+       
         this.createSpecificBoss(); // ボスオブジェクト生成
         if (!this.boss) {
             console.error("BOSS WAS NOT CREATED!");
@@ -279,17 +269,17 @@ export default class CommonBossScene extends Phaser.Scene {
                 return;
             }
 
-           if (this.isMakiraActive && this.familiars && this.familiars.countActive(true) > 0) {
-        const familiarBase = this.familiars.getFirstAlive(); // 1体しかいない前提
-        if (familiarBase && familiarBase.active) {
+          // if (this.isMakiraActive && this.familiars && this.familiars.countActive(true) > 0) {
+       // const familiarBase = this.familiars.getFirstAlive(); // 1体しかいない前提
+      //  if (familiarBase && familiarBase.active) {
              // ★★★ 毎フレームの表示状態をログ出力 ★★★
-             console.log(`[Update Makira] Familiar visible: ${familiarBase.visible}, alpha: ${familiarBase.alpha}, x: ${familiarBase.x.toFixed(0)}, y: ${familiarBase.y.toFixed(0)}`);
+           //  console.log(`[Update Makira] Familiar visible: ${familiarBase.visible}, alpha: ${familiarBase.alpha}, x: ${familiarBase.x.toFixed(0)}, y: ${familiarBase.y.toFixed(0)}`);
              // ★★★-------------------------------★★★
 
             // 装飾の追従 (もしコメントアウト解除するならここに)
             // if (familiarBase.getData('decoration')) { ... }
-        }
-    }
+     // }
+ //   }
              
     
             if (this.boss && this.boss.active) {
@@ -785,17 +775,7 @@ export default class CommonBossScene extends Phaser.Scene {
     }
     createPowerUpsGroup() { if (this.powerUps) this.powerUps.destroy(true); this.powerUps = this.physics.add.group(); }
     createAttackBricksGroup() { if (this.attackBricks) this.attackBricks.destroy(true); this.attackBricks = this.physics.add.group(); }
-   createMakiraGroups() {
-        if (this.familiars) { this.familiars.destroy(true); this.familiars = null; }
-        // ファミリアは物理グループ、壁との衝突と跳ね返りを設定
-        this.familiars = this.physics.add.group({
-            collideWorldBounds: true,
-            bounceX: 1, // 左右の壁で跳ね返る
-            bounceY: 0  // 上下の壁では跳ね返らない (動きで制御)
-        });
-        console.log("Makira 'familiars' group created (for reflector).");
-        // makiraBeams の生成は削除
-    }
+ 
 
     setupBossDropPool() {
         const shuffledPool = Phaser.Utils.Array.Shuffle([...this.ALL_POSSIBLE_POWERUPS]);
@@ -956,7 +936,19 @@ if (this.isMakiraActive && this.balls && this.familiars && this.familiars.countA
     // --- ▼ パワーアップ関連メソッド (主要部分) ▼ ---
     collectPowerUp(paddle, powerUp) {
         if (!powerUp?.active || this.isGameOver || this.bossDefeated) return; const type = powerUp.getData('type');
-        if (!type) { powerUp.destroy(); return; } console.log(`Collected power up: ${type}`); powerUp.destroy();
+        if (!type) { powerUp.destroy(); return; } console.log(`Collected power up: ${type}`);
+         if (!type) { powerUp.destroy(); return; }
+
+        // ★★★ マキラ取得時はアイテムを破棄し、activateMakiraを呼ぶ ★★★
+        if (type === POWERUP_TYPES.MAKIRA) {
+            console.log(`Collected power up: ${type} (Triggering auto-collect)`);
+            powerUp.destroy(); // マキラアイテム自体はここで消す
+            this.playPowerUpVoice(type); // ボイス再生
+            this.activateMakira();   // 新しい効果を発動
+            return; // 他の処理はしない
+        }
+        powerUp.destroy();
+        
         if (type === POWERUP_TYPES.SINDARA || type === POWERUP_TYPES.ANCHIRA) { this.deactivateSindara(null, true); this.deactivateAnchira(true); }
         this.playPowerUpVoice(type);
         switch (type) {
@@ -1052,158 +1044,108 @@ if (this.isMakiraActive && this.balls && this.familiars && this.familiars.countA
     increaseVajraGauge() { if (!this.isVajraSystemActive || this.isGameOver || this.bossDefeated) return; this.vajraGauge = Math.min(this.vajraGauge + VAJRA_GAUGE_INCREMENT, VAJRA_GAUGE_MAX); this.events.emit('updateVajraGauge', this.vajraGauge); if (this.vajraGauge >= VAJRA_GAUGE_MAX) this.triggerVajraOugi(); }
     triggerVajraOugi() { if (!this.isVajraSystemActive) return; this.isVajraSystemActive = false; this.events.emit('deactivateVajraUI'); this.setBallPowerUpState(POWERUP_TYPES.VAJRA, false); this.updateBallAndPaddleAppearance(); this.sound.play(AUDIO_KEYS.VOICE_VAJRA_TRIGGER); if (this.boss?.active) this.applyBossDamage(this.boss, 7, "Vajra Ougi"); }
      
-
-    // activateMakira を修正
+ // activateMakira メソッドを「画面内アイテム全取得」に書き換え
     activateMakira() {
-        if (this.isMakiraActive) { // 効果時間中に再取得した場合
-            console.log("[Makira] Already active, resetting duration.");
-            if (this.powerUpTimers[POWERUP_TYPES.MAKIRA]) {
-                this.powerUpTimers[POWERUP_TYPES.MAKIRA].remove();
-            }
-        } else {
-            console.log("[Makira] Activating Reflector Familiar.");
-            this.isMakiraActive = true;
-            // ファミリアグループがなければ作成（通常はcreateMakiraGroupsで作成済み）
-            if (!this.familiars) this.createMakiraGroups();
-            else this.familiars.clear(true, true); // 既存の子機がいればクリア
+        console.log("[Makira] Activating: Collect all on-screen items!");
 
-            this.createFamiliars(); // 新しい仕様の子機を1体生成
+        // ボールにマキラのアイコンを一瞬表示させる場合 (任意)
+        // this.setBallPowerUpState(POWERUP_TYPES.MAKIRA, true);
+        // this.updateBallAndPaddleAppearance();
+        // this.time.delayedCall(200, () => { // 0.2秒後にアイコンを戻す
+        //     this.setBallPowerUpState(POWERUP_TYPES.MAKIRA, false);
+        //     this.updateBallAndPaddleAppearance();
+        // }, [], this);
 
-            // ボール状態設定 (アイコン表示用)
-            this.setBallPowerUpState(POWERUP_TYPES.MAKIRA, true);
-            this.updateBallAndPaddleAppearance();
+        if (!this.powerUps || this.powerUps.countActive(true) === 0) {
+            console.log("[Makira] No active power-ups on screen to collect.");
+            return;
         }
 
-        // 効果時間タイマー設定
-        const duration = POWERUP_DURATION[POWERUP_TYPES.MAKIRA] || 20000; // 20秒
-        this.powerUpTimers[POWERUP_TYPES.MAKIRA] = this.time.delayedCall(duration, () => {
-            console.log("[Makira] Deactivating due to duration.");
-            this.deactivateMakira();
-            delete this.powerUpTimers[POWERUP_TYPES.MAKIRA];
-        }, [], this);
+        console.log(`[Makira] Found ${this.powerUps.countActive(true)} items to collect.`);
 
-        // ★ ボールとファミリアの衝突判定を有効化 (setCollidersを呼び出す) ★
-        this.setColliders();
-        console.log(`[Makira] Reflector active for ${duration}ms. Colliders updated.`);
-    }
-    // deactivateMakira を修正
-    deactivateMakira() {
-        if (!this.isMakiraActive) return;
-        console.log("[Makira] Deactivating Reflector Familiar.");
-        this.isMakiraActive = false;
+        // ★★★ 画面上の全アクティブなパワーアップアイテムを取得して効果を発動 ★★★
+        // getChildren() は配列のコピーを返すので、ループ中に要素を削除しても安全
+        const itemsToCollect = [...this.powerUps.getChildren()];
+        let collectedCount = 0;
 
-        // タイマー解除
-        if (this.powerUpTimers[POWERUP_TYPES.MAKIRA]) {
-            this.powerUpTimers[POWERUP_TYPES.MAKIRA].remove();
-            delete this.powerUpTimers[POWERUP_TYPES.MAKIRA];
-        }
-        // 子機を破棄
-       if (this.familiars) {
-        // ★★★ ファミリアグループの子要素（ベース）を処理 ★★★
-        this.familiars.getChildren().forEach(familiarBase => {
-            if (familiarBase.active && familiarBase.getData('decoration')) {
-                const decoration = familiarBase.getData('decoration');
-                if (decoration && decoration.scene) { // 装飾が存在し、シーンに追加されていれば
-                    decoration.destroy(); // ★ 装飾画像を個別に破棄
-                    console.log("[Makira Deactivate] Decoration image destroyed.");
+        itemsToCollect.forEach(item => {
+            if (item && item.active) { // アイテムがまだアクティブか再確認
+                const itemType = item.getData('type');
+                if (itemType) {
+                    console.log(`[Makira] Automatically collecting item: ${itemType}`);
+                    // SEとボイスは collectPowerUp内部で再生されるので、ここでは何もしない
+                    // item.destroy() も collectPowerUp内部で行われるか、
+                    // あるいは collectPowerUp が item を引数に取るようにしてそこで破棄する。
+                    // ここでは、既存の collectPowerUp を呼び出すのが手っ取り早い。
+                    // ただし、マキラ自身を再取得しないようにする。
+                    if (itemType !== POWERUP_TYPES.MAKIRA) {
+                        // this.collectPowerUp(this.paddle, item); // ← これだと item が既に destroy されている可能性がある
+                        // 代わりに、アイテムタイプを指定して直接効果を発動するようなヘルパーメソッドを呼ぶ方が安全
+                        // 今回は、collectPowerUp の最初の item.destroy() をコメントアウトし、
+                        // 取得済みフラグをアイテムに立てるなどで対応も可能だが、
+                        // 一旦、直接 collectPowerUp を呼んでみる（SE重複の可能性あり）
+
+                        // collectPowerUpがアイテムを破棄するので、ここで安全に呼び出す
+                        // ただし、SEが複数回鳴る可能性がある
+                        this.triggerPowerUpEffect(itemType, item); // 新しいヘルパーを想定
+                        collectedCount++;
+                    } else {
+                        console.log("[Makira] Skipping self-collection of Makira item.");
+                        // マキラ自身のアイテムは取得せずに消すだけにするなど
+                        item.destroy();
+                    }
+                } else {
+                    console.warn("[Makira] Item found without a type, destroying it.", item);
+                    item.destroy();
                 }
             }
         });
-        // ★★★ ベース自体はグループのclearで破棄される ★★★
-        this.familiars.clear(true, true); // ベースを破棄
-        console.log("[Makira Deactivate] Familiars group cleared.");
+        console.log(`[Makira] Collected ${collectedCount} items.`);
+        // マキラ自体は即時効果なので、持続効果のタイマーは不要
     }
-        // ボール状態解除
-        this.setBallPowerUpState(POWERUP_TYPES.MAKIRA, false);
-        this.updateBallAndPaddleAppearance();
-
-        // ★ ボールとファミリアの衝突判定を無効化 (setCollidersを呼び出す) ★
-        // (ballFamiliarColliderをnullにしてsetCollidersを呼べばOK)
-        this.safeDestroyCollider(this.ballFamiliarCollider);
-        this.ballFamiliarCollider = null;
-        this.setColliders(); // 他のコライダーに影響がないように全体を再設定
-        console.log("[Makira] Reflector deactivated. Colliders updated.");
-    }  
- createFamiliars() {
-        if (!this.paddle?.active || !this.familiars) { /* ... */ return; }
-        console.log("[CreateFamiliars] Creating reflector familiar...");
-
-        const familiarBaseWidth = this.paddle.displayWidth;
-        const familiarBaseHeight = PADDLE_HEIGHT * 0.8; // 例: パドルの高さの80%
-        const yOffsetFromPaddle = familiarBaseHeight / 2 + (this.gameWidth * BALL_RADIUS_RATIO) * 0.5;
-        const familiarY = this.paddle.y - (this.paddle.displayHeight / 2) - yOffsetFromPaddle;
-        const familiarX = this.paddle.x;
-
-        const familiarBase = this.familiars.create(familiarX, familiarY, 'whitePixel')
-            .setTint(0xccffcc)
-            .setDisplaySize(familiarBaseWidth, familiarBaseHeight) // 1. 見た目のサイズ設定
-            .setImmovable(true);
-
-        if (!familiarBase.body) {
-            console.error("!!! Failed to create familiarBase body!");
-            if(familiarBase) familiarBase.destroy();
+ // ★ 新しいヘルパーメソッド: 指定されたタイプのパワーアップ効果を発動し、アイテムを破棄
+    triggerPowerUpEffect(type, itemObject) {
+        if (!type) {
+            if (itemObject && itemObject.active) itemObject.destroy();
             return;
         }
-        familiarBase.body.setAllowGravity(false);
-        familiarBase.body.setCollideWorldBounds(true);
-        familiarBase.body.onWorldBounds = true;
-        familiarBase.body.checkCollision.up = false;
-        familiarBase.body.checkCollision.down = false;
+        console.log(`[TriggerEffect] Activating effect for: ${type}`);
+        // SEとボイス再生は collectPowerUp と同様のロジックで
+        this.playPowerUpVoice(type); // ボイス再生
 
-        // ★★★ 物理ボディのサイズとオフセットを明示的に設定 ★★★
-        try {
-            // 2. 物理ボディのサイズを、設定した表示サイズに合わせる
-            familiarBase.body.setSize(familiarBaseWidth, familiarBaseHeight);
-
-            // 3. オフセットを調整して、物理ボディの中心が見た目の中心と一致するようにする
-            //    (GameObjectの原点が0.5, 0.5の場合、通常オフセットは (0,0) で良いはずだが、
-            //     setDisplaySizeとsetSizeの関係でズレる場合があるので調整する)
-            //     Arcade Physicsのボディは左上基準なので、見た目の原点が中央なら、
-            //    オフセットは (表示幅 - ボディ幅)/2, (表示高さ - ボディ高さ)/2 となる。
-            //    今回は表示幅/高さとボディ幅/高さを同じにしているので、オフセットは(0,0)のはず。
-            //    もしズレる場合は、ここを調整。
-            //    （例：もし原点が(0,0)なら、オフセットは (displayWidth/2 - bodyWidth/2, displayHeight/2 - bodyHeight/2)など）
-            //    デフォルトの原点(0.5, 0.5)で、setSizeが表示サイズと同じならオフセットは(0,0)で良い。
-            //    しかし、安全のためにGameObjectの原点に基づいて計算する。
-            const offsetX = familiarBase.displayWidth * (0.5 - familiarBase.originX);
-            const offsetY = familiarBase.displayHeight * (0.5 - familiarBase.originY);
-            familiarBase.body.setOffset(offsetX, offsetY); // 原点とボディの左上を合わせる
-
-            console.log(`[CreateFamiliars] Set body size: ${familiarBase.body.width.toFixed(1)}x${familiarBase.body.height.toFixed(1)}, Offset: ${familiarBase.body.offset.x.toFixed(1)},${familiarBase.body.offset.y.toFixed(1)}`);
-            console.log(`[CreateFamiliars] familiarBase body enabled: ${familiarBase.body.enable}`);
-        } catch (e) {
-            console.error("!!! Error setting familiarBase body size/offset:", e);
+        // itemObject はここで破棄 (collectPowerUp 本体とは別に)
+        if (itemObject && itemObject.active) {
+            itemObject.destroy();
         }
-        // ★★★-------------------------------------------------★★★
 
-
-     
-         // ★★★ 動きをシンプルに ★★★
-    const moveSpeed = 100; // 固定の速度で試す
-    console.log(`[CreateFamiliars] Attempting to set initial velocity X: ${moveSpeed}`);
-    try {
-        familiarBase.setVelocityX(moveSpeed);
-        // 念のため、数フレーム後に速度が維持されているか確認するログ
-        this.time.delayedCall(100, () => {
-            if (familiarBase && familiarBase.body && familiarBase.active) {
-                console.log(`[CreateFamiliars] Familiar velocity after 100ms: X=${familiarBase.body.velocity.x.toFixed(1)}, Y=${familiarBase.body.velocity.y.toFixed(1)}`);
-            }
-        }, [], this);
-    } catch (e) {
-        console.error("!!! Error setting initial velocity for familiarBase:", e);
+        // collectPowerUp の switch 文のロジックをここに持ってくるか、
+        // 各 activateXXX メソッドを直接呼び出す
+        switch (type) {
+            case POWERUP_TYPES.KUBIRA:   this.activateKubira();   break;
+            case POWERUP_TYPES.SHATORA:  this.activateShatora();  break;
+            case POWERUP_TYPES.HAILA:    this.activateHaira();    break;
+            case POWERUP_TYPES.ANCHIRA:  this.activateAnchira();  break;
+            case POWERUP_TYPES.SINDARA:  this.activateSindara();  break;
+            case POWERUP_TYPES.BIKARA:   this.activateBikara();   break;
+            case POWERUP_TYPES.INDARA:   this.activateIndara();   break;
+            case POWERUP_TYPES.ANILA:    this.activateAnila();    break;
+            case POWERUP_TYPES.VAJRA:    this.activateVajra();    break;
+            // MAKIRA はここでは発動しない (無限ループ防止)
+            case POWERUP_TYPES.MAKORA:   this.activateMakora();   break;
+            case POWERUP_TYPES.BAISRAVA:
+                if (this.boss?.active && !this.boss.getData('isInvulnerable')) {
+                    this.applyBossDamage(this.boss, 50, "Baisrava (Auto-collected)");
+                }
+                break; // バイシュラヴァは即時効果
+            default:
+                console.log(`[TriggerEffect] Power up ${type} has no specific activation.`);
+                this.setBallPowerUpState(type, true); // 未定義でもアイコン表示試行
+                break;
+        }
+        // 全体的な見た目更新は activateMakira の最後に1回で良いかもしれない
+        this.updateBallAndPaddleAppearance();
     }
-    // ★★★-------------------★★★
-
-    // ★★★ 表示状態を強制的に設定 ★★★
-    if (familiarBase && familiarBase.active) { // active であることも確認
-        familiarBase.setVisible(true);
-        familiarBase.setAlpha(1);
-        familiarBase.setDepth(5); // 他のゲームオブジェクトより手前に表示する例
-        console.log(`[CreateFamiliars] Set familiarBase visible: ${familiarBase.visible}, alpha: ${familiarBase.alpha}, depth: ${familiarBase.depth}`);
-    }
-    // ★★★-------------------------★★★
-    console.log(`[CreateFamiliars] Reflector familiar created. Display Size: ${familiarBase.displayWidth}x${familiarBase.displayHeight}`);
-}
+  
    activateMakora() {
         if (!this.balls?.countActive(true)) return; this.setBallPowerUpState(POWERUP_TYPES.MAKORA, true); this.updateBallAndPaddleAppearance();
         const copiedType = Phaser.Utils.Array.GetRandom(MAKORA_COPYABLE_POWERS);
@@ -1432,49 +1374,7 @@ if (this.isMakiraActive && this.balls && this.familiars && this.familiars.countA
     dropSpecificPowerUp(x,y,type){if(!type||!this.powerUps)return;let tK=POWERUP_ICON_KEYS[type]||'whitePixel';const iS=this.gameWidth*POWERUP_SIZE_RATIO;let tC=(tK==='whitePixel'&&type===POWERUP_TYPES.BAISRAVA)?0xffd700:(tK==='whitePixel'?0xcccccc:null);const pU=this.powerUps.create(x,y,tK).setDisplaySize(iS,iS).setData('type',type);if(tC)pU.setTint(tC);if(pU.body){pU.setVelocity(0,POWERUP_SPEED_Y);pU.body.setCollideWorldBounds(false).setAllowGravity(false);}else if(pU)pU.destroy();}
     handlePaddleHitByAttackBrick(paddle, attackBrick) { if (!paddle?.active || !attackBrick?.active) return; this.destroyAttackBrick(attackBrick, false); if (!this.isAnilaActive) this.loseLife(); else console.log("[Anila] Paddle hit blocked!"); }
    
-    // 新しいメソッド: ボールがファミリアに当たった時の処理
-    hitFamiliarWithBall(familiar, ball) {
-        if (!familiar?.active || !ball?.active || !ball.body) {
-            console.log("[HitFamiliar] Collision ignored, invalid object state.");
-            return;
-        }
-        console.log("[HitFamiliar] Ball hit detected.");
-
-        // パドルの反射ロジックを流用
-        let diff = ball.x - familiar.x;
-        let influence = Phaser.Math.Clamp(diff / (familiar.displayWidth / 2), -1, 1);
-        let newVx = (NORMAL_BALL_SPEED * 0.85) * influence; // X速度の影響
-        let newVyAbs = Math.sqrt(Math.max(0, Math.pow(NORMAL_BALL_SPEED, 2) - Math.pow(newVx, 2)));
-        const minVyRatio = 0.3;
-        if (newVyAbs < NORMAL_BALL_SPEED * minVyRatio) {
-            newVyAbs = NORMAL_BALL_SPEED * minVyRatio;
-            newVx = Math.sign(newVx) * Math.sqrt(Math.max(0, Math.pow(NORMAL_BALL_SPEED, 2) - Math.pow(newVyAbs, 2)));
-        }
-        let newVy = -newVyAbs; // 必ず上向きに反射 (子機が上にあるため)
-
-        // パワーアップによる速度補正 (パドルと同様)
-        let speedMultiplier = 1.0;
-        if (ball.getData('isFast') === true) speedMultiplier = BALL_SPEED_MODIFIERS[POWERUP_TYPES.SHATORA];
-        else if (ball.getData('isSlow') === true) speedMultiplier = BALL_SPEED_MODIFIERS[POWERUP_TYPES.HAILA];
-        const targetSpeed = NORMAL_BALL_SPEED * speedMultiplier;
-
-        const finalVel = new Phaser.Math.Vector2(newVx, newVy);
-        if (finalVel.lengthSq() === 0) finalVel.set(Phaser.Math.Between(-50, 50), -NORMAL_BALL_SPEED); // 完全停止を避ける
-        finalVel.normalize().scale(targetSpeed);
-
-        console.log(`[HitFamiliar] Reflecting ball. Velocity: (${finalVel.x.toFixed(1)}, ${finalVel.y.toFixed(1)}), Speed: ${targetSpeed.toFixed(0)}`);
-        try { ball.setVelocity(finalVel.x, finalVel.y); }
-        catch(e) { console.error("!!! Error setting velocity in hitFamiliar:", e); }
-
-        // SE再生 (パドルと同じで良いか、専用SEか)
-        try { this.sound.play(AUDIO_KEYS.SE_REFLECT, { volume: 0.7 }); } catch (e) { /* ... */ }
-        // ヒットエフェクト (パドルと同様)
-        this.createImpactParticles(ball.x, familiar.getBounds().top, [240, 300], 0xccffcc, 5);
-
-        // 子機ヒットで解除される効果があればここに追加
-    }
-// --- ▲ 衝突処理メソッド ▲ ---
-
+  hitFamiliarWithBall
     // --- ▼ ヘルパーメソッド (主要部分) ▼ ---
     createAndAddBall(x, y, vx = 0, vy = 0, dataToCopy = null) {
         if (!this.balls) return null;
@@ -1767,6 +1667,6 @@ calculateDynamicFontSize(baseSizeMax) {
     stopBgm(){if(this.currentBgm){try{this.currentBgm.stop();this.sound.remove(this.currentBgm);}catch(e){console.error("Error stopping BGM:",e);}this.currentBgm=null;}}
     safeDestroyCollider(colliderRef,name="collider"){if(colliderRef){try{colliderRef.destroy();}catch(e){console.error(`[Shutdown] Error destroying ${name}:`,e.message);}}colliderRef=null;}
     safeDestroy(obj,name,destroyChildren=false){if(obj&&obj.scene){try{obj.destroy(destroyChildren);}catch(e){console.error(`[Shutdown] Error destroying ${name}:`,e.message);}}obj=null;}
-    shutdownScene() { /* ... (CommonBossScene.js 前回のコードと同様、内容は省略) ... */ this.safeDestroyCollider(this.ballFamiliarCollider);console.log(`--- ${this.scene.key} SHUTDOWN ---`); this.stopBgm(); this.sound.stopAll(); this.tweens.killAll(); this.time.removeAllEvents(); this.scale.off('resize', this.handleResize, this); if (this.physics.world) this.physics.world.off('worldbounds', this.handleWorldBounds, this); this.input.off('pointermove', this.handlePointerMove, this); this.input.off('pointerdown', this.handlePointerDown, this); this.events.off('shutdown', this.shutdownScene, this); this.events.removeAllListeners(); this.safeDestroyCollider(this.ballPaddleCollider); this.safeDestroyCollider(this.ballBossCollider); this.safeDestroyCollider(this.ballAttackBrickCollider); this.safeDestroyCollider(this.ballAttackBrickOverlap); this.safeDestroyCollider(this.paddlePowerUpOverlap); this.safeDestroyCollider(this.paddleAttackBrickCollider); this.safeDestroyCollider(this.makiraBeamBossOverlap); this.safeDestroy(this.paddle,"paddle"); this.safeDestroy(this.balls,"balls group",true); this.safeDestroy(this.boss,"boss"); this.safeDestroy(this.attackBricks,"attackBricks group",true); this.safeDestroy(this.powerUps,"powerUps group",true); this.safeDestroy(this.familiars,"familiars group",true); this.safeDestroy(this.makiraBeams,"makiraBeams group",true); this.safeDestroy(this.gameOverText,"gameOverText"); this.safeDestroy(this.gameClearText,"gameClearText"); this.safeDestroy(this.bossAfterImageEmitter,"bossAfterImageEmitter"); this.paddle=null;this.balls=null;this.boss=null;this.attackBricks=null;this.powerUps=null;this.familiars=null;this.makiraBeams=null;this.gameOverText=null;this.gameClearText=null;this.bossAfterImageEmitter=null;this.uiScene=null;this.currentBgm=null;this.powerUpTimers={};this.bikaraTimers={};this.lastPlayedVoiceTime={};this.bossMoveTween=null;this.randomVoiceTimer=null;this.attackBrickTimer=null;this.anilaTimer=null;this.anchiraTimer=null;this.makiraAttackTimer=null; console.log(`--- ${this.scene.key} SHUTDOWN Complete ---`); }
+    shutdownScene() { /* ... (CommonBossScene.js 前回のコードと同様、内容は省略) ... */ this.stopBgm(); this.sound.stopAll(); this.tweens.killAll(); this.time.removeAllEvents(); this.scale.off('resize', this.handleResize, this); if (this.physics.world) this.physics.world.off('worldbounds', this.handleWorldBounds, this); this.input.off('pointermove', this.handlePointerMove, this); this.input.off('pointerdown', this.handlePointerDown, this); this.events.off('shutdown', this.shutdownScene, this); this.events.removeAllListeners(); this.safeDestroyCollider(this.ballPaddleCollider); this.safeDestroyCollider(this.ballBossCollider); this.safeDestroyCollider(this.ballAttackBrickCollider); this.safeDestroyCollider(this.ballAttackBrickOverlap); this.safeDestroyCollider(this.paddlePowerUpOverlap); this.safeDestroyCollider(this.paddleAttackBrickCollider); this.safeDestroyCollider(this.makiraBeamBossOverlap); this.safeDestroy(this.paddle,"paddle"); this.safeDestroy(this.balls,"balls group",true); this.safeDestroy(this.boss,"boss"); this.safeDestroy(this.attackBricks,"attackBricks group",true); this.safeDestroy(this.powerUps,"powerUps group",true); this.safeDestroy(this.familiars,"familiars group",true); this.safeDestroy(this.makiraBeams,"makiraBeams group",true); this.safeDestroy(this.gameOverText,"gameOverText"); this.safeDestroy(this.gameClearText,"gameClearText"); this.safeDestroy(this.bossAfterImageEmitter,"bossAfterImageEmitter"); this.paddle=null;this.balls=null;this.boss=null;this.attackBricks=null;this.powerUps=null;this.familiars=null;this.makiraBeams=null;this.gameOverText=null;this.gameClearText=null;this.bossAfterImageEmitter=null;this.uiScene=null;this.currentBgm=null;this.powerUpTimers={};this.bikaraTimers={};this.lastPlayedVoiceTime={};this.bossMoveTween=null;this.randomVoiceTimer=null;this.attackBrickTimer=null;this.anilaTimer=null;this.anchiraTimer=null;this.makiraAttackTimer=null; console.log(`--- ${this.scene.key} SHUTDOWN Complete ---`); }
     // --- ▲ ヘルパーメソッド ▲ ---
 }
