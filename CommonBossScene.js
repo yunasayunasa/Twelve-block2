@@ -808,25 +808,27 @@ export default class CommonBossScene extends Phaser.Scene {
         this.safeDestroyCollider(this.ballAttackBrickCollider); this.safeDestroyCollider(this.ballAttackBrickOverlap);
         this.safeDestroyCollider(this.paddlePowerUpOverlap); this.safeDestroyCollider(this.paddleAttackBrickCollider);
         this.safeDestroyCollider(this.makiraBeamBossOverlap);
-          this.safeDestroyCollider(this.ballFamiliarCollider); // ★ 追加
+          this.safeDestroyCollider(this.ballFamiliarCollider);
+this.ballFamiliarCollider = null; // 明示的にnullに
+console.log(`[SetColliders] Checking conditions for Ball-Familiar collider: isMakiraActive=${this.isMakiraActive}, balls=${!!this.balls}, familiars=${!!this.familiars}, familiars.countActive=${this.familiars?.countActive(true)}`);
 
-            // ★★★ ボールとマキラ子機の衝突判定 ★★★
-        if (this.isMakiraActive && this.balls && this.familiars && this.familiars.countActive(true) > 0) {
-            this.ballFamiliarCollider = this.physics.add.collider(
-                this.balls,
-                this.familiars,
-                this.hitFamiliarWithBall, // 新しいコールバック関数
-                null, // processCallback は不要
-                this
-            );
-            console.log("[SetColliders] Ball-Familiar collider ADDED.");
-        } else if (this.ballFamiliarCollider) {
-             // マキラ非アクティブ時や子機がいない場合はコライダーを破棄
-             this.safeDestroyCollider(this.ballFamiliarCollider);
-             this.ballFamiliarCollider = null;
-             console.log("[SetColliders] Ball-Familiar collider REMOVED.");
-        }
-        // ★★★---------------------------------★★★
+if (this.isMakiraActive && this.balls && this.familiars && this.familiars.countActive(true) > 0) {
+    console.log("[SetColliders] ADDING Ball-Familiar collider."); // ★追加
+    this.ballFamiliarCollider = this.physics.add.collider(
+        this.balls,
+        this.familiars, // ★ 物理グループ 'familiars' を指定
+        this.hitFamiliarWithBall,
+        null,
+        this
+    );
+    // ★ コライダーが生成されたか確認
+    console.log("[SetColliders] ballFamiliarCollider object:", this.ballFamiliarCollider);
+    if (!this.ballFamiliarCollider || !this.ballFamiliarCollider.active) {
+        console.error("!!! FAILED to create or activate ballFamiliarCollider !!!");
+    }
+} else {
+    console.log("[SetColliders] Conditions NOT MET for Ball-Familiar collider or it was removed.");
+}
 
 
         if (this.paddle && this.balls) this.ballPaddleCollider = this.physics.add.collider(this.paddle, this.balls, this.hitPaddle, null, this);
@@ -1096,9 +1098,21 @@ export default class CommonBossScene extends Phaser.Scene {
             delete this.powerUpTimers[POWERUP_TYPES.MAKIRA];
         }
         // 子機を破棄
-        if (this.familiars) {
-            this.familiars.clear(true, true);
-        }
+       if (this.familiars) {
+        // ★★★ ファミリアグループの子要素（ベース）を処理 ★★★
+        this.familiars.getChildren().forEach(familiarBase => {
+            if (familiarBase.active && familiarBase.getData('decoration')) {
+                const decoration = familiarBase.getData('decoration');
+                if (decoration && decoration.scene) { // 装飾が存在し、シーンに追加されていれば
+                    decoration.destroy(); // ★ 装飾画像を個別に破棄
+                    console.log("[Makira Deactivate] Decoration image destroyed.");
+                }
+            }
+        });
+        // ★★★ ベース自体はグループのclearで破棄される ★★★
+        this.familiars.clear(true, true); // ベースを破棄
+        console.log("[Makira Deactivate] Familiars group cleared.");
+    }
         // ボール状態解除
         this.setBallPowerUpState(POWERUP_TYPES.MAKIRA, false);
         this.updateBallAndPaddleAppearance();
@@ -1109,7 +1123,8 @@ export default class CommonBossScene extends Phaser.Scene {
         this.ballFamiliarCollider = null;
         this.setColliders(); // 他のコライダーに影響がないように全体を再設定
         console.log("[Makira] Reflector deactivated. Colliders updated.");
-    }  createFamiliars() {
+    }  
+    createFamiliars() {
         if (!this.paddle?.active || !this.familiars) {
             console.warn("[CreateFamiliars] Cannot create familiar: Paddle or familiars group missing.");
             return;
@@ -1126,14 +1141,16 @@ export default class CommonBossScene extends Phaser.Scene {
         const familiarX = this.paddle.x;
 
         // ベース部分を物理グループに追加
-        const familiarBase = this.familiars.create(familiarX, familiarY, 'whitePixel')
-            .setTint(0xccffcc) // 少し色を変える (例:薄い緑)
-            .setDisplaySize(familiarBaseWidth, familiarBaseHeight)
-            .setImmovable(true); // ボールに押されないように
+       // ★★★ this.familiars.create を使っているか確認 ★★★
+const familiarBase = this.familiars.create(familiarX, familiarY, 'whitePixel')
+    .setTint(0xccffcc)
+    .setDisplaySize(familiarBaseWidth, familiarBaseHeight)
+    .setImmovable(true); // ★ Immovable確認
 
         if (!familiarBase.body) {
             console.error("!!! Failed to create familiarBase body!");
             if(familiarBase) familiarBase.destroy();
+            console.log(`[CreateFamiliars] familiarBase body enabled: ${familiarBase.body.enable}`); // ★ ボディ有効か確認
             return;
         }
         familiarBase.body.setAllowGravity(false);
