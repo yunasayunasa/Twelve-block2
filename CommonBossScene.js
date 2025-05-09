@@ -583,47 +583,75 @@ export default class CommonBossScene extends Phaser.Scene {
      *  Boss1Scene などで super.createSpecificBoss() を呼ぶか、
      *  完全にオーバーライドしてこの内容を参考に実装する)
      */
-      createSpecificBoss() {
-        console.warn(`CommonBossScene: createSpecificBoss() called. Ensure derived scene sets bossData first.`);
-        if (this.boss) this.boss.destroy();
+  // CommonBossScene.js の createSpecificBoss メソッドを修正
+
+    createSpecificBoss() {
+        console.warn(`CommonBossScene: createSpecificBoss() called. Ensure derived scene (like Boss1Scene) has called initializeBossData to set this.bossData first.`); // ログを少し親切に
+        if (this.boss) {
+            console.log("[CommonBossScene] Existing boss found, destroying it first.");
+            this.boss.destroy();
+            this.boss = null; // 参照もクリア
+        }
 
         const bossX = this.gameWidth / 2;
         const bossY = this.gameHeight * 0.25;
-        const textureKey = this.bossData.textureKey || 'bossStand';
+
+        // ★★★ bossData が存在するか、health が定義されているか確認 ★★★
+        if (!this.bossData || typeof this.bossData.health === 'undefined') {
+            console.error("!!! CRITICAL ERROR: this.bossData or this.bossData.health is not defined BEFORE creating boss! Did initializeBossData run correctly in the derived scene?");
+            // this.bossData が未定義の場合、デフォルト値でフォールバックするか、処理を中断する
+            this.bossData = this.bossData || {}; // bossDataがnull/undefinedなら空オブジェクトに
+            this.bossData.health = this.bossData.health || DEFAULT_BOSS_MAX_HEALTH; // healthもフォールバック
+            this.bossData.textureKey = this.bossData.textureKey || 'bossStand';
+            this.bossData.widthRatio = this.bossData.widthRatio || 0.25;
+            console.warn("[CommonBossScene] Using fallback bossData due to missing initialization.");
+        }
+        // ★★★----------------------------------------------------★★★
+        const textureKey = this.bossData.textureKey; // || 'bossStand' は上記のフォールバックで対応済み
 
         try {
             this.boss = this.physics.add.image(bossX, bossY, textureKey)
                 .setImmovable(true).setVisible(false).setAlpha(0);
-            console.log("[CommonBossScene] Boss object created:", this.boss);
+            console.log("[CommonBossScene] Boss object created with texture:", textureKey, this.boss);
             console.log("[CommonBossScene] Boss body object:", this.boss.body);
-            if (!this.boss.body) { console.error("!!! CRITICAL: Physics body was NOT created!"); }
+            if (!this.boss.body) { console.error("!!! CRITICAL: Physics body was NOT created for the boss!"); }
+
         } catch (e) {
-            console.error("!!! FATAL ERROR during physics.add.image for boss:", e);
+            console.error(`!!! FATAL ERROR during physics.add.image for boss (texture: ${textureKey}):`, e);
             this.boss = null;
-            return; // ボス生成失敗
+            return;
         }
 
         if (this.boss) {
             try {
-                // データ設定
-                this.boss.setData('health', this.bossData.health || DEFAULT_BOSS_MAX_HEALTH);
-                this.boss.setData('maxHealth', this.bossData.health || DEFAULT_BOSS_MAX_HEALTH);
+                const initialHealth = this.bossData.health; // フォールバック済みなので || DEFAULT_BOSS_MAX_HEALTH は不要
+                console.log(`[CommonBossScene] Attempting to set initial health to: ${initialHealth} (from this.bossData.health)`);
+
+                this.boss.setData('health', initialHealth);
+                this.boss.setData('maxHealth', initialHealth); // maxHealthも同じ初期値で
+
+                // ★★★ 設定直後のHPを getData で取得してログ出力 ★★★
+                const currentHp = this.boss.getData('health');
+                const currentMaxHp = this.boss.getData('maxHealth');
+                console.log(`[CommonBossScene] AFTER setData - Health: ${currentHp}, MaxHealth: ${currentMaxHp}, Typeof Health: ${typeof currentHp}`);
+                if (typeof currentHp !== 'number' || isNaN(currentHp)) {
+                     console.error("!!!!!!!! INITIAL BOSS HP IS NOT A VALID NUMBER AFTER setData !!!!!!!!");
+                }
+                // ★★★--------------------------------------------★★★
+
                 this.boss.setData('isInvulnerable', false);
                 this.boss.setData('targetY', bossY);
-                console.log("[CommonBossScene] Boss data set."); 
-            } catch(e) { console.error("!!! ERROR setting boss data:", e); }
+                console.log("[CommonBossScene] Boss data (invulnerable, targetY) set.");
+
+            } catch(e) { console.error("!!! ERROR setting boss data (health, etc.):", e); }
 
             try {
-                // ★ updateBossSize を呼んで初期サイズ/オフセットを設定（見た目準拠）
-                this.updateBossSize(this.boss, textureKey, this.bossData.widthRatio || 0.25);
-                // ★ ボディ情報の保存は不要になったので削除
-                this.boss.setData('targetScale', this.boss.scale); // targetScaleは保存
-                console.log("[CommonBossScene] Boss initial size updated using updateBossSize.");
-            } catch(e) { console.error("!!! ERROR during initial boss size update / data storage:", e); }
+                this.updateBossSize(this.boss, textureKey, this.bossData.widthRatio);
+                this.boss.setData('targetScale', this.boss.scale);
+                console.log("[CommonBossScene] Boss initial size updated and targetScale set.");
+            } catch(e) { console.error("!!! ERROR during initial boss size update / targetScale storage:", e); }
         }
     }
-
-
     startSpecificBossMovement() {
         console.warn(`CommonBossScene: startSpecificBossMovement() not implemented in ${this.scene.key}. Starting generic movement.`);
         if (!this.boss || !this.boss.active) return;
