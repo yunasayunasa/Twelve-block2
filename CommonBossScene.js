@@ -113,6 +113,7 @@ export default class CommonBossScene extends Phaser.Scene {
         this.familiars = null;
         this.makiraBeams = null;
         this.ALL_POSSIBLE_POWERUPS = Object.values(POWERUP_TYPES); // constants.jsから移動
+         this.ballFamiliarCollider = null; // ★ 新しいコライダー参照
 
         // --- ゲーム進行・状態 ---
         this.currentBossIndex = 1;
@@ -277,6 +278,19 @@ export default class CommonBossScene extends Phaser.Scene {
                 this.bossAfterImageEmitter?.stop();
                 return;
             }
+
+              // ★★★ マキラ子機の装飾をベースに追従させる ★★★
+        if (this.isMakiraActive && this.familiars) {
+            this.familiars.getChildren().forEach(familiarBase => {
+                if (familiarBase.active && familiarBase.getData('decoration')) {
+                    const decoration = familiarBase.getData('decoration');
+                    if (decoration.active) { // 装飾もアクティブか確認
+                        decoration.setPosition(familiarBase.x, familiarBase.y);
+                    }
+                }
+            });
+        }
+        // ★★★--------------------------------------★★★
     
             if (this.boss && this.boss.active) {
                 if (this.bossAfterImageEmitter) {
@@ -300,25 +314,7 @@ export default class CommonBossScene extends Phaser.Scene {
                      const homingSpeed = NORMAL_BALL_SPEED * INDARA_HOMING_SPEED_MULTIPLIER;
                      this.physics.velocityFromAngle(Phaser.Math.RadToDeg(direction), homingSpeed, ball.body.velocity);
                  }
-                 // ★★★ 手動でマキラビームとボスのオーバーラップをチェック ★★★
-        if (this.isMakiraActive && this.makiraBeams && this.boss && this.boss.active && this.boss.body?.enable) {
-            try {
-                // overlap(object1, object2, collideCallback, processCallback, callbackContext)
-                this.physics.overlap(
-                    this.makiraBeams,
-                    this.boss,
-                    this.hitBossWithMakiraBeam, // 重なっていたら呼び出すコールバック
-                    (beam, boss) => { // processCallback: 衝突を処理するかどうかの事前判定
-                        // ボスが無敵でない場合のみ衝突を処理
-                        return !boss.getData('isInvulnerable');
-                    },
-                    this // コールバックのコンテキスト
-                );
-            } catch (e) {
-                 console.error("!!! ERROR during manual overlap check:", e);
-            }
-       }
-       // ★★★----------------------------------------------★★★
+                
 
 
             });
@@ -789,10 +785,18 @@ export default class CommonBossScene extends Phaser.Scene {
     }
     createPowerUpsGroup() { if (this.powerUps) this.powerUps.destroy(true); this.powerUps = this.physics.add.group(); }
     createAttackBricksGroup() { if (this.attackBricks) this.attackBricks.destroy(true); this.attackBricks = this.physics.add.group(); }
-    createMakiraGroups() {
-        if (this.familiars) this.familiars.destroy(true); this.familiars = this.physics.add.group({ collideWorldBounds: true, bounceX: 1 });
-        if (this.makiraBeams) this.makiraBeams.destroy(true); this.makiraBeams = this.physics.add.group();
+   createMakiraGroups() {
+        if (this.familiars) { this.familiars.destroy(true); this.familiars = null; }
+        // ファミリアは物理グループ、壁との衝突と跳ね返りを設定
+        this.familiars = this.physics.add.group({
+            collideWorldBounds: true,
+            bounceX: 1, // 左右の壁で跳ね返る
+            bounceY: 0  // 上下の壁では跳ね返らない (動きで制御)
+        });
+        console.log("Makira 'familiars' group created (for reflector).");
+        // makiraBeams の生成は削除
     }
+
     setupBossDropPool() {
         const shuffledPool = Phaser.Utils.Array.Shuffle([...this.ALL_POSSIBLE_POWERUPS]);
         this.bossDropPool = shuffledPool.slice(0, this.chaosSettings.count);
@@ -804,6 +808,26 @@ export default class CommonBossScene extends Phaser.Scene {
         this.safeDestroyCollider(this.ballAttackBrickCollider); this.safeDestroyCollider(this.ballAttackBrickOverlap);
         this.safeDestroyCollider(this.paddlePowerUpOverlap); this.safeDestroyCollider(this.paddleAttackBrickCollider);
         this.safeDestroyCollider(this.makiraBeamBossOverlap);
+          this.safeDestroyCollider(this.ballFamiliarCollider); // ★ 追加
+
+            // ★★★ ボールとマキラ子機の衝突判定 ★★★
+        if (this.isMakiraActive && this.balls && this.familiars && this.familiars.countActive(true) > 0) {
+            this.ballFamiliarCollider = this.physics.add.collider(
+                this.balls,
+                this.familiars,
+                this.hitFamiliarWithBall, // 新しいコールバック関数
+                null, // processCallback は不要
+                this
+            );
+            console.log("[SetColliders] Ball-Familiar collider ADDED.");
+        } else if (this.ballFamiliarCollider) {
+             // マキラ非アクティブ時や子機がいない場合はコライダーを破棄
+             this.safeDestroyCollider(this.ballFamiliarCollider);
+             this.ballFamiliarCollider = null;
+             console.log("[SetColliders] Ball-Familiar collider REMOVED.");
+        }
+        // ★★★---------------------------------★★★
+
 
         if (this.paddle && this.balls) this.ballPaddleCollider = this.physics.add.collider(this.paddle, this.balls, this.hitPaddle, null, this);
         if (this.boss && this.balls) this.ballBossCollider = this.physics.add.collider(this.boss, this.balls, this.hitBoss, (b, ball) => !b.getData('isInvulnerable'), this);
@@ -1025,19 +1049,133 @@ export default class CommonBossScene extends Phaser.Scene {
     activateVajra() { if (!this.isVajraSystemActive) { this.isVajraSystemActive = true; this.vajraGauge = 0; this.events.emit('activateVajraUI', this.vajraGauge, VAJRA_GAUGE_MAX); this.setBallPowerUpState(POWERUP_TYPES.VAJRA, true); this.updateBallAndPaddleAppearance(); } }
     increaseVajraGauge() { if (!this.isVajraSystemActive || this.isGameOver || this.bossDefeated) return; this.vajraGauge = Math.min(this.vajraGauge + VAJRA_GAUGE_INCREMENT, VAJRA_GAUGE_MAX); this.events.emit('updateVajraGauge', this.vajraGauge); if (this.vajraGauge >= VAJRA_GAUGE_MAX) this.triggerVajraOugi(); }
     triggerVajraOugi() { if (!this.isVajraSystemActive) return; this.isVajraSystemActive = false; this.events.emit('deactivateVajraUI'); this.setBallPowerUpState(POWERUP_TYPES.VAJRA, false); this.updateBallAndPaddleAppearance(); this.sound.play(AUDIO_KEYS.VOICE_VAJRA_TRIGGER); if (this.boss?.active) this.applyBossDamage(this.boss, 7, "Vajra Ougi"); }
+     
+
+    // activateMakira を修正
     activateMakira() {
-        if (!this.isMakiraActive) { this.isMakiraActive = true; this.familiars?.clear(true, true); this.createFamiliars(); this.makiraBeams?.clear(true, true); this.makiraAttackTimer?.remove(); this.makiraAttackTimer = this.time.addEvent({ delay: MAKIRA_ATTACK_INTERVAL, callback: this.fireMakiraBeam, callbackScope: this, loop: true }); this.setBallPowerUpState(POWERUP_TYPES.MAKIRA, true); }
-        if (this.powerUpTimers[POWERUP_TYPES.MAKIRA]) this.powerUpTimers[POWERUP_TYPES.MAKIRA].remove(); this.powerUpTimers[POWERUP_TYPES.MAKIRA] = this.time.delayedCall(POWERUP_DURATION[POWERUP_TYPES.MAKIRA], this.deactivateMakira, [], this);
-        this.updateBallAndPaddleAppearance(); this.setColliders();
+        if (this.isMakiraActive) { // 効果時間中に再取得した場合
+            console.log("[Makira] Already active, resetting duration.");
+            if (this.powerUpTimers[POWERUP_TYPES.MAKIRA]) {
+                this.powerUpTimers[POWERUP_TYPES.MAKIRA].remove();
+            }
+        } else {
+            console.log("[Makira] Activating Reflector Familiar.");
+            this.isMakiraActive = true;
+            // ファミリアグループがなければ作成（通常はcreateMakiraGroupsで作成済み）
+            if (!this.familiars) this.createMakiraGroups();
+            else this.familiars.clear(true, true); // 既存の子機がいればクリア
+
+            this.createFamiliars(); // 新しい仕様の子機を1体生成
+
+            // ボール状態設定 (アイコン表示用)
+            this.setBallPowerUpState(POWERUP_TYPES.MAKIRA, true);
+            this.updateBallAndPaddleAppearance();
+        }
+
+        // 効果時間タイマー設定
+        const duration = POWERUP_DURATION[POWERUP_TYPES.MAKIRA] || 20000; // 20秒
+        this.powerUpTimers[POWERUP_TYPES.MAKIRA] = this.time.delayedCall(duration, () => {
+            console.log("[Makira] Deactivating due to duration.");
+            this.deactivateMakira();
+            delete this.powerUpTimers[POWERUP_TYPES.MAKIRA];
+        }, [], this);
+
+        // ★ ボールとファミリアの衝突判定を有効化 (setCollidersを呼び出す) ★
+        this.setColliders();
+        console.log(`[Makira] Reflector active for ${duration}ms. Colliders updated.`);
     }
-    deactivateMakira() { if (!this.isMakiraActive) return; this.isMakiraActive = false; this.makiraAttackTimer?.remove(); this.makiraAttackTimer = null; this.powerUpTimers[POWERUP_TYPES.MAKIRA]?.remove(); delete this.powerUpTimers[POWERUP_TYPES.MAKIRA]; this.familiars?.clear(true, true); this.makiraBeams?.clear(true, true); this.setBallPowerUpState(POWERUP_TYPES.MAKIRA, false); this.updateBallAndPaddleAppearance(); this.setColliders(); }
-    createFamiliars() {
-        if (!this.paddle?.active || !this.familiars) return; const pX = this.paddle.x; const fY = this.paddle.y - (PADDLE_HEIGHT / 2) - (this.gameWidth*MAKIRA_FAMILIAR_SIZE_RATIO); const fS = this.gameWidth*MAKIRA_FAMILIAR_SIZE_RATIO; const fO = this.gameWidth*MAKIRA_FAMILIAR_OFFSET_RATIO;
-        [this.familiars.create(pX - fO, fY, 'joykun').setDisplaySize(fS,fS).setImmovable(true), this.familiars.create(pX + fO, fY, 'joykun').setDisplaySize(fS,fS).setImmovable(true)].forEach((fam, i) => { if (fam?.body) { fam.body.setAllowGravity(false).setVelocityX(i===0 ? -FAMILIAR_MOVE_SPEED_X : FAMILIAR_MOVE_SPEED_X).onWorldBounds = true; } else if (fam) fam.destroy(); });
+    // deactivateMakira を修正
+    deactivateMakira() {
+        if (!this.isMakiraActive) return;
+        console.log("[Makira] Deactivating Reflector Familiar.");
+        this.isMakiraActive = false;
+
+        // タイマー解除
+        if (this.powerUpTimers[POWERUP_TYPES.MAKIRA]) {
+            this.powerUpTimers[POWERUP_TYPES.MAKIRA].remove();
+            delete this.powerUpTimers[POWERUP_TYPES.MAKIRA];
+        }
+        // 子機を破棄
+        if (this.familiars) {
+            this.familiars.clear(true, true);
+        }
+        // ボール状態解除
+        this.setBallPowerUpState(POWERUP_TYPES.MAKIRA, false);
+        this.updateBallAndPaddleAppearance();
+
+        // ★ ボールとファミリアの衝突判定を無効化 (setCollidersを呼び出す) ★
+        // (ballFamiliarColliderをnullにしてsetCollidersを呼べばOK)
+        this.safeDestroyCollider(this.ballFamiliarCollider);
+        this.ballFamiliarCollider = null;
+        this.setColliders(); // 他のコライダーに影響がないように全体を再設定
+        console.log("[Makira] Reflector deactivated. Colliders updated.");
+    }  createFamiliars() {
+        if (!this.paddle?.active || !this.familiars) {
+            console.warn("[CreateFamiliars] Cannot create familiar: Paddle or familiars group missing.");
+            return;
+        }
+        console.log("[CreateFamiliars] Creating reflector familiar...");
+
+        // --- 子機のベースとなる横長の白い板 ---
+        const familiarBaseWidth = this.paddle.displayWidth; // パドルと同じ幅
+        const familiarBaseHeight = PADDLE_HEIGHT * 0.8; // パドルより少し薄く (調整可能)
+        // Y座標: パドルの上端にピッタリ合わせる (ボールが挟まらないように少しだけ隙間を空けることを推奨)
+        const yOffsetFromPaddle = familiarBaseHeight / 2 + (this.gameWidth * BALL_RADIUS_RATIO) * 0.5; // ベースの半分の高さ + ボール半径の半分程度の隙間
+        const familiarY = this.paddle.y - (this.paddle.displayHeight / 2) - yOffsetFromPaddle;
+        // 初期X座標はパドルと同じ（動きは後で設定）
+        const familiarX = this.paddle.x;
+
+        // ベース部分を物理グループに追加
+        const familiarBase = this.familiars.create(familiarX, familiarY, 'whitePixel')
+            .setTint(0xccffcc) // 少し色を変える (例:薄い緑)
+            .setDisplaySize(familiarBaseWidth, familiarBaseHeight)
+            .setImmovable(true); // ボールに押されないように
+
+        if (!familiarBase.body) {
+            console.error("!!! Failed to create familiarBase body!");
+            if(familiarBase) familiarBase.destroy();
+            return;
+        }
+        familiarBase.body.setAllowGravity(false);
+        familiarBase.body.setCollideWorldBounds(true); // 画面端との衝突を有効に
+        familiarBase.body.onWorldBounds = true;      // 画面端衝突イベントを有効に (SE再生などに使える)
+        // 上下の壁とは衝突しないようにする (動きで制御するため)
+        familiarBase.body.checkCollision.up = false;
+        familiarBase.body.checkCollision.down = false;
+
+
+        // --- 中央の装飾画像 ('joykun') ---
+        const decorationSize = this.gameWidth * MAKIRA_FAMILIAR_SIZE_RATIO * 2; // 元の子機画像のサイズを少し大きく
+        // ★★★ Container を使ってベースと装飾をまとめる ★★★
+        const familiarContainer = this.add.container(familiarX, familiarY);
+        familiarContainer.setData('isFamiliarContainer', true); // 識別用
+        familiarContainer.setSize(familiarBaseWidth, familiarBaseHeight); // コンテナのサイズをベースに合わせる
+
+        // 物理ボディはベース部分に持たせるので、コンテナ自体には不要
+        // this.physics.world.enable(familiarContainer); // 不要
+
+        const decorationImage = this.add.image(0, 0, 'joykun') // コンテナ内の相対座標 (0,0) が中心
+            .setDisplaySize(decorationSize, decorationSize)
+            .setDepth(1); // ベースより手前に表示
+
+        // ベースをコンテナに追加 (コンテナに対する相対位置で)
+        // familiarBase を直接コンテナに追加すると物理ボディがコンテナの座標系になるため、
+        // ここでは物理ボディを持つのは familiarBase のみとし、コンテナは見た目の追従用とする。
+        // コンテナではなく、decorationImage を familiarBase に追従させる方がシンプルかもしれない。
+
+        // ★★★★★ アプローチ変更： decorationImage を familiarBase に追従させる ★★★★★
+        familiarBase.setData('decoration', decorationImage); // 装飾をデータとして持つ
+        decorationImage.setPosition(familiarBase.x, familiarBase.y); // 初期位置合わせ
+
+        // --- 子機の動きを設定 (旧FAMILIAR_MOVE_SPEED_Xを流用) ---
+        const moveSpeed = FAMILIAR_MOVE_SPEED_X * 0.8; // 少し遅めにするか調整
+        // 最初は右に動かす
+        familiarBase.setVelocityX(moveSpeed);
+
+        console.log(`[CreateFamiliars] Reflector familiar created. Base Size: ${familiarBaseWidth}x${familiarBaseHeight}`);
+        // update ループで装飾をベースに追従させる処理が必要
     }
-    fireMakiraBeam() { if (!this.isMakiraActive || !this.familiars || this.familiars.countActive(true) === 0) return; this.familiars.getChildren().forEach(fam => { if (fam.active) { const beam = this.makiraBeams.create(fam.x, fam.y - fam.displayHeight/2, 'whitePixel').setDisplaySize(this.gameWidth*MAKIRA_BEAM_WIDTH_RATIO, this.gameHeight*MAKIRA_BEAM_HEIGHT_RATIO).setTint(MAKIRA_BEAM_COLOR); if (beam?.body) beam.setVelocity(0, -MAKIRA_BEAM_SPEED).body.setAllowGravity(false); else if (beam) beam.destroy(); } }); }
-    updateMakiraBeams() { this.makiraBeams?.getChildren().forEach(beam => { if (beam.active && beam.y < -beam.displayHeight) beam.destroy(); }); }
-    activateMakora() {
+   activateMakora() {
         if (!this.balls?.countActive(true)) return; this.setBallPowerUpState(POWERUP_TYPES.MAKORA, true); this.updateBallAndPaddleAppearance();
         const copiedType = Phaser.Utils.Array.GetRandom(MAKORA_COPYABLE_POWERS);
         this.time.delayedCall(MAKORA_COPY_DELAY, () => { this.setBallPowerUpState(POWERUP_TYPES.MAKORA, false); const activateMethodName = `activate${copiedType.charAt(0).toUpperCase() + copiedType.slice(1)}`; if (typeof this[activateMethodName] === 'function') this[activateMethodName](); else { console.warn(`[Makora] No activate function ${activateMethodName} for ${copiedType}`); this.updateBallAndPaddleAppearance(); } }, [], this);
@@ -1264,20 +1402,48 @@ export default class CommonBossScene extends Phaser.Scene {
     destroyAttackBrick(brick, triggerItemDropLogic = false) { if (!brick?.active) return; this.sound.play(AUDIO_KEYS.SE_DESTROY); this.createImpactParticles(brick.x,brick.y,[0,360],brick.tintTopLeft||0xaa88ff,10); brick.destroy(); this.increaseVajraGauge(); }
     dropSpecificPowerUp(x,y,type){if(!type||!this.powerUps)return;let tK=POWERUP_ICON_KEYS[type]||'whitePixel';const iS=this.gameWidth*POWERUP_SIZE_RATIO;let tC=(tK==='whitePixel'&&type===POWERUP_TYPES.BAISRAVA)?0xffd700:(tK==='whitePixel'?0xcccccc:null);const pU=this.powerUps.create(x,y,tK).setDisplaySize(iS,iS).setData('type',type);if(tC)pU.setTint(tC);if(pU.body){pU.setVelocity(0,POWERUP_SPEED_Y);pU.body.setCollideWorldBounds(false).setAllowGravity(false);}else if(pU)pU.destroy();}
     handlePaddleHitByAttackBrick(paddle, attackBrick) { if (!paddle?.active || !attackBrick?.active) return; this.destroyAttackBrick(attackBrick, false); if (!this.isAnilaActive) this.loseLife(); else console.log("[Anila] Paddle hit blocked!"); }
-     // マキラビームがボスに当たった時の処理 (超シンプル版 - デバッグ用)
-     // hitBossWithMakiraBeam はシンプル版から元に戻す（ただしログは残す）
-     hitBossWithMakiraBeam(beam, boss) {
-        if (!beam || !boss || !beam.active || !boss.active || boss.getData('isInvulnerable')) {
-            if (beam?.active) beam.destroy(); return;
+   
+    // 新しいメソッド: ボールがファミリアに当たった時の処理
+    hitFamiliarWithBall(familiar, ball) {
+        if (!familiar?.active || !ball?.active || !ball.body) {
+            console.log("[HitFamiliar] Collision ignored, invalid object state.");
+            return;
         }
-        console.log(">>> Makira beam hit boss! <<<");
-        const hpBeforeHit = boss.getData('health');
-        console.log(`[Makira Hit] Boss HP BEFORE applying damage: ${hpBeforeHit}`);
-        beam.destroy();
-        console.log("[Makira Hit] Calling applyBossDamage with damage: 1");
-        this.applyBossDamage(boss, 1, "Makira Beam");
-        console.log(`[Makira Hit] Boss active state AFTER applyBossDamage call: ${boss.active}`);
-   }
+        console.log("[HitFamiliar] Ball hit detected.");
+
+        // パドルの反射ロジックを流用
+        let diff = ball.x - familiar.x;
+        let influence = Phaser.Math.Clamp(diff / (familiar.displayWidth / 2), -1, 1);
+        let newVx = (NORMAL_BALL_SPEED * 0.85) * influence; // X速度の影響
+        let newVyAbs = Math.sqrt(Math.max(0, Math.pow(NORMAL_BALL_SPEED, 2) - Math.pow(newVx, 2)));
+        const minVyRatio = 0.3;
+        if (newVyAbs < NORMAL_BALL_SPEED * minVyRatio) {
+            newVyAbs = NORMAL_BALL_SPEED * minVyRatio;
+            newVx = Math.sign(newVx) * Math.sqrt(Math.max(0, Math.pow(NORMAL_BALL_SPEED, 2) - Math.pow(newVyAbs, 2)));
+        }
+        let newVy = -newVyAbs; // 必ず上向きに反射 (子機が上にあるため)
+
+        // パワーアップによる速度補正 (パドルと同様)
+        let speedMultiplier = 1.0;
+        if (ball.getData('isFast') === true) speedMultiplier = BALL_SPEED_MODIFIERS[POWERUP_TYPES.SHATORA];
+        else if (ball.getData('isSlow') === true) speedMultiplier = BALL_SPEED_MODIFIERS[POWERUP_TYPES.HAILA];
+        const targetSpeed = NORMAL_BALL_SPEED * speedMultiplier;
+
+        const finalVel = new Phaser.Math.Vector2(newVx, newVy);
+        if (finalVel.lengthSq() === 0) finalVel.set(Phaser.Math.Between(-50, 50), -NORMAL_BALL_SPEED); // 完全停止を避ける
+        finalVel.normalize().scale(targetSpeed);
+
+        console.log(`[HitFamiliar] Reflecting ball. Velocity: (${finalVel.x.toFixed(1)}, ${finalVel.y.toFixed(1)}), Speed: ${targetSpeed.toFixed(0)}`);
+        try { ball.setVelocity(finalVel.x, finalVel.y); }
+        catch(e) { console.error("!!! Error setting velocity in hitFamiliar:", e); }
+
+        // SE再生 (パドルと同じで良いか、専用SEか)
+        try { this.sound.play(AUDIO_KEYS.SE_REFLECT, { volume: 0.7 }); } catch (e) { /* ... */ }
+        // ヒットエフェクト (パドルと同様)
+        this.createImpactParticles(ball.x, familiar.getBounds().top, [240, 300], 0xccffcc, 5);
+
+        // 子機ヒットで解除される効果があればここに追加
+    }
 // --- ▲ 衝突処理メソッド ▲ ---
 
     // --- ▼ ヘルパーメソッド (主要部分) ▼ ---
@@ -1572,6 +1738,6 @@ calculateDynamicFontSize(baseSizeMax) {
     stopBgm(){if(this.currentBgm){try{this.currentBgm.stop();this.sound.remove(this.currentBgm);}catch(e){console.error("Error stopping BGM:",e);}this.currentBgm=null;}}
     safeDestroyCollider(colliderRef,name="collider"){if(colliderRef){try{colliderRef.destroy();}catch(e){console.error(`[Shutdown] Error destroying ${name}:`,e.message);}}colliderRef=null;}
     safeDestroy(obj,name,destroyChildren=false){if(obj&&obj.scene){try{obj.destroy(destroyChildren);}catch(e){console.error(`[Shutdown] Error destroying ${name}:`,e.message);}}obj=null;}
-    shutdownScene() { /* ... (CommonBossScene.js 前回のコードと同様、内容は省略) ... */ console.log(`--- ${this.scene.key} SHUTDOWN ---`); this.stopBgm(); this.sound.stopAll(); this.tweens.killAll(); this.time.removeAllEvents(); this.scale.off('resize', this.handleResize, this); if (this.physics.world) this.physics.world.off('worldbounds', this.handleWorldBounds, this); this.input.off('pointermove', this.handlePointerMove, this); this.input.off('pointerdown', this.handlePointerDown, this); this.events.off('shutdown', this.shutdownScene, this); this.events.removeAllListeners(); this.safeDestroyCollider(this.ballPaddleCollider); this.safeDestroyCollider(this.ballBossCollider); this.safeDestroyCollider(this.ballAttackBrickCollider); this.safeDestroyCollider(this.ballAttackBrickOverlap); this.safeDestroyCollider(this.paddlePowerUpOverlap); this.safeDestroyCollider(this.paddleAttackBrickCollider); this.safeDestroyCollider(this.makiraBeamBossOverlap); this.safeDestroy(this.paddle,"paddle"); this.safeDestroy(this.balls,"balls group",true); this.safeDestroy(this.boss,"boss"); this.safeDestroy(this.attackBricks,"attackBricks group",true); this.safeDestroy(this.powerUps,"powerUps group",true); this.safeDestroy(this.familiars,"familiars group",true); this.safeDestroy(this.makiraBeams,"makiraBeams group",true); this.safeDestroy(this.gameOverText,"gameOverText"); this.safeDestroy(this.gameClearText,"gameClearText"); this.safeDestroy(this.bossAfterImageEmitter,"bossAfterImageEmitter"); this.paddle=null;this.balls=null;this.boss=null;this.attackBricks=null;this.powerUps=null;this.familiars=null;this.makiraBeams=null;this.gameOverText=null;this.gameClearText=null;this.bossAfterImageEmitter=null;this.uiScene=null;this.currentBgm=null;this.powerUpTimers={};this.bikaraTimers={};this.lastPlayedVoiceTime={};this.bossMoveTween=null;this.randomVoiceTimer=null;this.attackBrickTimer=null;this.anilaTimer=null;this.anchiraTimer=null;this.makiraAttackTimer=null; console.log(`--- ${this.scene.key} SHUTDOWN Complete ---`); }
+    shutdownScene() this.safeDestroyCollider(this.ballFamiliarCollider);{ /* ... (CommonBossScene.js 前回のコードと同様、内容は省略) ... */ console.log(`--- ${this.scene.key} SHUTDOWN ---`); this.stopBgm(); this.sound.stopAll(); this.tweens.killAll(); this.time.removeAllEvents(); this.scale.off('resize', this.handleResize, this); if (this.physics.world) this.physics.world.off('worldbounds', this.handleWorldBounds, this); this.input.off('pointermove', this.handlePointerMove, this); this.input.off('pointerdown', this.handlePointerDown, this); this.events.off('shutdown', this.shutdownScene, this); this.events.removeAllListeners(); this.safeDestroyCollider(this.ballPaddleCollider); this.safeDestroyCollider(this.ballBossCollider); this.safeDestroyCollider(this.ballAttackBrickCollider); this.safeDestroyCollider(this.ballAttackBrickOverlap); this.safeDestroyCollider(this.paddlePowerUpOverlap); this.safeDestroyCollider(this.paddleAttackBrickCollider); this.safeDestroyCollider(this.makiraBeamBossOverlap); this.safeDestroy(this.paddle,"paddle"); this.safeDestroy(this.balls,"balls group",true); this.safeDestroy(this.boss,"boss"); this.safeDestroy(this.attackBricks,"attackBricks group",true); this.safeDestroy(this.powerUps,"powerUps group",true); this.safeDestroy(this.familiars,"familiars group",true); this.safeDestroy(this.makiraBeams,"makiraBeams group",true); this.safeDestroy(this.gameOverText,"gameOverText"); this.safeDestroy(this.gameClearText,"gameClearText"); this.safeDestroy(this.bossAfterImageEmitter,"bossAfterImageEmitter"); this.paddle=null;this.balls=null;this.boss=null;this.attackBricks=null;this.powerUps=null;this.familiars=null;this.makiraBeams=null;this.gameOverText=null;this.gameClearText=null;this.bossAfterImageEmitter=null;this.uiScene=null;this.currentBgm=null;this.powerUpTimers={};this.bikaraTimers={};this.lastPlayedVoiceTime={};this.bossMoveTween=null;this.randomVoiceTimer=null;this.attackBrickTimer=null;this.anilaTimer=null;this.anchiraTimer=null;this.makiraAttackTimer=null; console.log(`--- ${this.scene.key} SHUTDOWN Complete ---`); }
     // --- ▲ ヘルパーメソッド ▲ ---
 }
