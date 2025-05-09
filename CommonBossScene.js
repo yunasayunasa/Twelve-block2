@@ -870,7 +870,7 @@ if (this.isMakiraActive && this.balls && this.familiars && this.familiars.countA
     // --- ▼ ゲーム進行メソッド ▼ ---
     loseLife() {
         if (this.isGameOver || this.bossDefeated) return; console.log(`Losing life. Lives remaining: ${this.lives - 1}`);
-        this.deactivateMakira(); this.deactivateAnila(); this.deactivateAnchira(true); this.deactivateSindara(null, true);
+         this.deactivateAnila(); this.deactivateAnchira(true); this.deactivateSindara(null, true);
         Object.values(this.powerUpTimers).forEach(timer => timer?.remove()); this.powerUpTimers = {};
         this.balls?.getChildren().forEach(ball => { if(ball?.active) this.resetBallState(ball); }); this.updateBallAndPaddleAppearance();
         this.lives--; this.events.emit('updateLives', this.lives); this.isBallLaunched = false; this.balls?.clear(true, true);
