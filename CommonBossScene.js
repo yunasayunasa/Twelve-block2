@@ -1124,41 +1124,57 @@ if (this.isMakiraActive && this.balls && this.familiars && this.familiars.countA
         this.setColliders(); // 他のコライダーに影響がないように全体を再設定
         console.log("[Makira] Reflector deactivated. Colliders updated.");
     }  
-    createFamiliars() {
-        if (!this.paddle?.active || !this.familiars) {
-            console.warn("[CreateFamiliars] Cannot create familiar: Paddle or familiars group missing.");
-            return;
-        }
+ createFamiliars() {
+        if (!this.paddle?.active || !this.familiars) { /* ... */ return; }
         console.log("[CreateFamiliars] Creating reflector familiar...");
 
-        // --- 子機のベースとなる横長の白い板 ---
-        const familiarBaseWidth = this.paddle.displayWidth; // パドルと同じ幅
-        const familiarBaseHeight = PADDLE_HEIGHT * 0.8; // パドルより少し薄く (調整可能)
-        // Y座標: パドルの上端にピッタリ合わせる (ボールが挟まらないように少しだけ隙間を空けることを推奨)
-        const yOffsetFromPaddle = familiarBaseHeight / 2 + (this.gameWidth * BALL_RADIUS_RATIO) * 0.5; // ベースの半分の高さ + ボール半径の半分程度の隙間
+        const familiarBaseWidth = this.paddle.displayWidth;
+        const familiarBaseHeight = PADDLE_HEIGHT * 0.8; // 例: パドルの高さの80%
+        const yOffsetFromPaddle = familiarBaseHeight / 2 + (this.gameWidth * BALL_RADIUS_RATIO) * 0.5;
         const familiarY = this.paddle.y - (this.paddle.displayHeight / 2) - yOffsetFromPaddle;
-        // 初期X座標はパドルと同じ（動きは後で設定）
         const familiarX = this.paddle.x;
 
-        // ベース部分を物理グループに追加
-       // ★★★ this.familiars.create を使っているか確認 ★★★
-const familiarBase = this.familiars.create(familiarX, familiarY, 'whitePixel')
-    .setTint(0xccffcc)
-    .setDisplaySize(familiarBaseWidth, familiarBaseHeight)
-    .setImmovable(true); // ★ Immovable確認
+        const familiarBase = this.familiars.create(familiarX, familiarY, 'whitePixel')
+            .setTint(0xccffcc)
+            .setDisplaySize(familiarBaseWidth, familiarBaseHeight) // 1. 見た目のサイズ設定
+            .setImmovable(true);
 
         if (!familiarBase.body) {
             console.error("!!! Failed to create familiarBase body!");
             if(familiarBase) familiarBase.destroy();
-            console.log(`[CreateFamiliars] familiarBase body enabled: ${familiarBase.body.enable}`); // ★ ボディ有効か確認
             return;
         }
         familiarBase.body.setAllowGravity(false);
-        familiarBase.body.setCollideWorldBounds(true); // 画面端との衝突を有効に
-        familiarBase.body.onWorldBounds = true;      // 画面端衝突イベントを有効に (SE再生などに使える)
-        // 上下の壁とは衝突しないようにする (動きで制御するため)
+        familiarBase.body.setCollideWorldBounds(true);
+        familiarBase.body.onWorldBounds = true;
         familiarBase.body.checkCollision.up = false;
         familiarBase.body.checkCollision.down = false;
+
+        // ★★★ 物理ボディのサイズとオフセットを明示的に設定 ★★★
+        try {
+            // 2. 物理ボディのサイズを、設定した表示サイズに合わせる
+            familiarBase.body.setSize(familiarBaseWidth, familiarBaseHeight);
+
+            // 3. オフセットを調整して、物理ボディの中心が見た目の中心と一致するようにする
+            //    (GameObjectの原点が0.5, 0.5の場合、通常オフセットは (0,0) で良いはずだが、
+            //     setDisplaySizeとsetSizeの関係でズレる場合があるので調整する)
+            //     Arcade Physicsのボディは左上基準なので、見た目の原点が中央なら、
+            //    オフセットは (表示幅 - ボディ幅)/2, (表示高さ - ボディ高さ)/2 となる。
+            //    今回は表示幅/高さとボディ幅/高さを同じにしているので、オフセットは(0,0)のはず。
+            //    もしズレる場合は、ここを調整。
+            //    （例：もし原点が(0,0)なら、オフセットは (displayWidth/2 - bodyWidth/2, displayHeight/2 - bodyHeight/2)など）
+            //    デフォルトの原点(0.5, 0.5)で、setSizeが表示サイズと同じならオフセットは(0,0)で良い。
+            //    しかし、安全のためにGameObjectの原点に基づいて計算する。
+            const offsetX = familiarBase.displayWidth * (0.5 - familiarBase.originX);
+            const offsetY = familiarBase.displayHeight * (0.5 - familiarBase.originY);
+            familiarBase.body.setOffset(offsetX, offsetY); // 原点とボディの左上を合わせる
+
+            console.log(`[CreateFamiliars] Set body size: ${familiarBase.body.width.toFixed(1)}x${familiarBase.body.height.toFixed(1)}, Offset: ${familiarBase.body.offset.x.toFixed(1)},${familiarBase.body.offset.y.toFixed(1)}`);
+            console.log(`[CreateFamiliars] familiarBase body enabled: ${familiarBase.body.enable}`);
+        } catch (e) {
+            console.error("!!! Error setting familiarBase body size/offset:", e);
+        }
+        // ★★★-------------------------------------------------★★★
 
 
         // --- 中央の装飾画像 ('joykun') ---
