@@ -307,7 +307,7 @@ export default class CommonBossScene extends Phaser.Scene {
             // --- 残りの update 処理はそのまま実行 ---
             this.updateBallFall();
             this.updateAttackBricks();
-            this.updateMakiraBeams();
+            
             this.balls?.getMatching('active', true).forEach(ball => {
                  if (ball.getData('isIndaraActive') && this.boss && this.boss.active && ball.body) {
                      const direction = Phaser.Math.Angle.BetweenPoints(ball.body.center, this.boss.body.center);
