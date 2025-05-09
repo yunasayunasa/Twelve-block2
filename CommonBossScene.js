@@ -279,14 +279,17 @@ export default class CommonBossScene extends Phaser.Scene {
                 return;
             }
 
-            if (this.isMakiraActive && this.familiars && this.familiars.countActive(true) > 0) {
+           if (this.isMakiraActive && this.familiars && this.familiars.countActive(true) > 0) {
         const familiarBase = this.familiars.getFirstAlive(); // 1体しかいない前提
         if (familiarBase && familiarBase.active) {
              // ★★★ 毎フレームの表示状態をログ出力 ★★★
              console.log(`[Update Makira] Familiar visible: ${familiarBase.visible}, alpha: ${familiarBase.alpha}, x: ${familiarBase.x.toFixed(0)}, y: ${familiarBase.y.toFixed(0)}`);
              // ★★★-------------------------------★★★
-        }
 
+            // 装飾の追従 (もしコメントアウト解除するならここに)
+            // if (familiarBase.getData('decoration')) { ... }
+        }
+    }
              
     
             if (this.boss && this.boss.active) {
