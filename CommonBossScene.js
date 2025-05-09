@@ -279,18 +279,7 @@ export default class CommonBossScene extends Phaser.Scene {
                 return;
             }
 
-              // ★★★ マキラ子機の装飾をベースに追従させる ★★★
-        if (this.isMakiraActive && this.familiars) {
-            this.familiars.getChildren().forEach(familiarBase => {
-                if (familiarBase.active && familiarBase.getData('decoration')) {
-                    const decoration = familiarBase.getData('decoration');
-                    if (decoration.active) { // 装飾もアクティブか確認
-                        decoration.setPosition(familiarBase.x, familiarBase.y);
-                    }
-                }
-            });
-        }
-        // ★★★--------------------------------------★★★
+             
     
             if (this.boss && this.boss.active) {
                 if (this.bossAfterImageEmitter) {
