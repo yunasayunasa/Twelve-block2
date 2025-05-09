@@ -279,6 +279,13 @@ export default class CommonBossScene extends Phaser.Scene {
                 return;
             }
 
+            if (this.isMakiraActive && this.familiars && this.familiars.countActive(true) > 0) {
+        const familiarBase = this.familiars.getFirstAlive(); // 1体しかいない前提
+        if (familiarBase && familiarBase.active) {
+             // ★★★ 毎フレームの表示状態をログ出力 ★★★
+             console.log(`[Update Makira] Familiar visible: ${familiarBase.visible}, alpha: ${familiarBase.alpha}, x: ${familiarBase.x.toFixed(0)}, y: ${familiarBase.y.toFixed(0)}`);
+             // ★★★-------------------------------★★★
+
              
     
             if (this.boss && this.boss.active) {
@@ -1182,6 +1189,15 @@ if (this.isMakiraActive && this.balls && this.familiars && this.familiars.countA
         console.error("!!! Error setting initial velocity for familiarBase:", e);
     }
     // ★★★-------------------★★★
+
+    // ★★★ 表示状態を強制的に設定 ★★★
+    if (familiarBase && familiarBase.active) { // active であることも確認
+        familiarBase.setVisible(true);
+        familiarBase.setAlpha(1);
+        familiarBase.setDepth(5); // 他のゲームオブジェクトより手前に表示する例
+        console.log(`[CreateFamiliars] Set familiarBase visible: ${familiarBase.visible}, alpha: ${familiarBase.alpha}, depth: ${familiarBase.depth}`);
+    }
+    // ★★★-------------------------★★★
     console.log(`[CreateFamiliars] Reflector familiar created. Display Size: ${familiarBase.displayWidth}x${familiarBase.displayHeight}`);
 }
    activateMakora() {
