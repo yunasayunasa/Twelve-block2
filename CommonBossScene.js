@@ -1177,37 +1177,24 @@ if (this.isMakiraActive && this.balls && this.familiars && this.familiars.countA
         // ★★★-------------------------------------------------★★★
 
 
-        // --- 中央の装飾画像 ('joykun') ---
-        const decorationSize = this.gameWidth * MAKIRA_FAMILIAR_SIZE_RATIO * 2; // 元の子機画像のサイズを少し大きく
-        // ★★★ Container を使ってベースと装飾をまとめる ★★★
-        const familiarContainer = this.add.container(familiarX, familiarY);
-        familiarContainer.setData('isFamiliarContainer', true); // 識別用
-        familiarContainer.setSize(familiarBaseWidth, familiarBaseHeight); // コンテナのサイズをベースに合わせる
-
-        // 物理ボディはベース部分に持たせるので、コンテナ自体には不要
-        // this.physics.world.enable(familiarContainer); // 不要
-
-        const decorationImage = this.add.image(0, 0, 'joykun') // コンテナ内の相対座標 (0,0) が中心
-            .setDisplaySize(decorationSize, decorationSize)
-            .setDepth(1); // ベースより手前に表示
-
-        // ベースをコンテナに追加 (コンテナに対する相対位置で)
-        // familiarBase を直接コンテナに追加すると物理ボディがコンテナの座標系になるため、
-        // ここでは物理ボディを持つのは familiarBase のみとし、コンテナは見た目の追従用とする。
-        // コンテナではなく、decorationImage を familiarBase に追従させる方がシンプルかもしれない。
-
-        // ★★★★★ アプローチ変更： decorationImage を familiarBase に追従させる ★★★★★
-        familiarBase.setData('decoration', decorationImage); // 装飾をデータとして持つ
-        decorationImage.setPosition(familiarBase.x, familiarBase.y); // 初期位置合わせ
-
-        // --- 子機の動きを設定 (旧FAMILIAR_MOVE_SPEED_Xを流用) ---
-        const moveSpeed = FAMILIAR_MOVE_SPEED_X * 0.8; // 少し遅めにするか調整
-        // 最初は右に動かす
+     
+         // ★★★ 動きをシンプルに ★★★
+    const moveSpeed = 100; // 固定の速度で試す
+    console.log(`[CreateFamiliars] Attempting to set initial velocity X: ${moveSpeed}`);
+    try {
         familiarBase.setVelocityX(moveSpeed);
-
-        console.log(`[CreateFamiliars] Reflector familiar created. Base Size: ${familiarBaseWidth}x${familiarBaseHeight}`);
-        // update ループで装飾をベースに追従させる処理が必要
+        // 念のため、数フレーム後に速度が維持されているか確認するログ
+        this.time.delayedCall(100, () => {
+            if (familiarBase && familiarBase.body && familiarBase.active) {
+                console.log(`[CreateFamiliars] Familiar velocity after 100ms: X=${familiarBase.body.velocity.x.toFixed(1)}, Y=${familiarBase.body.velocity.y.toFixed(1)}`);
+            }
+        }, [], this);
+    } catch (e) {
+        console.error("!!! Error setting initial velocity for familiarBase:", e);
     }
+    // ★★★-------------------★★★
+    console.log(`[CreateFamiliars] Reflector familiar created. Display Size: ${familiarBase.displayWidth}x${familiarBase.displayHeight}`);
+}
    activateMakora() {
         if (!this.balls?.countActive(true)) return; this.setBallPowerUpState(POWERUP_TYPES.MAKORA, true); this.updateBallAndPaddleAppearance();
         const copiedType = Phaser.Utils.Array.GetRandom(MAKORA_COPYABLE_POWERS);
