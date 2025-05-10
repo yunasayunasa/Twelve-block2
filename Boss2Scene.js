@@ -342,7 +342,7 @@ export default class Boss2Scene extends CommonBossScene {
             this.setupAttackBrickAppearance(brickRight, textureKey, displayScale); brickRight.setVelocity(velocityRight.x, velocityRight.y);
             if (brickRight.body) brickRight.body.setAllowGravity(false).setCollideWorldBounds(false);
         }
-        console.log(`[Sankara Attack] Spawned bricks with hitbox multiplier: ${hitboxMultiplier}`);
+       // console.log(`[Sankara Attack] Spawned bricks with hitbox multiplier: ${hitboxMultiplier}`);
     }
     // --- ▼ ソワカ形態の攻撃とフィールドロジック (後で実装) ▼ ---
     updateSowakaAttacksAndField(time, delta) {
