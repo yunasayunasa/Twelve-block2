@@ -43,7 +43,7 @@ export const POWERUP_SPEED_Y = 120;
 export const POWERUP_TYPES = {
     KUBIRA: 'kubira', SHATORA: 'shatora', HAILA: 'haila', ANCHIRA: 'anchira', SINDARA: 'sindara',
     BIKARA: 'bikara', INDARA: 'indara', ANILA: 'anila', BAISRAVA: 'baisrava', VAJRA: 'vajra',
-    MAKIRA: 'makira', MAKORA: 'makora',BIKARA_YANG: 'bikara_yang' // ★ ビカラ陽を追加
+    MAKIRA: 'makira', MAKORA: 'makora',BIKARA_YANG: 'bikara_yang', // ★ ビカラ陽を追加
     BADRA: 'badra' // ★ バドラを追加
     // 新しい特殊ボールの定義場所 (例: BIKARA_YANG: 'bikara_yang', BADRA: 'badra', BAISYURA: 'baisyura')
 };
