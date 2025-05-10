@@ -47,28 +47,26 @@ export default class Boss1Scene extends CommonBossScene {
         console.log("Artman HL Random Voices Set:", this.bossVoiceKeys);
     }
 
-    createSpecificBoss() {
-        console.log("--- Boss1Scene createSpecificBoss ---");
-        // ★ super を呼ぶ前後の this.boss の状態を確認
-        console.log("[Boss1Scene] Value of this.boss BEFORE calling super.createSpecificBoss:", this.boss);
-        super.createSpecificBoss(); // Commonの汎用生成メソッドを呼び出す
-        console.log("[Boss1Scene] Value of this.boss AFTER calling super.createSpecificBoss:", this.boss);
-        if (this.boss) {
-            console.log("[Boss1Scene] Boss body object AFTER super call:", this.boss.body);
-             console.log(`[Boss1Scene] Boss body enabled state AFTER super call: ${this.boss.body?.enable}`);
-        }
-        // ★------------------------------------------★
+ createSpecificBoss() {
+        super.createSpecificBoss(); // Common の処理で this.boss が生成・初期化される
 
-        if(this.boss) {
-            console.log("Boss1 created successfully using CommonBossScene method.");
-            // UIへのHP反映イベント発行
-             try {
-                 this.events.emit('updateBossHp', this.boss.getData('health'), this.boss.getData('maxHealth'));
-                 console.log("[Boss1Scene] Emitted updateBossHp event.");
-             } catch (e) { console.error("!!! Error emitting updateBossHp event:", e); }
-        } else {
-            console.error("!!! Boss1 could not be created after calling super.createSpecificBoss !!!");
-        }
+        if (this.boss) {
+            console.log(`Boss2 (${this.currentPhase}) created successfully.`);
+            // ★★★ ボス生成後にUI初期化イベントを発行 ★★★
+            this.time.delayedCall(50, () => { // UISceneの準備を少し待つ
+                if (this.scene.isActive('UIScene')) { // UISceneがアクティブか確認
+                    console.log(`[${this.scene.key} Create] Emitting initial UI updates.`);
+                    this.events.emit('updateLives', this.lives);
+                    this.events.emit('updateBossNumber', this.currentBossIndex, this.totalBosses);
+                    this.events.emit('updateBossHp', this.boss.getData('health'), this.boss.getData('maxHealth'));
+                    this.events.emit('deactivateVajraUI'); // ボス戦開始時はリセット
+                    this.events.emit('updateDropPoolUI', this.bossDropPool); // setupBossDropPool後
+                } else {
+                     console.warn(`[${this.scene.key} Create] UIScene not active, cannot emit initial UI updates.`);
+                }
+            }, [], this);
+            // ★★★------------------------------------★★★
+        } else { /* エラー処理 */ }
     }
 
     /**

@@ -696,6 +696,13 @@ export default class CommonBossScene extends Phaser.Scene {
         if (this.currentBossIndex < this.totalBosses) {
             const nextBossIndex = this.currentBossIndex + 1;
             console.log(`Proceeding to Boss ${nextBossIndex}`);
+               // ★★★ UIシーンを一度停止してから、次のボスシーンを開始 ★★★
+            if (this.scene.isActive('UIScene')) {
+                this.scene.stop('UIScene');
+                console.log("[HandleDefeat] UIScene stopped before starting next boss.");
+            }
+            // ★★★-------------------------------------------------★★★
+
             this.scene.start(`Boss${nextBossIndex}Scene`, {
                 lives: this.lives, chaosSettings: this.chaosSettings, currentBossIndex: nextBossIndex
             });
