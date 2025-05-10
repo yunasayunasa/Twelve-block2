@@ -118,6 +118,8 @@ export default class CommonBossScene extends Phaser.Scene {
         this.isGameOver = false;
         this.gameClearText = null;
         this.gameOverText = null;
+        this.stageClearPopup = null; // ★ ステージクリアポップアップ用
+        this.canProceedToNextStage = false; // ★ 次ステージへ進めるかのフラグ
 
         // --- コライダー参照 ---
         this.ballPaddleCollider = null;
@@ -178,6 +180,8 @@ export default class CommonBossScene extends Phaser.Scene {
         this.bossMoveTween?.stop(); this.bossMoveTween = null;
         this.randomVoiceTimer?.remove(); this.randomVoiceTimer = null;
         this.lastDamageVoiceTime = 0;
+        this.canProceedToNextStage = false; // ★ initでリセット
+    
 
         this.startIntroPending = false; // ★ init でもリセット
         this.isBallLaunched = false;
@@ -856,15 +860,96 @@ if (this.isMakiraActive && this.balls && this.familiars && this.familiars.countA
         this.safeDestroyCollider(this.makiraBeamBossOverlap); this.makiraBeamBossOverlap = null;
         this.bossMoveTween?.stop(); this.attackBrickTimer?.remove(); this.balls?.children.each(ball => ball.body?.stop());
         if (bossObject?.body) bossObject.disableBody(false, false);
-        this.sound.play(this.bossData.voiceDefeat || AUDIO_KEYS.VOICE_BOSS_DEFEAT); this.sound.play(AUDIO_KEYS.SE_DEFEAT_FLASH);
+        // ★★★ 撃破ボイス再生をここで行う ★★★
+        // (startBossShakeAndFade の前、ポップアップ表示より十分前)
+        try {
+            this.sound.play(this.bossData.voiceDefeat || AUDIO_KEYS.VOICE_BOSS_DEFEAT);
+            console.log("[Defeat] Playing defeat voice.");
+        } catch (e) { console.error("Error playing defeat voice:", e); }
+        // ★★★-----------------------------★★★  
+         try { this.sound.play(AUDIO_KEYS.SE_DEFEAT_FLASH); } catch(e) { /* ... */ } // フラッシュSE
         if (bossObject?.active) try { bossObject.setTexture(this.bossData.negativeKey || 'bossNegative'); } catch (e) { console.error("Error setting negative texture:", e); }
-        for (let i = 0; i < DEFEAT_FLASH_COUNT; i++) this.time.delayedCall(i * DEFEAT_FLASH_INTERVAL, () => { if (!this.scene.isActive()) return; this.cameras.main.flash(DEFEAT_FLASH_DURATION, 255, 255, 255); if (i === DEFEAT_FLASH_COUNT - 1) if (bossObject?.active) this.startBossShakeAndFade(bossObject); else this.handleBossDefeatCompletion(); }, [], this);
+       // 3回フラッシュ
+        for (let i = 0; i < DEFEAT_FLASH_COUNT; i++) {
+            this.time.delayedCall(i * DEFEAT_FLASH_INTERVAL, () => {
+                if (!this.scene.isActive()) return;
+                this.cameras.main.flash(DEFEAT_FLASH_DURATION, 255, 255, 255);
+                if (i === DEFEAT_FLASH_COUNT - 1) { // 最後のフラッシュ後
+                    if (bossObject?.active) {
+                        // ★ シェイク＆フェードの完了時にポップアップ表示を呼ぶように変更 ★
+                        this.startBossShakeAndFade(bossObject, true); // 第2引数でポップアップ表示を指示
+                    } else {
+                        // ボスが既にいない場合は直接ポップアップ表示
+                        this.showStageClearPopup();
+                    }
+                }
+            }, [], this);
+        }
     }
-    startBossShakeAndFade(bossObject) {
-        if (!bossObject?.active) { this.handleBossDefeatCompletion(); return; } console.log("[Defeat] Starting shake and fade animation.");
-        this.tweens.add({ targets: bossObject, props: { x: { value: `+=${bossObject.displayWidth * 0.05}`, duration: 50, yoyo: true, ease: 'Sine.easeInOut' }, y: { value: `+=${bossObject.displayWidth * 0.025}`, duration: 60, yoyo: true, ease: 'Sine.easeInOut' } }, repeat: Math.floor(DEFEAT_SHAKE_DURATION / 60) });
-        this.tweens.add({ targets: bossObject, alpha: 0, duration: DEFEAT_FADE_DURATION, ease: 'Linear', onComplete: () => { bossObject.destroy(); if(this.boss === bossObject) this.boss = null; this.handleBossDefeatCompletion(); } });
+   // startBossShakeAndFade メソッドに完了後処理のフラグを追加
+    startBossShakeAndFade(bossObject, showPopupAfter = false) { // ★ 引数追加
+        if (!bossObject || !bossObject.active) {
+            if (showPopupAfter) this.showStageClearPopup(); // ボスがいないなら即ポップアップ
+            else this.handleBossDefeatCompletion();
+            return;
+        }
+        // ... (シェイクとフェードのTween設定) ...
+        this.tweens.add({ // フェードアウトTween
+            targets: bossObject, alpha: 0, duration: DEFEAT_FADE_DURATION, ease: 'Linear',
+            onComplete: () => {
+                bossObject.destroy();
+                if(this.boss === bossObject) this.boss = null;
+                // ★ 完了後の処理を分岐 ★
+                if (showPopupAfter) {
+                    this.showStageClearPopup();
+                } else {
+                    this.handleBossDefeatCompletion(); // 通常の次の処理へ
+                }
+            }
+        });
     }
+     // ★★★ 新しいメソッド：ステージクリアポップアップ表示 ★★★
+    showStageClearPopup() {
+        console.log("[StageClear] Showing Stage Clear Popup for Boss:", this.currentBossIndex);
+        this.canProceedToNextStage = false; // まだ進めない
+
+        // 既存のポップアップがあれば破棄
+        if (this.stageClearPopup) {
+            this.stageClearPopup.destroy(true); // グループなら子も破棄
+            this.stageClearPopup = null;
+        }
+
+        // ポップアップ用のコンテナ（またはグループ）
+        this.stageClearPopup = this.add.container(this.gameWidth / 2, this.gameHeight / 2);
+        this.stageClearPopup.setDepth(2000); // 最前面に
+
+        // 背景
+        const bgGraphics = this.add.graphics();
+        bgGraphics.fillStyle(0x000033, 0.85); // 暗めの背景色
+        bgGraphics.fillRoundedRect(-this.gameWidth * 0.4, -this.gameHeight * 0.15, this.gameWidth * 0.8, this.gameHeight * 0.3, 20);
+        this.stageClearPopup.add(bgGraphics);
+
+        // テキスト
+        const clearMessage = `会議 ${this.currentBossIndex} 終了！`;
+        const fontSize = this.calculateDynamicFontSize(40);
+        const textStyle = { fontSize: `${fontSize}px`, fill: '#fff', fontFamily: 'MyGameFont, sans-serif', align: 'center' };
+        const messageText = this.add.text(0, -this.gameHeight * 0.05, clearMessage, textStyle).setOrigin(0.5);
+        this.stageClearPopup.add(messageText);
+
+        const continueMessage = 'タップして次へ';
+        const continueFontSize = this.calculateDynamicFontSize(28);
+        const continueTextStyle = { fontSize: `${continueFontSize}px`, fill: '#ccc', fontFamily: 'MyGameFont, sans-serif', align: 'center' };
+        const continueText = this.add.text(0, this.gameHeight * 0.05, continueMessage, continueTextStyle).setOrigin(0.5);
+        this.stageClearPopup.add(continueText);
+
+        // 入力待ちを設定
+        this.time.delayedCall(500, () => { // すぐにタップ反応しないように少し遅延
+             this.canProceedToNextStage = true; // タップで進めるようにする
+             console.log("[StageClear] Popup visible, can proceed to next stage.");
+        }, [], this);
+    }
+
+
     // --- ▲ 登場・撃破演出メソッド群 ▲ ---
 
     // --- ▼ ゲーム進行メソッド ▼ ---
@@ -1658,8 +1743,23 @@ calculateDynamicFontSize(baseSizeMax) {
     return finalSize;
 } 
     handlePointerMove(pointer){if(!this.playerControlEnabled||this.isGameOver||!this.paddle?.active)return;const tX=pointer.x;const hW=this.paddle.displayWidth/2;const cX=Phaser.Math.Clamp(tX,hW+this.sideMargin/2,this.gameWidth-hW-this.sideMargin/2);this.paddle.x=cX;if(!this.isBallLaunched&&this.balls?.countActive(true)>0)this.balls.getFirstAlive().x=cX;}
-    handlePointerDown(){if(this.isGameOver&&this.gameOverText?.visible)this.returnToTitle();else if(this.bossDefeated&&this.gameClearText?.visible)this.returnToTitle();else if(this.playerControlEnabled&&this.lives>0&&!this.isBallLaunched&&this.balls?.countActive(true)>0)this.launchBall();}
-    launchBall(){if(!this.balls?.countActive(true))return;const bTL=this.balls.getFirstAlive();if(bTL){bTL.setVelocity(Phaser.Math.Between(BALL_INITIAL_VELOCITY_X_RANGE[0],BALL_INITIAL_VELOCITY_X_RANGE[1]),BALL_INITIAL_VELOCITY_Y);this.isBallLaunched=true;this.sound.play(AUDIO_KEYS.SE_LAUNCH);}}
+    // handlePointerDown メソッドを修正してポップアップ対応
+    handlePointerDown() {
+        if (this.isGameOver && this.gameOverText?.visible) {
+            this.returnToTitle();
+        } else if (this.bossDefeated && this.stageClearPopup && this.canProceedToNextStage) { // ★ ポップアップ表示中かつ進行可能なら
+            console.log("[Input] Proceeding to next stage from popup.");
+            if (this.stageClearPopup) this.stageClearPopup.destroy(true); // ポップアップを消す
+            this.stageClearPopup = null;
+            this.canProceedToNextStage = false; // フラグを戻す
+            this.handleBossDefeatCompletion();    // 次の処理へ
+        } else if (this.bossDefeated && this.gameClearText?.visible) { // ゲームクリア後
+            this.returnToTitle();
+        } else if (this.playerControlEnabled && this.lives > 0 && !this.isBallLaunched && this.balls?.countActive(true) > 0) {
+            this.launchBall();
+        }
+    }
+ launchBall(){if(!this.balls?.countActive(true))return;const bTL=this.balls.getFirstAlive();if(bTL){bTL.setVelocity(Phaser.Math.Between(BALL_INITIAL_VELOCITY_X_RANGE[0],BALL_INITIAL_VELOCITY_X_RANGE[1]),BALL_INITIAL_VELOCITY_Y);this.isBallLaunched=true;this.sound.play(AUDIO_KEYS.SE_LAUNCH);}}
     updateBallFall(){if(!this.balls?.active)return;let aBC=0,sLLTF=false,dSB=null;this.balls.getChildren().forEach(b=>{if(b.active){aBC++;if(this.isBallLaunched&&b.y>this.gameHeight+b.displayHeight*2){if(this.isAnilaActive){this.deactivateAnila();b.y=this.paddle.y-this.paddle.displayHeight;b.setVelocityY(BALL_INITIAL_VELOCITY_Y*0.8);console.log("[Anila] Ball bounced!");}else{b.setActive(false).setVisible(false);if(b.body)b.body.enable=false;sLLTF=true;if(b.getData('isSindaraActive'))dSB=b;}}}});if(dSB){const rS=this.balls.getMatching('isSindaraActive',true);if(rS.length<=1)rS.forEach(b=>this.deactivateSindara(b,true));}if(sLLTF&&this.balls.countActive(true)===0&&this.lives>0&&!this.isGameOver&&!this.bossDefeated)this.loseLife();}
     handleWorldBounds(body,up,down,left,right){const gO=body.gameObject;if(!gO||!(gO instanceof Phaser.Physics.Arcade.Image)||!gO.active)return;if(this.balls.contains(gO)){if(up||left||right){this.sound.play(AUDIO_KEYS.SE_REFLECT,{volume:0.7});let iX=gO.x,iY=gO.y,aR=[0,0];if(up){iY=body.y;aR=[60,120];}else if(left){iX=body.x;aR=[-30,30];}else if(right){iX=body.x+body.width;aR=[150,210];}this.createImpactParticles(iX,iY,aR,0xffffff,5);}}}
     createImpactParticles(x,y,angleRange,tint,count=8){const p=this.add.particles(0,0,'whitePixel',{x:x,y:y,lifespan:{min:100,max:300},speed:{min:80,max:150},angle:{min:angleRange[0],max:angleRange[1]},gravityY:200,scale:{start:0.6,end:0},quantity:count,blendMode:'ADD',emitting:false});p.setParticleTint(tint);p.explode(count);this.time.delayedCall(400,()=>p.destroy());}
@@ -1667,6 +1767,9 @@ calculateDynamicFontSize(baseSizeMax) {
     stopBgm(){if(this.currentBgm){try{this.currentBgm.stop();this.sound.remove(this.currentBgm);}catch(e){console.error("Error stopping BGM:",e);}this.currentBgm=null;}}
     safeDestroyCollider(colliderRef,name="collider"){if(colliderRef){try{colliderRef.destroy();}catch(e){console.error(`[Shutdown] Error destroying ${name}:`,e.message);}}colliderRef=null;}
     safeDestroy(obj,name,destroyChildren=false){if(obj&&obj.scene){try{obj.destroy(destroyChildren);}catch(e){console.error(`[Shutdown] Error destroying ${name}:`,e.message);}}obj=null;}
-    shutdownScene() { /* ... (CommonBossScene.js 前回のコードと同様、内容は省略) ... */ this.stopBgm(); this.sound.stopAll(); this.tweens.killAll(); this.time.removeAllEvents(); this.scale.off('resize', this.handleResize, this); if (this.physics.world) this.physics.world.off('worldbounds', this.handleWorldBounds, this); this.input.off('pointermove', this.handlePointerMove, this); this.input.off('pointerdown', this.handlePointerDown, this); this.events.off('shutdown', this.shutdownScene, this); this.events.removeAllListeners(); this.safeDestroyCollider(this.ballPaddleCollider); this.safeDestroyCollider(this.ballBossCollider); this.safeDestroyCollider(this.ballAttackBrickCollider); this.safeDestroyCollider(this.ballAttackBrickOverlap); this.safeDestroyCollider(this.paddlePowerUpOverlap); this.safeDestroyCollider(this.paddleAttackBrickCollider); this.safeDestroyCollider(this.makiraBeamBossOverlap); this.safeDestroy(this.paddle,"paddle"); this.safeDestroy(this.balls,"balls group",true); this.safeDestroy(this.boss,"boss"); this.safeDestroy(this.attackBricks,"attackBricks group",true); this.safeDestroy(this.powerUps,"powerUps group",true); this.safeDestroy(this.familiars,"familiars group",true); this.safeDestroy(this.makiraBeams,"makiraBeams group",true); this.safeDestroy(this.gameOverText,"gameOverText"); this.safeDestroy(this.gameClearText,"gameClearText"); this.safeDestroy(this.bossAfterImageEmitter,"bossAfterImageEmitter"); this.paddle=null;this.balls=null;this.boss=null;this.attackBricks=null;this.powerUps=null;this.familiars=null;this.makiraBeams=null;this.gameOverText=null;this.gameClearText=null;this.bossAfterImageEmitter=null;this.uiScene=null;this.currentBgm=null;this.powerUpTimers={};this.bikaraTimers={};this.lastPlayedVoiceTime={};this.bossMoveTween=null;this.randomVoiceTimer=null;this.attackBrickTimer=null;this.anilaTimer=null;this.anchiraTimer=null;this.makiraAttackTimer=null; console.log(`--- ${this.scene.key} SHUTDOWN Complete ---`); }
+    shutdownScene() { /* ... (CommonBossScene.js 前回のコードと同様、内容は省略) ... */ this.stopBgm(); this.sound.stopAll(); this.tweens.killAll(); this.time.removeAllEvents();   if (this.stageClearPopup) {
+            this.stageClearPopup.destroy(true);
+            this.stageClearPopup = null;
+        }this.scale.off('resize', this.handleResize, this); if (this.physics.world) this.physics.world.off('worldbounds', this.handleWorldBounds, this); this.input.off('pointermove', this.handlePointerMove, this); this.input.off('pointerdown', this.handlePointerDown, this); this.events.off('shutdown', this.shutdownScene, this); this.events.removeAllListeners(); this.safeDestroyCollider(this.ballPaddleCollider); this.safeDestroyCollider(this.ballBossCollider); this.safeDestroyCollider(this.ballAttackBrickCollider); this.safeDestroyCollider(this.ballAttackBrickOverlap); this.safeDestroyCollider(this.paddlePowerUpOverlap); this.safeDestroyCollider(this.paddleAttackBrickCollider); this.safeDestroyCollider(this.makiraBeamBossOverlap); this.safeDestroy(this.paddle,"paddle"); this.safeDestroy(this.balls,"balls group",true); this.safeDestroy(this.boss,"boss"); this.safeDestroy(this.attackBricks,"attackBricks group",true); this.safeDestroy(this.powerUps,"powerUps group",true); this.safeDestroy(this.familiars,"familiars group",true); this.safeDestroy(this.makiraBeams,"makiraBeams group",true); this.safeDestroy(this.gameOverText,"gameOverText"); this.safeDestroy(this.gameClearText,"gameClearText"); this.safeDestroy(this.bossAfterImageEmitter,"bossAfterImageEmitter"); this.paddle=null;this.balls=null;this.boss=null;this.attackBricks=null;this.powerUps=null;this.familiars=null;this.makiraBeams=null;this.gameOverText=null;this.gameClearText=null;this.bossAfterImageEmitter=null;this.uiScene=null;this.currentBgm=null;this.powerUpTimers={};this.bikaraTimers={};this.lastPlayedVoiceTime={};this.bossMoveTween=null;this.randomVoiceTimer=null;this.attackBrickTimer=null;this.anilaTimer=null;this.anchiraTimer=null;this.makiraAttackTimer=null; console.log(`--- ${this.scene.key} SHUTDOWN Complete ---`); }
     // --- ▲ ヘルパーメソッド ▲ ---
 }
