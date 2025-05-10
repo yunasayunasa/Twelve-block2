@@ -81,6 +81,8 @@ export default class CommonBossScene extends Phaser.Scene {
         this.lives = 3;
         this.playerControlEnabled = true;
         this.isBallLaunched = false;
+        this.paddleInvulnerableTimer = null; // ★ パドル無敵タイマー用
+        this.isPaddleInvulnerable = false;   // ★ パドル無敵フラグ
 
         // --- ボス関連 ---
         this.boss = null;
@@ -188,6 +190,11 @@ export default class CommonBossScene extends Phaser.Scene {
         this.randomVoiceTimer?.remove(); this.randomVoiceTimer = null;
         this.lastDamageVoiceTime = 0;
         this.canProceedToNextStage = false; // ★ initでリセット
+        this.isPaddleInvulnerable = false; // ★ initでリセット
+        if (this.paddleInvulnerableTimer) {
+            this.paddleInvulnerableTimer.remove();
+            this.paddleInvulnerableTimer = null;
+        }
     
 
         this.startIntroPending = false; // ★ init でもリセット
@@ -214,6 +221,7 @@ export default class CommonBossScene extends Phaser.Scene {
         this.setupBackground();
         this.setupUI();
         this.setupPhysics();
+        
 
         // ★★★ create 内でのフラグ設定 ★★★
         this.playerControlEnabled = false; // まず操作不可に
@@ -1687,26 +1695,33 @@ if (this.isMakiraActive && this.balls && this.familiars && this.familiars.countA
     }
 
       // ★★★ 新しいメソッド：パドルとボスが接触した際の共通処理 ★★★
+    // handlePaddleBossContact メソッドを修正
     handlePaddleBossContact(paddle, boss) {
-        // このメソッドは CommonBossScene に置き、各ボスシーンで
-        // 突進中などの条件に応じてダメージ処理を呼び出すか、
-        // あるいはこのメソッド自体をボスシーンでオーバーライドする。
-        // ここでは、ボスシーン側に具体的な処理を委ねるフラグをチェックする例。
+        if (!paddle.active || !boss.active || this.isPaddleInvulnerable) { // ★ パドル無敵中は処理しない
+            return;
+        }
 
-        if (!paddle.active || !boss.active) return;
-
-        // 各ボスシーンで実装されるべき、接触ダメージが発生する条件かをチェックするメソッドを呼ぶ
-        // (または、ここでボスごとのタイプやフラグを見て直接処理する)
         if (this.shouldPaddleTakeDamageFromBossContact(paddle, boss)) {
             console.log(`[PaddleBossContact] Paddle contacted boss (${boss.texture.key}) under damage conditions.`);
-            this.loseLife(); // ライフを減らす
-            // TODO: パドル被弾エフェクト、無敵時間など
-            // パドルにも短い無敵時間を設けるか、ボス側を一時的にすり抜け可能にするなどの考慮も
-            if (boss.body) { // ボスが物理的な反動を受けるか (任意)
-                // boss.setVelocityY(-100); // 例: ボスが少し上に跳ねる
-            }
+            this.loseLife();
+
+            // ★★★ パドルに一時的な無敵時間を設定 ★★★
+            this.isPaddleInvulnerable = true;
+            const paddleInvulnerableDuration = 1000; // 1秒間の無敵 (調整可能)
+            console.log(`[PaddleBossContact] Paddle became invulnerable for ${paddleInvulnerableDuration}ms.`);
+            // 既存のタイマーがあればクリア
+            if (this.paddleInvulnerableTimer) this.paddleInvulnerableTimer.remove();
+            this.paddleInvulnerableTimer = this.time.delayedCall(paddleInvulnerableDuration, () => {
+                this.isPaddleInvulnerable = false;
+                console.log("[PaddleBossContact] Paddle invulnerability ended.");
+            }, [], this);
+            // ★★★------------------------------------★★★
+
+            // (オプション) パドルが点滅するなどの視覚フィードバック
+            // this.tweens.add({ targets: paddle, alpha: 0.5, duration: 100, yoyo: true, repeat: Math.floor(paddleInvulnerableDuration / 200) -1 });
+
         } else {
-            // console.log(`[PaddleBossContact] Paddle contacted boss but no damage condition.`);
+            // console.log(`[PaddleBossContact] Paddle contacted boss but no damage condition or paddle invulnerable.`);
         }
     }
 
@@ -2381,8 +2396,12 @@ calculateDynamicFontSize(baseSizeMax) {
     shutdownScene() { /* ... (CommonBossScene.js 前回のコードと同様、内容は省略) ... */ this.stopBgm(); this.sound.stopAll(); this.tweens.killAll(); this.time.removeAllEvents();   if (this.stageClearPopup) {
             this.stageClearPopup.destroy(true);
             this.stageClearPopup = null;
-        }this.scale.off('resize', this.handleResize, this); if (this.physics.world) this.physics.world.off('worldbounds', this.handleWorldBounds, this); this.input.off('pointermove', this.handlePointerMove, this); this.input.off('pointerdown', this.handlePointerDown, this); this.events.off('shutdown', this.shutdownScene, this); this.events.removeAllListeners(); this.safeDestroyCollider(this.ballPaddleCollider); this.safeDestroyCollider(this.ballBossCollider); this.safeDestroyCollider(this.ballAttackBrickCollider); 
-        this.safeDestroyCollider(this.paddleBossOverlap);
+        }
+        if (this.paddleInvulnerableTimer) {
+            this.paddleInvulnerableTimer.remove();
+            this.paddleInvulnerableTimer = null;
+        }
+        eDestroyCollider(this.paddleBossOverlap);
         this.safeDestroyCollider(this.ballAttackBrickOverlap); this.safeDestroyCollider(this.paddlePowerUpOverlap); this.safeDestroyCollider(this.paddleAttackBrickCollider); this.safeDestroyCollider(this.makiraBeamBossOverlap); this.safeDestroy(this.paddle,"paddle"); this.safeDestroy(this.balls,"balls group",true); this.safeDestroy(this.boss,"boss"); this.safeDestroy(this.attackBricks,"attackBricks group",true); this.safeDestroy(this.powerUps,"powerUps group",true); this.safeDestroy(this.familiars,"familiars group",true); this.safeDestroy(this.makiraBeams,"makiraBeams group",true); this.safeDestroy(this.gameOverText,"gameOverText"); this.safeDestroy(this.gameClearText,"gameClearText"); this.safeDestroy(this.bossAfterImageEmitter,"bossAfterImageEmitter"); this.paddle=null;this.balls=null;this.boss=null;this.attackBricks=null;this.powerUps=null;this.familiars=null;this.makiraBeams=null;this.gameOverText=null;this.gameClearText=null;this.bossAfterImageEmitter=null;this.uiScene=null;this.currentBgm=null;this.powerUpTimers={};this.bikaraTimers={};this.lastPlayedVoiceTime={};this.bossMoveTween=null;this.randomVoiceTimer=null;this.attackBrickTimer=null;this.anilaTimer=null;this.anchiraTimer=null;this.makiraAttackTimer=null; console.log(`--- ${this.scene.key} SHUTDOWN Complete ---`); }
     // --- ▲ ヘルパーメソッド ▲ ---
 }
