@@ -1019,45 +1019,7 @@ if (this.isMakiraActive && this.balls && this.familiars && this.familiars.countA
     // --- ▲ ゲーム進行メソッド ▲ ---
 
     // --- ▼ パワーアップ関連メソッド (主要部分) ▼ ---
-    collectPowerUp(paddle, powerUp) {
-        if (!powerUp?.active || this.isGameOver || this.bossDefeated) return; const type = powerUp.getData('type');
-        if (!type) { powerUp.destroy(); return; } console.log(`Collected power up: ${type}`);
-         if (!type) { powerUp.destroy(); return; }
-
-        // ★★★ マキラ取得時はアイテムを破棄し、activateMakiraを呼ぶ ★★★
-        if (type === POWERUP_TYPES.MAKIRA) {
-            console.log(`Collected power up: ${type} (Triggering auto-collect)`);
-            powerUp.destroy(); // マキラアイテム自体はここで消す
-            this.playPowerUpVoice(type); // ボイス再生
-            this.activateMakira();   // 新しい効果を発動
-            return; // 他の処理はしない
-        }
-        powerUp.destroy();
-        
-        if (type === POWERUP_TYPES.SINDARA || type === POWERUP_TYPES.ANCHIRA) { this.deactivateSindara(null, true); this.deactivateAnchira(true); }
-        this.playPowerUpVoice(type);
-        switch (type) {
-            case POWERUP_TYPES.KUBIRA:   this.activateKubira();   break;
-            case POWERUP_TYPES.SHATORA:  this.activateShatora();  break;
-            case POWERUP_TYPES.HAILA:    this.activateHaira();    break;
-            case POWERUP_TYPES.ANCHIRA:  this.activateAnchira();  break;
-            case POWERUP_TYPES.SINDARA:  this.activateSindara();  break;
-            case POWERUP_TYPES.BIKARA:   this.activateBikara();   break;
-            case POWERUP_TYPES.INDARA:   this.activateIndara();   break;
-            case POWERUP_TYPES.ANILA:    this.activateAnila();    break;
-            case POWERUP_TYPES.VAJRA:    this.activateVajra();    break;
-            case POWERUP_TYPES.MAKIRA:   this.activateMakira();   break;
-            case POWERUP_TYPES.MAKORA:   this.activateMakora();   break;
-            case POWERUP_TYPES.BAISRAVA: if (this.boss?.active && !this.boss.getData('isInvulnerable')) this.applyBossDamage(this.boss, 50, "Baisrava"); return;
-            default: console.log(`Power up ${type} has no specific activation.`); this.setBallPowerUpState(type, true); break;
-        }
-        this.updateBallAndPaddleAppearance();
-    }
-    activateTemporaryEffect(type, duration, onStartCallback, onEndCallback) {
-        if (this.powerUpTimers[type]) this.powerUpTimers[type].remove(); onStartCallback?.(); this.setBallPowerUpState(type, true);
-        this.powerUpTimers[type] = this.time.delayedCall(duration, () => { onEndCallback?.(); this.setBallPowerUpState(type, false); delete this.powerUpTimers[type]; this.updateBallAndPaddleAppearance(); }, [], this);
-        this.updateBallAndPaddleAppearance();
-    }
+ 
     setBallPowerUpState(type, isActive, specificBall = null) {
         const targetBalls = specificBall ? [specificBall] : this.balls?.getChildren() ?? [];
         targetBalls.forEach(ball => {
@@ -1189,22 +1151,31 @@ if (this.isMakiraActive && this.balls && this.familiars && this.familiars.countA
         // マキラ自体は即時効果なので、持続効果のタイマーは不要
     }
  // ★ 新しいヘルパーメソッド: 指定されたタイプのパワーアップ効果を発動し、アイテムを破棄
-    triggerPowerUpEffect(type, itemObject) {
+   // CommonBossScene.js
+
+    // triggerPowerUpEffect メソッドを修正
+
+    /**
+     * 指定されたタイプのパワーアップ効果を実際に発動し、対象アイテムを（必要なら）破棄する
+     * @param {string} type 発動するパワーアップのタイプ
+     * @param {Phaser.Physics.Arcade.Image} [itemObject=null] 取得したアイテムオブジェクト（破棄用、任意）
+     */
+    triggerPowerUpEffect(type, itemObject = null) {
         if (!type) {
             if (itemObject && itemObject.active) itemObject.destroy();
             return;
         }
         console.log(`[TriggerEffect] Activating effect for: ${type}`);
-        // SEとボイス再生は collectPowerUp と同様のロジックで
-        this.playPowerUpVoice(type); // ボイス再生
 
-        // itemObject はここで破棄 (collectPowerUp 本体とは別に)
+        // ボイス再生 (アイテムオブジェクトの有無に関わらずタイプで再生)
+        this.playPowerUpVoice(type);
+
+        // アイテムオブジェクトがあればここで破棄
         if (itemObject && itemObject.active) {
+            console.log(`[TriggerEffect] Destroying itemObject for ${type}`);
             itemObject.destroy();
         }
 
-        // collectPowerUp の switch 文のロジックをここに持ってくるか、
-        // 各 activateXXX メソッドを直接呼び出す
         switch (type) {
             case POWERUP_TYPES.KUBIRA:   this.activateKubira();   break;
             case POWERUP_TYPES.SHATORA:  this.activateShatora();  break;
@@ -1215,20 +1186,112 @@ if (this.isMakiraActive && this.balls && this.familiars && this.familiars.countA
             case POWERUP_TYPES.INDARA:   this.activateIndara();   break;
             case POWERUP_TYPES.ANILA:    this.activateAnila();    break;
             case POWERUP_TYPES.VAJRA:    this.activateVajra();    break;
-            // MAKIRA はここでは発動しない (無限ループ防止)
+            // MAKIRA の case は activateMakira が直接呼ばれるので、ここには不要
             case POWERUP_TYPES.MAKORA:   this.activateMakora();   break;
-            case POWERUP_TYPES.BAISRAVA:
-                if (this.boss?.active && !this.boss.getData('isInvulnerable')) {
-                    this.applyBossDamage(this.boss, 50, "Baisrava (Auto-collected)");
+
+            case POWERUP_TYPES.BAISRAVA: // ★★★ バイシュラヴァの新しい効果 ★★★
+                console.log("[Baisrava Effect] Destroying all attack bricks and damaging boss!");
+
+                // 1. 画面内の全攻撃ブロックを破壊 (アイテムドロップ・ヴァジラゲージ上昇あり)
+                if (this.attackBricks && this.attackBricks.countActive(true) > 0) {
+                    const bricksToDestroy = [...this.attackBricks.getChildren()]; // 安全なループのため配列コピー
+                    let destroyedBrickCount = 0;
+                    bricksToDestroy.forEach(brick => {
+                        if (brick && brick.active) {
+                            // destroyAttackBrickAndDropItem は内部でヴァジラゲージ増加も行う
+                            this.destroyAttackBrickAndDropItem(brick);
+                            destroyedBrickCount++;
+                        }
+                    });
+                    console.log(`[Baisrava Effect] Destroyed ${destroyedBrickCount} attack bricks.`);
+                } else {
+                    console.log("[Baisrava Effect] No active attack bricks to destroy.");
                 }
-                break; // バイシュラヴァは即時効果
+
+                // 2. ボスに固定1ダメージ
+                if (this.boss?.active && !this.boss.getData('isInvulnerable')) {
+                    console.log("[Baisrava Effect] Applying 1 damage to boss.");
+                    this.applyBossDamage(this.boss, 1, "Baisrava Effect");
+                } else {
+                    console.log("[Baisrava Effect] Boss inactive or invulnerable, no damage applied.");
+                }
+                // バイシュラヴァは即時効果なので、ボールの状態変更やタイマーは不要
+                break; // ★★★------------------------------------★★★
+
             default:
-                console.log(`[TriggerEffect] Power up ${type} has no specific activation.`);
-                this.setBallPowerUpState(type, true); // 未定義でもアイコン表示試行
+                console.log(`[TriggerEffect] Power up ${type} has no specific activation in triggerPowerUpEffect.`);
+                // デフォルトではボールの状態を変更する (アイコン表示など)
+                this.setBallPowerUpState(type, true);
                 break;
         }
-        // 全体的な見た目更新は activateMakira の最後に1回で良いかもしれない
+        // 全体的な見た目更新は、個別のactivateXXXメソッド内か、
+        // このメソッドの最後にまとめて呼ぶか、呼び出し元(activateMakiraなど)で行う
         this.updateBallAndPaddleAppearance();
+    }
+
+    // activateMakira メソッド (triggerPowerUpEffect を使うように修正)
+    activateMakira() {
+        console.log("[Makira] Activating: Collect all on-screen items!");
+
+        if (!this.powerUps || this.powerUps.countActive(true) === 0) {
+            console.log("[Makira] No active power-ups on screen to collect.");
+            return;
+        }
+        console.log(`[Makira] Found ${this.powerUps.countActive(true)} items to collect.`);
+        const itemsToCollect = [...this.powerUps.getChildren()];
+        let collectedCount = 0;
+
+        itemsToCollect.forEach(item => {
+            if (item && item.active) {
+                const itemType = item.getData('type');
+                if (itemType) {
+                    if (itemType !== POWERUP_TYPES.MAKIRA) { // マキラ自身は再帰的に発動しない
+                        console.log(`[Makira] Automatically triggering effect for item: ${itemType}`);
+                        // ★ itemObject を渡して triggerPowerUpEffect を呼び出す ★
+                        this.triggerPowerUpEffect(itemType, item); // item はここで破棄される
+                        collectedCount++;
+                    } else {
+                        console.log("[Makira] Skipping self-collection of Makira item.");
+                        if (item.active) item.destroy(); // 自分自身のアイテムは消すだけ
+                    }
+                } else {
+                    console.warn("[Makira] Item found without a type, destroying it.", item);
+                    if (item.active) item.destroy();
+                }
+            }
+        });
+        console.log(`[Makira] Triggered effects for ${collectedCount} items.`);
+        // マキラ取得時のボールアイコン変更は任意 (即時効果なので通常は不要)
+        // this.setBallPowerUpState(POWERUP_TYPES.MAKIRA, true);
+        // this.updateBallAndPaddleAppearance();
+        // this.time.delayedCall(100, () => {
+        //     this.setBallPowerUpState(POWERUP_TYPES.MAKIRA, false);
+        //     this.updateBallAndPaddleAppearance();
+        // });
+    }
+
+    // collectPowerUp メソッド (triggerPowerUpEffect を呼ぶようにシンプル化も可能)
+    collectPowerUp(paddle, powerUp) {
+        if (!powerUp?.active || this.isGameOver || this.bossDefeated) return;
+        const type = powerUp.getData('type');
+        if (!type) {
+            if (powerUp.active) powerUp.destroy();
+            return;
+        }
+
+        // マキラの場合は activateMakira を直接呼ぶ (triggerPowerUpEffect には渡さない)
+        if (type === POWERUP_TYPES.MAKIRA) {
+            console.log(`Collected power up: ${type} (Special handling for Makira activation)`);
+            this.playPowerUpVoice(type); // ボイス再生
+            if (powerUp.active) powerUp.destroy(); // アイテムオブジェクトをここで破棄
+            this.activateMakira();   // マキラの全取得効果を発動
+            return;
+        }
+
+        // その他のパワーアップは triggerPowerUpEffect に任せる
+        console.log(`Collected power up: ${type} (Passing to triggerPowerUpEffect)`);
+        // triggerPowerUpEffect がボイス再生とアイテム破棄を行うので、ここでは何もしない
+        this.triggerPowerUpEffect(type, powerUp);
     }
   
    activateMakora() {
