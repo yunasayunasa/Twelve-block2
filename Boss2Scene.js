@@ -59,8 +59,8 @@ export default class Boss2Scene extends CommonBossScene {
             moveRangeXRatio: 0.7,
             moveDuration: 3800,
             // サンカラ固有の攻撃パラメータ
-            sankaraRushIntervalMin: 5000, // 突進攻撃の最小間隔 (ms)
-            sankaraRushIntervalMax: 8000, // 突進攻撃の最大間隔 (ms)
+            sankaraRushIntervalMin: 4000, // 突進攻撃の最小間隔 (ms)
+            sankaraRushIntervalMax: 7000, // 突進攻撃の最大間隔 (ms)
             sankaraRushSpeed: 450,        // 突進速度
             sankaraBrickReleaseCount: 3,  // 1回の突進でのブロック放出回数
             sankaraBrickAngleMin: 30,     // ブロック放出角度の最小 (左右対称)
@@ -200,6 +200,9 @@ export default class Boss2Scene extends CommonBossScene {
      */
     // Boss2Scene.js の executeSankaraRush メソッドを修正
 
+     /**
+     * サンカラの突進攻撃を実行する
+     */
     executeSankaraRush() {
         if (!this.boss || !this.boss.active || this.isSankaraRushing || this.bossDefeated || this.isGameOver) {
             if (!this.isSankaraRushing && !this.bossDefeated && !this.isGameOver) this.scheduleSankaraRush();
@@ -208,46 +211,113 @@ export default class Boss2Scene extends CommonBossScene {
 
         console.log("[Sankara] Executing Rush Attack Sequence...");
         this.isSankaraRushing = true;
-        this.bossMoveTween?.pause(); // 通常の左右移動を一時停止
+        this.bossMoveTween?.pause();
 
-        // 1. 予備動作: 少し上に身を引く ★★★ Y軸方向に変更 ★★★
-        const retreatDistanceY = this.boss.displayHeight * 0.4; // ボス表示高さの40%程度後退 (調整可能)
-        const originalY = this.boss.y; // 元のY座標を覚えておく
-        const targetRetreatY = Math.max(this.boss.displayHeight / 2, originalY - retreatDistanceY); // 画面上端にはみ出さないように
+        const retreatDistanceY = this.boss.displayHeight * 0.4;
+        const originalY = this.boss.y;
+        const targetRetreatY = Math.max(this.boss.displayHeight / 2 + this.topMargin, originalY - retreatDistanceY); // 上部マージンも考慮
 
-        console.log(`[Sankara Rush] Retreating upwards... Original Y: ${originalY.toFixed(0)}, Target Retreat Y: ${targetRetreatY.toFixed(0)}`);
+        console.log(`[Sankara Rush] Retreating upwards...`);
         this.tweens.add({
             targets: this.boss,
-            y: targetRetreatY, // ★ Y座標を上に変更
-            duration: 400,    // 0.4秒で後退 (調整可能)
+            y: targetRetreatY,
+            duration: 400,
             ease: 'Quad.easeOut',
             onComplete: () => {
                 console.log("[Sankara Rush] Retreat complete.");
-                // 2. パドルのX座標をターゲットとして記録
                 const targetPaddleX = this.paddle ? this.paddle.x : this.gameWidth / 2;
-                console.log(`[Sankara Rush] Paddle target X acquired: ${targetPaddleX.toFixed(0)}`);
+                // ★★★ 突進の目標Y座標 (パドルの少し上、または画面下端など) ★★★
+                const targetRushY = this.paddle ? this.paddle.y - this.paddle.displayHeight : this.gameHeight - this.boss.displayHeight / 2 - 20;
+                console.log(`[Sankara Rush] Targeting Paddle X: ${targetPaddleX.toFixed(0)}, Target Rush Y: ${targetRushY.toFixed(0)}`);
 
-                // TODO: ここに実際の突進移動Tweenと攻撃ブロック放出処理を追加
-                console.log("[Sankara Rush] TODO: Implement actual rush movement and projectile launch.");
+                // ★★★ 突進移動のTween ★★★
+                const rushDuration = Phaser.Math.Distance.Between(this.boss.x, this.boss.y, targetPaddleX, targetRushY) / (this.bossData.sankaraRushSpeed || 450) * 1000; // 距離と速度から時間を計算
+                console.log(`[Sankara Rush] Calculated rush duration: ${rushDuration.toFixed(0)}ms`);
 
-                // (テスト用) 一定時間後に突進完了として状態を戻し、次の突進を予約
-                this.time.delayedCall(1500, () => {
-                    console.log("[Sankara Rush] (Test) Rush finished. Returning to normal movement.");
-                    this.boss.y = originalY; // 簡単のため元のY座標に戻す
-                    this.isSankaraRushing = false;
-                    this.bossMoveTween?.resume();
-                    this.scheduleSankaraRush();
-                }, [], this);
+                this.tweens.add({
+                    targets: this.boss,
+                    x: targetPaddleX,
+                    y: targetRushY,
+                    duration: Math.max(500, rushDuration), // 最低0.5秒はかける
+                    ease: 'Quad.easeIn', // 加速する感じ
+                    onUpdate: (tween, target) => {
+                        // ★ 突進中に攻撃ブロックを放出する処理 (タイミング調整) ★
+                        // この onUpdate は毎フレーム呼ばれるので、回数やタイミングを管理する
+                        // ここではTweenの進行度に応じて3回放出する例
+                        const progress = tween.progress;
+                        // bossDataに attackReleaseTimings: [0.2, 0.4, 0.6] のように定義しておくと良い
+                        const releaseTimings = this.bossData.sankaraBrickReleaseTimings || [0.25, 0.5, 0.75]; // 進行度 25%, 50%, 75% で放出
+
+                        releaseTimings.forEach((timing, index) => {
+                            // 各タイミングで一度だけ放出されるようにフラグ管理
+                            if (!target[`releasedBrickSet${index}`] && progress >= timing) {
+                                console.log(`[Sankara Rush] Releasing brick set ${index + 1} at progress ${progress.toFixed(2)}`);
+                                this.spawnSankaraAttackBlock(); // 左右に1個ずつ放出
+                                target[`releasedBrickSet${index}`] = true; // 放出済みフラグ
+                            }
+                        });
+                    },
+                    onComplete: () => {
+                        console.log("[Sankara Rush] Rush to target complete.");
+                        // リリースフラグをリセット
+                        const releaseTimings = this.bossData.sankaraBrickReleaseTimings || [0.25, 0.5, 0.75];
+                        releaseTimings.forEach((timing, index) => {
+                            this.boss[`releasedBrickSet${index}`] = false;
+                        });
+
+                        // 元のY座標に戻るTween
+                        console.log("[Sankara Rush] Returning to original Y position.");
+                        this.tweens.add({
+                            targets: this.boss,
+                            y: originalY,
+                            duration: 600, // 0.6秒で戻る
+                            ease: 'Quad.easeOut',
+                            onComplete: () => {
+                                console.log("[Sankara Rush] Return complete. Resuming normal movement.");
+                                this.isSankaraRushing = false;
+                                this.bossMoveTween?.resume();
+                                this.scheduleSankaraRush(); // 次の突進を予約
+                            }
+                        });
+                    }
+                });
+                // ★★★-----------------------★★★
             }
         });
     }
 
+    /**
+     * サンカラの攻撃ブロックを左右に1個ずつ放出する
+     */
     spawnSankaraAttackBlock() {
-        // TODO: サンカラ本体の左右から斜め下に攻撃ブロックを生成
-        // this.bossData.sankaraBrickAngleMin/Max, sankaraBrickVelocity を使用
-    }
-    // --- ▲ サンカラ形態の攻撃ロジック ▲ ---
+        if (!this.attackBricks || !this.boss || !this.boss.active) return;
 
+        const bossX = this.boss.x;
+        const bossY = this.boss.y + this.boss.displayHeight / 4; // ボスの少し下から出す
+        const velocity = this.bossData.sankaraBrickVelocity || 200;
+        const textureKey = 'attack_brick_common'; // 新しい共通攻撃ブロック画像
+        const scale = this.bossData.attackBrickScale || 0.2;
+
+        // 角度を bossData から取得し、ランダムに
+        const angleMin = this.bossData.sankaraBrickAngleMin || 30;
+        const angleMax = this.bossData.sankaraBrickAngleMax || 60;
+
+        // 左斜め下
+        const angleLeft = Phaser.Math.Between(180 - angleMax, 180 - angleMin); // 120度～150度
+        const velocityLeft = this.physics.velocityFromAngle(angleLeft, velocity);
+        const brickLeft = this.attackBricks.create(bossX, bossY, textureKey)
+            .setScale(scale).setVelocity(velocityLeft.x, velocityLeft.y);
+        if (brickLeft.body) brickLeft.body.setAllowGravity(false).setCollideWorldBounds(false); // 画面外に出たら消える処理はCommonにある
+
+        // 右斜め下
+        const angleRight = Phaser.Math.Between(angleMin, angleMax); // 30度～60度
+        const velocityRight = this.physics.velocityFromAngle(angleRight, velocity);
+        const brickRight = this.attackBricks.create(bossX, bossY, textureKey)
+            .setScale(scale).setVelocity(velocityRight.x, velocityRight.y);
+        if (brickRight.body) brickRight.body.setAllowGravity(false).setCollideWorldBounds(false);
+
+        console.log(`[Sankara Attack] Spawned bricks. Left (Angle: ${angleLeft}), Right (Angle: ${angleRight})`);
+    }
     // --- ▼ ソワカ形態の攻撃とフィールドロジック (後で実装) ▼ ---
     updateSowakaAttacksAndField(time, delta) {
         // TODO: フィールド展開/解除/再展開のタイマー管理とロジック
