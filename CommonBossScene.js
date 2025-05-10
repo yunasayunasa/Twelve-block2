@@ -1053,6 +1053,64 @@ if (this.isMakiraActive && this.balls && this.familiars && this.familiars.countA
         if (!ball?.active) return; ball.setData({ activePowers: new Set(), lastActivatedPower: null, isKubiraActive: false, isFast: false, isSlow: false, isIndaraActive: false, isBikaraPenetrating: false, isSindaraActive: false, isAnchiraActive: false, isMakoraActive: false });
         if (this.bikaraTimers[ball.name]) { this.bikaraTimers[ball.name].remove(); delete this.bikaraTimers[ball.name]; } this.updateBallAppearance(ball);
     }
+
+    // CommonBossScene.js 内に追加（またはコメントアウト解除）
+
+    /**
+     * 一定時間だけ効果を有効にする汎用ヘルパーメソッド
+     * @param {string} type パワーアップのタイプ
+     * @param {number} duration 効果持続時間 (ms)
+     * @param {function} [onStartCallback=null] 効果開始時に実行するコールバック
+     * @param {function} [onEndCallback=null] 効果終了時に実行するコールバック
+     */
+    activateTemporaryEffect(type, duration, onStartCallback = null, onEndCallback = null) {
+        console.log(`[TempEffect] Activating temporary effect for ${type} for ${duration}ms.`);
+
+        // 既存の同じタイプのタイマーがあればクリア
+        if (this.powerUpTimers[type]) {
+            console.log(`[TempEffect] Removing existing timer for ${type}.`);
+            this.powerUpTimers[type].remove();
+            delete this.powerUpTimers[type]; // 明示的にプロパティも削除
+        }
+
+        // 効果開始時の処理
+        if (onStartCallback) {
+            try {
+                onStartCallback();
+            } catch (e) {
+                console.error(`Error during onStartCallback for ${type}:`, e);
+            }
+        }
+
+        // ボールにパワーアップ状態を設定 (アイコン表示などのため)
+        // (注意: この setBallPowerUpState はボールの見た目を担当。実際の効果は onStart/onEnd で)
+        this.setBallPowerUpState(type, true);
+        // this.updateBallAndPaddleAppearance(); // 開始時の見た目更新は呼び出し元やsetBallPowerUpState内部で行うことが多い
+
+        // 効果終了タイマーを設定
+        this.powerUpTimers[type] = this.time.delayedCall(duration, () => {
+            console.log(`[TempEffect] Deactivating temporary effect for ${type}.`);
+
+            // 効果終了時の処理
+            if (onEndCallback) {
+                try {
+                    onEndCallback();
+                } catch (e) {
+                    console.error(`Error during onEndCallback for ${type}:`, e);
+                }
+            }
+
+            // ボールのパワーアップ状態を解除
+            this.setBallPowerUpState(type, false);
+            // this.updateBallAndPaddleAppearance(); // 終了時の見た目更新は呼び出し元やsetBallPowerUpState内部で
+
+            delete this.powerUpTimers[type]; // タイマー参照をクリア
+            console.log(`[TempEffect] Timer for ${type} removed.`);
+        }, [], this); // this をスコープとして渡す
+
+        // 開始直後の見た目更新 (setBallPowerUpStateが内部で呼ぶか、ここで明示的に呼ぶ)
+        this.updateBallAndPaddleAppearance();
+    }
     // --- 各パワーアップの activate/deactivate メソッド ---
     activateKubira() { this.activateTemporaryEffect(POWERUP_TYPES.KUBIRA, POWERUP_DURATION[POWERUP_TYPES.KUBIRA]); }
     activateShatora() { this.activateTemporaryEffect(POWERUP_TYPES.SHATORA, POWERUP_DURATION[POWERUP_TYPES.SHATORA], () => this.balls?.getChildren().forEach(b => { if(b.active) this.applySpeedModifier(b, POWERUP_TYPES.SHATORA); }), () => this.balls?.getChildren().forEach(b => { if(b.active) this.resetBallSpeed(b); })); }
