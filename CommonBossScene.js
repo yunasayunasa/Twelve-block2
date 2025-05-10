@@ -971,7 +971,7 @@ if (this.isMakiraActive && this.balls && this.familiars && this.familiars.countA
         console.log(`Losing life. Lives remaining: ${this.lives - 1}`);
 
         // --- 持続系パワーアップ解除 ---
-        this.deactivateMakira(); // ★ マキラ解除を追加
+      //  this.deactivateMakira(); // ★ マキラ解除を追加
         this.deactivateAnila();
         this.deactivateAnchira(true);
         this.deactivateSindara(null, true);
