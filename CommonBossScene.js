@@ -1746,31 +1746,52 @@ if (this.isMakiraActive && this.balls && this.familiars && this.familiars.countA
      * @param {number} displayScale 見た目のスケール (テクスチャの元サイズに対する倍率)
      * @param {number} [hitboxScaleMultiplier=1.0] 当たり判定の見た目に対する倍率 (1.0で見た目通り)
      */
+   // CommonBossScene.js の setupAttackBrickAppearance メソッドを修正
+
     setupAttackBrickAppearance(brick, textureKey, displayScale, hitboxScaleMultiplier = 1.0) {
-        if (!brick || !brick.scene) return; // 安全チェック
+        if (!brick || !brick.scene) return;
 
         try {
             brick.setTexture(textureKey);
-            brick.setScale(displayScale); // 見た目のスケールを設定
+            brick.setScale(displayScale); // 1. 見た目のスケールを設定
 
             if (brick.body) {
-                // まず見た目に合わせてボディを更新
+                // 2. ★★★ 物理ボディをまず見た目に合わせる (updateFromGameObject) ★★★
+                //    これにより、ボディの基準サイズとオフセットが一度リセットされる
                 brick.body.updateFromGameObject();
+                console.log(`[SetupAttackBrick] After updateFromGameObject - Body Size: ${brick.body.width.toFixed(1)}x${brick.body.height.toFixed(1)}, Offset: ${brick.body.offset.x.toFixed(1)},${brick.body.offset.y.toFixed(1)}`);
 
-                // 次に当たり判定のスケールを調整
+                // 3. ★★★ 次に、当たり判定のスケールを調整し、オフセットを再計算 ★★★
                 if (hitboxScaleMultiplier !== 1.0 && hitboxScaleMultiplier > 0) {
-                    // body.setSize を使って調整する方が確実
                     const newWidth = brick.displayWidth * hitboxScaleMultiplier;
                     const newHeight = brick.displayHeight * hitboxScaleMultiplier;
-                    brick.body.setSize(newWidth, newHeight);
-                    // オフセットも調整
-                    const offsetX = (brick.displayWidth - newWidth) / 2;
-                    const offsetY = (brick.displayHeight - newHeight) / 2;
-                    brick.body.setOffset(offsetX, offsetY);
-                    console.log(`[SetupAttackBrick] Set body size to ${newWidth.toFixed(0)}x${newHeight.toFixed(0)}, Multiplier: ${hitboxScaleMultiplier}`);
+
+                    if (newWidth > 0 && newHeight > 0) { // サイズが有効かチェック
+                        brick.body.setSize(newWidth, newHeight);
+
+                        // オフセット計算: GameObjectの原点を(0,0)として物理ボディの左上を合わせる場合
+                        // setSize はボディの左上をGameObjectの原点に合わせようとする傾向がある。
+                        // GameObjectの原点が (0.5, 0.5) の場合、
+                        // ボディの左上を (displayWidth * (0.5 - originX) - (newWidth * 0.5 - displayWidth * 0.5)), ...
+                        // のように計算するか、もっと単純に「見た目の中心とボディの中心を合わせる」
+                        const offsetX = (brick.displayWidth - newWidth) / 2;
+                        const offsetY = (brick.displayHeight - newHeight) / 2;
+                        brick.body.setOffset(offsetX, offsetY);
+
+                        console.log(`[SetupAttackBrick] Set custom body size: ${newWidth.toFixed(0)}x${newHeight.toFixed(0)}, Multiplier: ${hitboxScaleMultiplier}, New Offset: (${offsetX.toFixed(1)}, ${offsetY.toFixed(1)})`);
+                    } else {
+                         console.warn(`[SetupAttackBrick] Calculated hitbox size zero or negative for multiplier. Body will match display size.`);
+                         // updateFromGameObject() で既に見た目通りになっているので、ここでは何もしないか、
+                         // 明示的に表示サイズでsetSize/setOffset(0,0)する。
+                         // brick.body.setSize(brick.displayWidth, brick.displayHeight);
+                         // brick.body.setOffset(0,0);
+                    }
                 } else {
-                     console.log(`[SetupAttackBrick] Body size matches display size (Multiplier: ${hitboxScaleMultiplier})`);
+                     // hitboxScaleMultiplier が 1.0 の場合は updateFromGameObject の結果のまま
+                     console.log(`[SetupAttackBrick] Body size matches display size (Multiplier: ${hitboxScaleMultiplier}). Offset should be centered by updateFromGameObject.`);
                 }
+                 // 最終的なボディの状態を確認
+                 console.log(`[SetupAttackBrick] Final Body - Size: ${brick.body.width.toFixed(1)}x${brick.body.height.toFixed(1)}, Offset: ${brick.body.offset.x.toFixed(1)},${brick.body.offset.y.toFixed(1)}`);
             }
         } catch (e) {
             console.error("Error setting up attack brick appearance:", e, brick);
