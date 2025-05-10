@@ -791,51 +791,129 @@ export default class CommonBossScene extends Phaser.Scene {
         console.log(`Boss Drop Pool (Count: ${this.chaosSettings.count}): [${this.bossDropPool.join(',')}]`);
         if (this.uiScene?.scene.isActive()) this.events.emit('updateDropPoolUI', this.bossDropPool);
     }
+    // CommonBossScene.js 内の setColliders メソッド (完全版 - 修正適用済み)
+
     setColliders() {
-        this.safeDestroyCollider(this.ballPaddleCollider); this.safeDestroyCollider(this.ballBossCollider);
-        this.safeDestroyCollider(this.ballAttackBrickCollider); this.safeDestroyCollider(this.ballAttackBrickOverlap);
-        this.safeDestroyCollider(this.paddlePowerUpOverlap); this.safeDestroyCollider(this.paddleAttackBrickCollider);
-        this.safeDestroyCollider(this.makiraBeamBossOverlap);
-          this.safeDestroyCollider(this.ballFamiliarCollider);
-this.ballFamiliarCollider = null; // 明示的にnullに
-console.log(`[SetColliders] Checking conditions for Ball-Familiar collider: isMakiraActive=${this.isMakiraActive}, balls=${!!this.balls}, familiars=${!!this.familiars}, familiars.countActive=${this.familiars?.countActive(true)}`);
+        console.log("[SetColliders] Starting to set/reset colliders.");
+        console.log(`  Current state: isMakiraActive=${this.isMakiraActive}, Boss Active=${this.boss?.active}, Balls exist=${!!this.balls}`);
 
-if (this.isMakiraActive && this.balls && this.familiars && this.familiars.countActive(true) > 0) {
-    console.log("[SetColliders] ADDING Ball-Familiar collider."); // ★追加
-    this.ballFamiliarCollider = this.physics.add.collider(
-        this.balls,
-        this.familiars, // ★ 物理グループ 'familiars' を指定
-        this.hitFamiliarWithBall,
-        null,
-        this
-    );
-    // ★ コライダーが生成されたか確認
-    console.log("[SetColliders] ballFamiliarCollider object:", this.ballFamiliarCollider);
-    if (!this.ballFamiliarCollider || !this.ballFamiliarCollider.active) {
-        console.error("!!! FAILED to create or activate ballFamiliarCollider !!!");
-    }
-} else {
-    console.log("[SetColliders] Conditions NOT MET for Ball-Familiar collider or it was removed.");
-}
+        // --- 1. 既存のコライダーを安全に破棄し、参照をnullにする ---
+        this.safeDestroyCollider(this.ballPaddleCollider, "ballPaddleCollider");
+        this.ballPaddleCollider = null;
+
+        this.safeDestroyCollider(this.ballBossCollider, "ballBossCollider");
+        this.ballBossCollider = null;
+
+        this.safeDestroyCollider(this.ballAttackBrickCollider, "ballAttackBrickCollider");
+        this.ballAttackBrickCollider = null;
+
+        this.safeDestroyCollider(this.ballAttackBrickOverlap, "ballAttackBrickOverlap");
+        this.ballAttackBrickOverlap = null;
+
+        this.safeDestroyCollider(this.paddlePowerUpOverlap, "paddlePowerUpOverlap");
+        this.paddlePowerUpOverlap = null;
+
+        this.safeDestroyCollider(this.paddleAttackBrickCollider, "paddleAttackBrickCollider");
+        this.paddleAttackBrickCollider = null;
+
+        // makiraBeamBossOverlap は手動チェックに移行したので、ここでは何もしない
+        // this.safeDestroyCollider(this.makiraBeamBossOverlap, "makiraBeamBossOverlap");
+        // this.makiraBeamBossOverlap = null;
+
+        this.safeDestroyCollider(this.ballFamiliarCollider, "ballFamiliarCollider");
+        this.ballFamiliarCollider = null;
+
+        console.log("[SetColliders] Finished destroying existing colliders and nullifying references.");
+
+        // --- 2. 新しいコライダーを設定 ---
+        console.log("[SetColliders] Re-adding necessary colliders...");
+
+        // ボール vs パドル
+        if (this.paddle && this.balls) {
+            this.ballPaddleCollider = this.physics.add.collider(this.paddle, this.balls, this.hitPaddle, null, this);
+            console.log("[SetColliders] Ball-Paddle collider ADDED.");
+        } else {
+            console.log("[SetColliders] Ball-Paddle collider SKIPPED (paddle or balls missing).");
+        }
+
+        // ボール vs ボス
+        // ボスが存在し、アクティブで、物理ボディが有効な場合のみ設定
+        if (this.boss && this.boss.active && this.boss.body && this.boss.body.enable) {
+            this.ballBossCollider = this.physics.add.collider(this.boss, this.balls, this.hitBoss, (bossObj, ball) => !bossObj.getData('isInvulnerable'), this);
+            console.log("[SetColliders] Ball-Boss collider ADDED.");
+        } else {
+            console.log(`[SetColliders] Ball-Boss collider SKIPPED (Boss: ${!!this.boss}, Active: ${this.boss?.active}, BodyEnabled: ${this.boss?.body?.enable})`);
+        }
+
+        // パドル vs パワーアップアイテム
+        if (this.paddle && this.powerUps) {
+            this.paddlePowerUpOverlap = this.physics.add.overlap(this.paddle, this.powerUps, this.collectPowerUp, null, this);
+            console.log("[SetColliders] Paddle-PowerUp overlap ADDED.");
+        } else {
+            console.log("[SetColliders] Paddle-PowerUp overlap SKIPPED.");
+        }
+
+        // パドル vs 攻撃ブロック
+        if (this.paddle && this.attackBricks) {
+            this.paddleAttackBrickCollider = this.physics.add.collider(this.paddle, this.attackBricks, this.handlePaddleHitByAttackBrick, null, this);
+            console.log("[SetColliders] Paddle-AttackBrick collider ADDED.");
+        } else {
+            console.log("[SetColliders] Paddle-AttackBrick collider SKIPPED.");
+        }
+
+        // マキラ子機 vs ボール (マキラ有効時のみ)
+        if (this.isMakiraActive && this.balls && this.familiars && this.familiars.countActive(true) > 0) {
+            this.ballFamiliarCollider = this.physics.add.collider(this.balls, this.familiars, this.hitFamiliarWithBall, null, this);
+            console.log("[SetColliders] Ball-Familiar collider ADDED for Makira.");
+        } else {
+            console.log("[SetColliders] Ball-Familiar collider SKIPPED (Makira not active or no familiars/balls).");
+        }
 
 
-        if (this.paddle && this.balls) this.ballPaddleCollider = this.physics.add.collider(this.paddle, this.balls, this.hitPaddle, null, this);
-        if (this.boss && this.balls) this.ballBossCollider = this.physics.add.collider(this.boss, this.balls, this.hitBoss, (b, ball) => !b.getData('isInvulnerable'), this);
-        if (this.paddle && this.powerUps) this.paddlePowerUpOverlap = this.physics.add.overlap(this.paddle, this.powerUps, this.collectPowerUp, null, this);
-        if (this.paddle && this.attackBricks) this.paddleAttackBrickCollider = this.physics.add.collider(this.paddle, this.attackBricks, this.handlePaddleHitByAttackBrick, null, this);
-      //  if (this.makiraBeams && this.boss) this.makiraBeamBossOverlap = this.physics.add.overlap(this.makiraBeams, this.boss, this.hitBossWithMakiraBeam, (beam, b) => !b.getData('isInvulnerable'), this);
+        // ボール vs 攻撃ブロック (ビカラ貫通/インダラホーミングを考慮)
+        let needsColliderForAttackBricks = false;
+        let needsOverlapForAttackBricks = false;
+        const activeBalls = this.balls?.getMatching('active', true) ?? []; // 先に取得
 
-        let needsCollider = false, needsOverlap = false;
-        this.balls?.getMatching('active', true).forEach(ball => {
-            if (ball.getData('isIndaraActive') || ball.getData('isBikaraPenetrating')) needsOverlap = true;
-            else needsCollider = true;
-        });
-        if (needsCollider && this.attackBricks && this.balls) this.ballAttackBrickCollider = this.physics.add.collider(this.attackBricks, this.balls, this.hitAttackBrick, (br, ball) => !ball.getData('isIndaraActive') && !ball.getData('isBikaraPenetrating'), this);
-        if (needsOverlap && this.attackBricks && this.balls) this.ballAttackBrickOverlap = this.physics.add.overlap(this.attackBricks, this.balls, this.handleBallAttackBrickOverlap, (br, ball) => ball.getData('isIndaraActive') || ball.getData('isBikaraPenetrating'), this);
+        if (activeBalls.length > 0 && this.attackBricks) { // ボールと攻撃ブロックが存在する場合のみ
+            activeBalls.forEach(ball => {
+                if (ball.getData('isIndaraActive') || ball.getData('isBikaraPenetrating')) {
+                    needsOverlapForAttackBricks = true;
+                } else {
+                    needsColliderForAttackBricks = true;
+                }
+            });
+
+            console.log(`[SetColliders] AttackBrick checks: needsCollider=${needsColliderForAttackBricks}, needsOverlap=${needsOverlapForAttackBricks}`);
+
+            if (needsColliderForAttackBricks) {
+                this.ballAttackBrickCollider = this.physics.add.collider(
+                    this.attackBricks,
+                    activeBalls, // 既に取得したアクティブなボールの配列を使用
+                    this.hitAttackBrick,
+                    (brick, ball) => !ball.getData('isIndaraActive') && !ball.getData('isBikaraPenetrating'),
+                    this
+                );
+                console.log("[SetColliders] Ball-AttackBrick Collider (for normal/piercing-off balls) ADDED.");
+            }
+            if (needsOverlapForAttackBricks) {
+                this.ballAttackBrickOverlap = this.physics.add.overlap(
+                    this.attackBricks,
+                    activeBalls, // 既に取得したアクティブなボールの配列を使用
+                    this.handleBallAttackBrickOverlap,
+                    (brick, ball) => ball.getData('isIndaraActive') || ball.getData('isBikaraPenetrating'),
+                    this
+                );
+                console.log("[SetColliders] Ball-AttackBrick Overlap (for Indara/Bikara-piercing balls) ADDED.");
+            }
+        } else {
+            console.log("[SetColliders] Ball-AttackBrick colliders/overlaps SKIPPED (no active balls or no attack bricks).");
+        }
+        console.log("[SetColliders] Finished setting/resetting colliders.");
     }
     createGameOverText() {
         if (this.gameOverText) this.gameOverText.destroy();
-        this.gameOverText = this.add.text(this.gameWidth / 2, this.gameHeight / 2, '会議は中断されました...\nタップで最初から', { fontSize: `${this.calculateDynamicFontSize(40)}px`, fill: '#f00', align: 'center', stroke: '#000', strokeThickness: 4, fontFamily: 'MyGameFont, sans-serif' }).setOrigin(0.5).setVisible(false).setDepth(1001);
+        this.gameOverText = this.add.text(this.gameWidth / 2, this.gameHeight / 2, '全滅した...\nタップで最初から', { fontSize: `${this.calculateDynamicFontSize(40)}px`, fill: '#f00', align: 'center', stroke: '#000', strokeThickness: 4, fontFamily: 'MyGameFont, sans-serif' }).setOrigin(0.5).setVisible(false).setDepth(1001);
     }
     createGameClearText() {
         if (this.gameClearText) this.gameClearText.destroy();
