@@ -326,20 +326,20 @@ export default class Boss2Scene extends CommonBossScene {
         // 左斜め下
         const angleLeft = Phaser.Math.Between(180 - angleMax, 180 - angleMin);
         const velocityLeft = this.physics.velocityFromAngle(angleLeft, velocity);
-        const brickLeft = this.attackBricks.create(bossX, bossY, '__TEMP__'); // 一時的なキーで生成
+      const brickLeft = this.attackBricks.create(bossX, bossY, '__TEMP__')
+            .setOrigin(0, 0); // ★★★ 原点を左上に設定 ★★★
         if (brickLeft) {
-            this.setupAttackBrickAppearance(brickLeft, textureKey, displayScale, hitboxMultiplier); // ★ ヘルパー呼び出し
-            brickLeft.setVelocity(velocityLeft.x, velocityLeft.y);
+            this.setupAttackBrickAppearance(brickLeft, textureKey, displayScale, hitboxMultiplier);brickLeft.setVelocity(velocityLeft.x, velocityLeft.y);
             if (brickLeft.body) brickLeft.body.setAllowGravity(false).setCollideWorldBounds(false);
         }
 
         // 右斜め下
         const angleRight = Phaser.Math.Between(angleMin, angleMax);
         const velocityRight = this.physics.velocityFromAngle(angleRight, velocity);
-        const brickRight = this.attackBricks.create(bossX, bossY, '__TEMP__'); // 一時的なキー
+         const brickRight = this.attackBricks.create(bossX, bossY, '__TEMP__')
+            .setOrigin(0, 0); // ★★★ 原点を左上に設定 ★★★
         if (brickRight) {
-            this.setupAttackBrickAppearance(brickRight, textureKey, displayScale, hitboxMultiplier); // ★ ヘルパー呼び出し
-            brickRight.setVelocity(velocityRight.x, velocityRight.y);
+            this.setupAttackBrickAppearance(brickRight, textureKey, displayScale, hitboxMultiplier); brickRight.setVelocity(velocityRight.x, velocityRight.y);
             if (brickRight.body) brickRight.body.setAllowGravity(false).setCollideWorldBounds(false);
         }
         console.log(`[Sankara Attack] Spawned bricks with hitbox multiplier: ${hitboxMultiplier}`);

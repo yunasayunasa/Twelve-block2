@@ -1748,6 +1748,7 @@ if (this.isMakiraActive && this.balls && this.familiars && this.familiars.countA
      */
    // CommonBossScene.js の setupAttackBrickAppearance メソッドを修正
 
+   // setupAttackBrickAppearance メソッドを修正
     setupAttackBrickAppearance(brick, textureKey, displayScale, hitboxScaleMultiplier = 1.0) {
         if (!brick || !brick.scene) return;
 
@@ -1756,41 +1757,28 @@ if (this.isMakiraActive && this.balls && this.familiars && this.familiars.countA
             brick.setScale(displayScale); // 1. 見た目のスケールを設定
 
             if (brick.body) {
-                // 2. ★★★ 物理ボディをまず見た目に合わせる (updateFromGameObject) ★★★
-                //    これにより、ボディの基準サイズとオフセットが一度リセットされる
-                brick.body.updateFromGameObject();
-                console.log(`[SetupAttackBrick] After updateFromGameObject - Body Size: ${brick.body.width.toFixed(1)}x${brick.body.height.toFixed(1)}, Offset: ${brick.body.offset.x.toFixed(1)},${brick.body.offset.y.toFixed(1)}`);
+                // 2. ★★★ 物理ボディのサイズを設定 (原点が0,0なのでオフセットは基本的に0,0) ★★★
+                // 表示サイズ * 倍率 で当たり判定サイズを決定
+                const hitboxWidth = brick.displayWidth * hitboxScaleMultiplier;
+                const hitboxHeight = brick.displayHeight * hitboxScaleMultiplier;
 
-                // 3. ★★★ 次に、当たり判定のスケールを調整し、オフセットを再計算 ★★★
-                if (hitboxScaleMultiplier !== 1.0 && hitboxScaleMultiplier > 0) {
-                    const newWidth = brick.displayWidth * hitboxScaleMultiplier;
-                    const newHeight = brick.displayHeight * hitboxScaleMultiplier;
+                if (hitboxWidth > 0 && hitboxHeight > 0) {
+                    brick.body.setSize(hitboxWidth, hitboxHeight);
+                    // 原点が (0,0) で、setSize がボディの左上をGameObjectの左上に合わせるので、
+                    // 通常、追加のオフセットは不要 (0,0 のまま)。
+                    // もし中心に合わせたい場合は、ここではなくGameObject自体のsetPositionで調整する。
+                    brick.body.setOffset(0, 0); // ★ オフセットを0,0に明示的に設定
 
-                    if (newWidth > 0 && newHeight > 0) { // サイズが有効かチェック
-                        brick.body.setSize(newWidth, newHeight);
-
-                        // オフセット計算: GameObjectの原点を(0,0)として物理ボディの左上を合わせる場合
-                        // setSize はボディの左上をGameObjectの原点に合わせようとする傾向がある。
-                        // GameObjectの原点が (0.5, 0.5) の場合、
-                        // ボディの左上を (displayWidth * (0.5 - originX) - (newWidth * 0.5 - displayWidth * 0.5)), ...
-                        // のように計算するか、もっと単純に「見た目の中心とボディの中心を合わせる」
-                        const offsetX = (brick.displayWidth - newWidth) / 2;
-                        const offsetY = (brick.displayHeight - newHeight) / 2;
-                        brick.body.setOffset(offsetX, offsetY);
-
-                        console.log(`[SetupAttackBrick] Set custom body size: ${newWidth.toFixed(0)}x${newHeight.toFixed(0)}, Multiplier: ${hitboxScaleMultiplier}, New Offset: (${offsetX.toFixed(1)}, ${offsetY.toFixed(1)})`);
-                    } else {
-                         console.warn(`[SetupAttackBrick] Calculated hitbox size zero or negative for multiplier. Body will match display size.`);
-                         // updateFromGameObject() で既に見た目通りになっているので、ここでは何もしないか、
-                         // 明示的に表示サイズでsetSize/setOffset(0,0)する。
-                         // brick.body.setSize(brick.displayWidth, brick.displayHeight);
-                         // brick.body.setOffset(0,0);
-                    }
+                    console.log(`[SetupAttackBrick] Set body size: ${hitboxWidth.toFixed(0)}x${hitboxHeight.toFixed(0)}, Multiplier: ${hitboxScaleMultiplier}, Offset: (0,0)`);
                 } else {
-                     // hitboxScaleMultiplier が 1.0 の場合は updateFromGameObject の結果のまま
-                     console.log(`[SetupAttackBrick] Body size matches display size (Multiplier: ${hitboxScaleMultiplier}). Offset should be centered by updateFromGameObject.`);
+                    // フォールバック: 表示サイズに合わせる (オフセット0,0)
+                    console.warn(`[SetupAttackBrick] Calculated hitbox size zero or negative. Setting body to display size.`);
+                    brick.body.setSize(brick.displayWidth, brick.displayHeight);
+                    brick.body.setOffset(0, 0);
                 }
-                 // 最終的なボディの状態を確認
+                 // updateFromGameObject() は setSize/setOffset の後には不要なことが多い
+                 // brick.body.updateFromGameObject();
+
                  console.log(`[SetupAttackBrick] Final Body - Size: ${brick.body.width.toFixed(1)}x${brick.body.height.toFixed(1)}, Offset: ${brick.body.offset.x.toFixed(1)},${brick.body.offset.y.toFixed(1)}`);
             }
         } catch (e) {
@@ -2412,17 +2400,84 @@ calculateDynamicFontSize(baseSizeMax) {
     createImpactParticles(x,y,angleRange,tint,count=8){const p=this.add.particles(0,0,'whitePixel',{x:x,y:y,lifespan:{min:100,max:300},speed:{min:80,max:150},angle:{min:angleRange[0],max:angleRange[1]},gravityY:200,scale:{start:0.6,end:0},quantity:count,blendMode:'ADD',emitting:false});p.setParticleTint(tint);p.explode(count);this.time.delayedCall(400,()=>p.destroy());}
     playBossBgm(){this.stopBgm();const bK=this.bossData.bgmKey||AUDIO_KEYS.BGM2;this.currentBgm=this.sound.add(bK,{loop:true,volume:0.45});try{this.currentBgm.play();}catch(e){console.error(`Error playing BGM ${bK}:`,e);}}
     stopBgm(){if(this.currentBgm){try{this.currentBgm.stop();this.sound.remove(this.currentBgm);}catch(e){console.error("Error stopping BGM:",e);}this.currentBgm=null;}}
-    safeDestroyCollider(colliderRef,name="collider"){if(colliderRef){try{colliderRef.destroy();}catch(e){console.error(`[Shutdown] Error destroying ${name}:`,e.message);}}colliderRef=null;}
-    safeDestroy(obj,name,destroyChildren=false){if(obj&&obj.scene){try{obj.destroy(destroyChildren);}catch(e){console.error(`[Shutdown] Error destroying ${name}:`,e.message);}}obj=null;}
-    shutdownScene() { /* ... (CommonBossScene.js 前回のコードと同様、内容は省略) ... */ this.stopBgm(); this.sound.stopAll(); this.tweens.killAll(); this.time.removeAllEvents();   if (this.stageClearPopup) {
-            this.stageClearPopup.destroy(true);
-            this.stageClearPopup = null;
+     // safeDestroyCollider メソッドを堅牢化
+    safeDestroyCollider(colliderRef, name = "collider") {
+        // ★ colliderRef が存在し、かつ active プロパティも持っていることを確認 (PhaserのColliderなら持つはず) ★
+        if (colliderRef && typeof colliderRef.destroy === 'function' && colliderRef.active !== undefined) {
+            console.log(`[SafeDestroy] Attempting to destroy ${name}. Active: ${colliderRef.active}`);
+            if (colliderRef.active) { // ★ アクティブな場合のみ destroy を試みる ★
+                try {
+                    colliderRef.destroy();
+                    console.log(`[SafeDestroy] ${name} destroyed.`);
+                } catch (e) {
+                    console.error(`[SafeDestroy] Error destroying active ${name}:`, e, "Collider Ref was:", colliderRef);
+                }
+            } else {
+                console.log(`[SafeDestroy] ${name} was already inactive.`);
+            }
+        } else if (colliderRef) {
+            console.warn(`[SafeDestroy] ${name} exists but is not a valid active collider or already destroyed (no active prop or destroy func). Ref:`, colliderRef);
         }
-        if (this.paddleInvulnerableTimer) {
-            this.paddleInvulnerableTimer.remove();
-            this.paddleInvulnerableTimer = null;
-        }
-        eDestroyCollider(this.paddleBossOverlap);
-        this.safeDestroyCollider(this.ballAttackBrickOverlap); this.safeDestroyCollider(this.paddlePowerUpOverlap); this.safeDestroyCollider(this.paddleAttackBrickCollider); this.safeDestroyCollider(this.makiraBeamBossOverlap); this.safeDestroy(this.paddle,"paddle"); this.safeDestroy(this.balls,"balls group",true); this.safeDestroy(this.boss,"boss"); this.safeDestroy(this.attackBricks,"attackBricks group",true); this.safeDestroy(this.powerUps,"powerUps group",true); this.safeDestroy(this.familiars,"familiars group",true); this.safeDestroy(this.makiraBeams,"makiraBeams group",true); this.safeDestroy(this.gameOverText,"gameOverText"); this.safeDestroy(this.gameClearText,"gameClearText"); this.safeDestroy(this.bossAfterImageEmitter,"bossAfterImageEmitter"); this.paddle=null;this.balls=null;this.boss=null;this.attackBricks=null;this.powerUps=null;this.familiars=null;this.makiraBeams=null;this.gameOverText=null;this.gameClearText=null;this.bossAfterImageEmitter=null;this.uiScene=null;this.currentBgm=null;this.powerUpTimers={};this.bikaraTimers={};this.lastPlayedVoiceTime={};this.bossMoveTween=null;this.randomVoiceTimer=null;this.attackBrickTimer=null;this.anilaTimer=null;this.anchiraTimer=null;this.makiraAttackTimer=null; console.log(`--- ${this.scene.key} SHUTDOWN Complete ---`); }
-    // --- ▲ ヘルパーメソッド ▲ ---
+        // 呼び出し元でプロパティをnullにするので、ここでは何もしない
+    }safeDestroy(obj,name,destroyChildren=false){if(obj&&obj.scene){try{obj.destroy(destroyChildren);}catch(e){console.error(`[Shutdown] Error destroying ${name}:`,e.message);}}obj=null;}
+   // shutdownScene メソッドを確認 (変更は不要かもしれないが、呼び出し方を意識)
+    shutdownScene() {
+        console.log(`--- ${this.scene.key} SHUTDOWN ---`);
+        this.stopBgm();
+        this.sound.stopAll();
+        this.tweens.killAll();
+        this.time.removeAllEvents(); // これで paddleInvulnerableTimer などもクリアされるはず
+
+        // イベントリスナー解除
+        this.scale.off('resize', this.handleResize, this);
+        if (this.physics.world) this.physics.world.off('worldbounds', null, this); // 特定のコンテキストではなく全てのリスナー
+        this.input.off('pointermove', this.handlePointerMove, this);
+        this.input.off('pointerdown', this.handlePointerDown, this);
+        this.events.off('shutdown', this.shutdownScene, this);
+        this.events.removeAllListeners();
+
+        // コライダー破棄 (setColliders で null にしているので、ここでは再度 destroy する必要はないかもしれない)
+        // しかし、シーン終了時には確実に破棄する
+        console.log("[Shutdown] Destroying colliders via safeDestroyCollider...");
+        this.safeDestroyCollider(this.ballPaddleCollider, "ballPaddleCollider");
+        this.safeDestroyCollider(this.ballBossCollider, "ballBossCollider");
+        this.safeDestroyCollider(this.ballAttackBrickCollider, "ballAttackBrickCollider");
+        this.safeDestroyCollider(this.ballAttackBrickOverlap, "ballAttackBrickOverlap");
+        this.safeDestroyCollider(this.paddlePowerUpOverlap, "paddlePowerUpOverlap");
+        this.safeDestroyCollider(this.paddleAttackBrickCollider, "paddleAttackBrickCollider");
+        this.safeDestroyCollider(this.ballFamiliarCollider, "ballFamiliarCollider");
+        // makiraBeamBossOverlap は setColliders で設定していないので不要
+
+        // ゲームオブジェクト破棄
+        console.log("[Shutdown] Destroying GameObjects...");
+        this.safeDestroy(this.paddle, "paddle");
+        this.safeDestroy(this.balls, "balls group", true);
+        this.safeDestroy(this.boss, "boss");
+        this.safeDestroy(this.attackBricks, "attackBricks group", true);
+        this.safeDestroy(this.powerUps, "powerUps group", true);
+        this.safeDestroy(this.familiars, "familiars group", true);
+        // this.safeDestroy(this.makiraBeams, "makiraBeams group", true); // 削除済みのはず
+        this.safeDestroy(this.gameOverText, "gameOverText");
+        this.safeDestroy(this.gameClearText, "gameClearText");
+        this.safeDestroy(this.stageClearPopup, "stageClearPopup", true); // ポップアップも
+        this.safeDestroy(this.bossAfterImageEmitter, "bossAfterImageEmitter");
+
+        // プロパティ参照クリア (重要)
+        console.log("[Shutdown] Nullifying references...");
+        this.paddle = null; this.balls = null; this.boss = null;
+        this.attackBricks = null; this.powerUps = null; this.familiars = null;
+        this.gameOverText = null; this.gameClearText = null; this.stageClearPopup = null;
+        this.bossAfterImageEmitter = null; this.uiScene = null; this.currentBgm = null;
+        this.powerUpTimers = {}; this.bikaraTimers = {}; this.lastPlayedVoiceTime = {};
+        this.bossMoveTween = null; this.randomVoiceTimer = null; this.attackBrickTimer = null;
+        this.anilaTimer = null; this.anchiraTimer = null; /*this.makiraAttackTimer = null;*/ // マキラタイマーは削除済み
+        this.paddleInvulnerableTimer = null; this.isPaddleInvulnerable = false;
+
+        this.ballPaddleCollider = null; this.ballBossCollider = null;
+        this.ballAttackBrickCollider = null; this.ballAttackBrickOverlap = null;
+        this.paddlePowerUpOverlap = null; this.paddleAttackBrickCollider = null;
+        this.ballFamiliarCollider = null;
+
+        console.log(`--- ${this.scene.key} SHUTDOWN Complete ---`);
+    }// --- ▲ ヘルパーメソッド ▲ ---
 }
