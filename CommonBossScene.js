@@ -965,42 +965,72 @@ if (this.isMakiraActive && this.balls && this.familiars && this.familiars.countA
     // --- ▲ 登場・撃破演出メソッド群 ▲ ---
 
     // --- ▼ ゲーム進行メソッド ▼ ---
+        // CommonBossScene.js の loseLife メソッドを修正
     loseLife() {
-        if (this.isGameOver || this.bossDefeated) return; console.log(`Losing life. Lives remaining: ${this.lives - 1}`);
-         this.deactivateAnila(); this.deactivateAnchira(true); this.deactivateSindara(null, true);
-           // ★★★ ビカラ陰（貫通）効果の解除処理を追加 ★★★
-        console.log("[LoseLife] Deactivating any active Bikara penetration effects.");
-        // 1. 存在する全ての Bikara タイマーをクリア
-        Object.values(this.bikaraTimers).forEach(timer => {
-            if (timer) timer.remove();
-        });
-        this.bikaraTimers = {}; // タイマー管理オブジェクトを空にする
+        if (this.isGameOver || this.bossDefeated) return;
+        console.log(`Losing life. Lives remaining: ${this.lives - 1}`);
 
-        // 2. 全てのボールから isBikaraPenetrating フラグを解除
+        // --- 持続系パワーアップ解除 ---
+        this.deactivateMakira(); // ★ マキラ解除を追加
+        this.deactivateAnila();
+        this.deactivateAnchira(true);
+        this.deactivateSindara(null, true);
+
+        // ビカラ陰（貫通）効果の解除
+        console.log("[LoseLife] Deactivating any active Bikara penetration effects.");
+        Object.values(this.bikaraTimers).forEach(timer => timer?.remove());
+        this.bikaraTimers = {};
+        // ボールが存在するうちにフラグ解除 (setBallPowerUpState はボールの見た目更新も含むので、破棄前が良い)
         this.balls?.getChildren().forEach(ball => {
              if (ball?.active && ball.getData('isBikaraPenetrating')) {
-                 // setBallPowerUpState を使って解除するのが一貫性がある
                  this.setBallPowerUpState(POWERUP_TYPES.BIKARA, false, ball);
-                 console.log(`[LoseLife] Bikara penetration flag removed from ball ${ball.name}`);
              }
         });
-        // ★★★------------------------------------★★★
-        Object.values(this.powerUpTimers).forEach(timer => timer?.remove()); this.powerUpTimers = {};
-        this.balls?.getChildren().forEach(ball => { if(ball?.active) this.resetBallState(ball); }); this.updateBallAndPaddleAppearance();
-          // ★★★ フラグ解除後に必ず setColliders を呼び出す ★★★
-    console.log("[LoseLife] Calling setColliders to update collision rules.");
-    this.setColliders();
-    // ★★★----------------------------------------------★★★
 
-        this.lives--; this.events.emit('updateLives', this.lives); this.isBallLaunched = false; this.balls?.clear(true, true);
-        if (this.lives > 0) this.time.delayedCall(800, this.resetForNewLife, [], this);
-        else { this.sound.play(AUDIO_KEYS.SE_GAME_OVER); this.stopBgm(); this.time.delayedCall(500, this.gameOver, [], this); }
+        // 他の汎用タイマー解除
+        Object.values(this.powerUpTimers).forEach(timer => timer?.remove());
+        this.powerUpTimers = {};
+
+        // ★ ボールの状態リセットと見た目更新 (ボール破棄前に行う) ★
+        this.balls?.getChildren().forEach(ball => {
+            if(ball?.active) this.resetBallState(ball);
+        });
+        this.updateBallAndPaddleAppearance();
+
+        // --- ライフ減少とボールのクリア ---
+        this.lives--;
+        this.events.emit('updateLives', this.lives);
+        this.isBallLaunched = false; // 新しいボールは未発射状態
+
+        console.log("[LoseLife] Clearing existing balls...");
+        this.balls?.clear(true, true); // ★★★ ここでボールを全て破棄 ★★★
+
+        // ★★★ ボールをクリアした【後】に setColliders を呼び出す ★★★
+        // (resetForNewLifeで新しいボールが作られた【後】に再度setCollidersが呼ばれるので、ここでの呼び出しは不要かもしれない。
+        //  むしろ、resetForNewLife の最後で呼ぶのが最も確実)
+        // console.log("[LoseLife] Calling setColliders AFTER clearing balls (may be redundant).");
+        // this.setColliders();
+        // ★★★------------------------------------------------------★★★
+
+        // --- 次の処理 ---
+        if (this.lives > 0) {
+            console.log("[LoseLife] Scheduling resetForNewLife.");
+            this.time.delayedCall(800, this.resetForNewLife, [], this);
+        } else {
+            this.sound.play(AUDIO_KEYS.SE_GAME_OVER);
+            this.stopBgm();
+            this.time.delayedCall(500, this.gameOver, [], this);
+        }
     }
     resetForNewLife() {
         if (this.isGameOver || this.bossDefeated) return;
         if (this.paddle?.active) this.createAndAddBall(this.paddle.x, this.paddle.y - (this.paddle.displayHeight / 2) - (this.gameWidth * BALL_RADIUS_RATIO));
         else this.createAndAddBall(this.gameWidth / 2, this.gameHeight * 0.7);
         this.isBallLaunched = false; this.playerControlEnabled = true;
+           // ★★★ 新しいボールが生成された【後】に setColliders を呼び出す ★★★
+        console.log("[ResetForNewLife] New ball created. Calling setColliders NOW to update for new ball.");
+        this.setColliders();
+        // ★★★-------
     }
       // CommonBossScene.js 内の gameOver メソッド
       gameOver() {
