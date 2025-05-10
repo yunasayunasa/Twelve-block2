@@ -286,6 +286,23 @@ export default class Boss2Scene extends CommonBossScene {
         });
     }
 
+      /**
+     * サンカラがパドルに接触した際にダメージを受けるかの判定
+     * サンカラが突進中 (isSankaraRushing === true) の場合のみダメージ
+     */
+    shouldPaddleTakeDamageFromBossContact(paddle, boss) {
+        if (this.currentPhase === 'sankara' && this.isSankaraRushing) {
+            // さらに、ボスが無敵時間中でないことも確認 (CommonのapplyBossDamageで考慮済みだが念のため)
+            // if (!boss.getData('isInvulnerable')) {
+            //     return true;
+            // }
+            return true; // サンカラ突進中はダメージ
+        }
+        // ソワカ形態での接触ダメージ条件もここに追加できる
+        // if (this.currentPhase === 'sowaka' && this.isSowakaSomeAttackActive) return true;
+        return false; // それ以外はダメージなし
+    }
+
     /**
      * サンカラの攻撃ブロックを左右に1個ずつ放出する
      */
@@ -293,30 +310,39 @@ export default class Boss2Scene extends CommonBossScene {
         if (!this.attackBricks || !this.boss || !this.boss.active) return;
 
         const bossX = this.boss.x;
-        const bossY = this.boss.y + this.boss.displayHeight / 4; // ボスの少し下から出す
+        const bossY = this.boss.y + this.boss.displayHeight / 4;
         const velocity = this.bossData.sankaraBrickVelocity || 200;
-        const textureKey = 'attack_brick_common'; // 新しい共通攻撃ブロック画像
-        const scale = this.bossData.attackBrickScale || 0.2;
+        // ★★★ 汎用の攻撃ブロックテクスチャキーを使用 ★★★
+        const textureKey = 'attack_brick_common'; // constants.jsに定義するか、直接文字列で
+        // ★★★-------------------------------------★★★
+        const displayScale = this.bossData.attackBrickScale || 0.2; // 見た目のスケール
+        // ★★★ 当たり判定の拡大率 (見た目に対して何倍にするか) ★★★
+        const hitboxMultiplier = 1.5; // 例: 見た目の1.5倍の当たり判定
+        // ★★★---------------------------------------------★★★
 
-        // 角度を bossData から取得し、ランダムに
         const angleMin = this.bossData.sankaraBrickAngleMin || 30;
         const angleMax = this.bossData.sankaraBrickAngleMax || 60;
 
         // 左斜め下
-        const angleLeft = Phaser.Math.Between(180 - angleMax, 180 - angleMin); // 120度～150度
+        const angleLeft = Phaser.Math.Between(180 - angleMax, 180 - angleMin);
         const velocityLeft = this.physics.velocityFromAngle(angleLeft, velocity);
-        const brickLeft = this.attackBricks.create(bossX, bossY, textureKey)
-            .setScale(scale).setVelocity(velocityLeft.x, velocityLeft.y);
-        if (brickLeft.body) brickLeft.body.setAllowGravity(false).setCollideWorldBounds(false); // 画面外に出たら消える処理はCommonにある
+        const brickLeft = this.attackBricks.create(bossX, bossY, '__TEMP__'); // 一時的なキーで生成
+        if (brickLeft) {
+            this.setupAttackBrickAppearance(brickLeft, textureKey, displayScale, hitboxMultiplier); // ★ ヘルパー呼び出し
+            brickLeft.setVelocity(velocityLeft.x, velocityLeft.y);
+            if (brickLeft.body) brickLeft.body.setAllowGravity(false).setCollideWorldBounds(false);
+        }
 
         // 右斜め下
-        const angleRight = Phaser.Math.Between(angleMin, angleMax); // 30度～60度
+        const angleRight = Phaser.Math.Between(angleMin, angleMax);
         const velocityRight = this.physics.velocityFromAngle(angleRight, velocity);
-        const brickRight = this.attackBricks.create(bossX, bossY, textureKey)
-            .setScale(scale).setVelocity(velocityRight.x, velocityRight.y);
-        if (brickRight.body) brickRight.body.setAllowGravity(false).setCollideWorldBounds(false);
-
-        console.log(`[Sankara Attack] Spawned bricks. Left (Angle: ${angleLeft}), Right (Angle: ${angleRight})`);
+        const brickRight = this.attackBricks.create(bossX, bossY, '__TEMP__'); // 一時的なキー
+        if (brickRight) {
+            this.setupAttackBrickAppearance(brickRight, textureKey, displayScale, hitboxMultiplier); // ★ ヘルパー呼び出し
+            brickRight.setVelocity(velocityRight.x, velocityRight.y);
+            if (brickRight.body) brickRight.body.setAllowGravity(false).setCollideWorldBounds(false);
+        }
+        console.log(`[Sankara Attack] Spawned bricks with hitbox multiplier: ${hitboxMultiplier}`);
     }
     // --- ▼ ソワカ形態の攻撃とフィールドロジック (後で実装) ▼ ---
     updateSowakaAttacksAndField(time, delta) {

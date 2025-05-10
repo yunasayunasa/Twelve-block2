@@ -40,6 +40,7 @@ this.load.image('bossNegative', 'assets/bossNegative.png'); // ボス撃墜、�
     this.load.image('boss_sowaka_stand', 'assets/boss_sowaka_stand.png');
     this.load.image('boss_sowaka_negative', 'assets/boss_sowaka_negative.png');
     this.load.image('gameBackground_Boss2', 'assets/gameBackground_Boss2.jpg'); // ボス2専用背景
+this.load.image('attack_brick_common', 'assets/attack_brick_common.png'); // ファイル名は実際の画像ファイルに合わせる
 
 
         // --- 音声読み込み ---

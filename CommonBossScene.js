@@ -1724,6 +1724,44 @@ if (this.isMakiraActive && this.balls && this.familiars && this.familiars.countA
         return false;
     }
 
+     /**
+     * 攻撃ブロックの見た目と物理ボディを設定するヘルパーメソッド
+     * @param {Phaser.Physics.Arcade.Image} brick 対象の攻撃ブロック
+     * @param {string} textureKey 使用するテクスチャキー
+     * @param {number} displayScale 見た目のスケール (テクスチャの元サイズに対する倍率)
+     * @param {number} [hitboxScaleMultiplier=1.0] 当たり判定の見た目に対する倍率 (1.0で見た目通り)
+     */
+    setupAttackBrickAppearance(brick, textureKey, displayScale, hitboxScaleMultiplier = 1.0) {
+        if (!brick || !brick.scene) return; // 安全チェック
+
+        try {
+            brick.setTexture(textureKey);
+            brick.setScale(displayScale); // 見た目のスケールを設定
+
+            if (brick.body) {
+                // まず見た目に合わせてボディを更新
+                brick.body.updateFromGameObject();
+
+                // 次に当たり判定のスケールを調整
+                if (hitboxScaleMultiplier !== 1.0 && hitboxScaleMultiplier > 0) {
+                    // body.setSize を使って調整する方が確実
+                    const newWidth = brick.displayWidth * hitboxScaleMultiplier;
+                    const newHeight = brick.displayHeight * hitboxScaleMultiplier;
+                    brick.body.setSize(newWidth, newHeight);
+                    // オフセットも調整
+                    const offsetX = (brick.displayWidth - newWidth) / 2;
+                    const offsetY = (brick.displayHeight - newHeight) / 2;
+                    brick.body.setOffset(offsetX, offsetY);
+                    console.log(`[SetupAttackBrick] Set body size to ${newWidth.toFixed(0)}x${newHeight.toFixed(0)}, Multiplier: ${hitboxScaleMultiplier}`);
+                } else {
+                     console.log(`[SetupAttackBrick] Body size matches display size (Multiplier: ${hitboxScaleMultiplier})`);
+                }
+            }
+        } catch (e) {
+            console.error("Error setting up attack brick appearance:", e, brick);
+        }
+    }
+
 
     /**
      * ボールがボスに衝突した際の処理
