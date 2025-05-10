@@ -158,7 +158,7 @@ export default class TitleScene extends Phaser.Scene {
             this.clearDOM();
             // 引き継ぐデータ (初期ライフとハチャメチャ度)
             const startData = {
-                lives: 3, // ★ ボスラッシュ初期ライフ
+                 lives: INITIAL_PLAYER_LIVES,// ★ ボスラッシュ初期ライフ
                 chaosSettings: { count: this.selectedCount, ratePercent: this.selectedRate },
                 currentBossIndex: 1 // ★ 最初のボス番号
             };

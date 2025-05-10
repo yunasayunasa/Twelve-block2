@@ -43,7 +43,7 @@ export const POWERUP_SPEED_Y = 120;
 export const POWERUP_TYPES = {
     KUBIRA: 'kubira', SHATORA: 'shatora', HAILA: 'haila', ANCHIRA: 'anchira', SINDARA: 'sindara',
     BIKARA: 'bikara', INDARA: 'indara', ANILA: 'anila', BAISRAVA: 'baisrava', VAJRA: 'vajra',
-    MAKIRA: 'makira', MAKORA: 'makora'
+    MAKIRA: 'makira', MAKORA: 'makora',BIKARA_YANG: 'bikara_yang' // ★ ビカラ陽を追加
     // 新しい特殊ボールの定義場所 (例: BIKARA_YANG: 'bikara_yang', BADRA: 'badra', BAISYURA: 'baisyura')
 };
 
@@ -66,6 +66,8 @@ export const TOTAL_BOSSES = 5;
 export const BAISRAVA_DROP_RATE = 0.015;
 export const VAJRA_GAUGE_MAX = 100;
 export const VAJRA_GAUGE_INCREMENT = 10;
+export const MAX_PLAYER_LIVES = 9; // ★★★ 最大プレイヤーライフ数を定義 (例: 5) ★★★
+export const INITIAL_PLAYER_LIVES = 9; // ★★★ 初期プレイヤーライフ数を定義 (例: 3) ★★★
 
 // ALL_POSSIBLE_POWERUPS は CommonBossScene で POWERUP_TYPES から動的に生成することを推奨
 // export const ALL_POSSIBLE_POWERUPS = Object.values(POWERUP_TYPES);
@@ -94,7 +96,7 @@ export const POWERUP_ICON_KEYS = {
     [POWERUP_TYPES.BAISRAVA]: 'icon_baisrava', [POWERUP_TYPES.VAJRA]: 'icon_vajra',
     [POWERUP_TYPES.MAKIRA]: 'icon_makira', [POWERUP_TYPES.MAKORA]: 'icon_makora',
     // 新しい特殊ボールのアイコンキー
-    // [POWERUP_TYPES.BIKARA_YANG]: 'icon_bikara_yang',
+     [POWERUP_TYPES.BIKARA_YANG]: 'icon_bikara_yang',
     // [POWERUP_TYPES.BADRA]: 'icon_badra',
     // [POWERUP_TYPES.BAISYURA]: 'icon_baisyura',
 };

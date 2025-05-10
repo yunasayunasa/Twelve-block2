@@ -27,6 +27,7 @@ import {
     // --- ゲームシステム (ボスラッシュ) ---
     TOTAL_BOSSES, BAISRAVA_DROP_RATE,
     VAJRA_GAUGE_MAX, VAJRA_GAUGE_INCREMENT,
+    INITIAL_PLAYER_LIVES, MAX_PLAYER_LIVES, // ★ 追加
 
     // --- パワーアップ ---
     POWERUP_TYPES, POWERUP_ICON_KEYS, POWERUP_DURATION, // POWERUP_DURATION をインポート
@@ -176,6 +177,9 @@ export default class CommonBossScene extends Phaser.Scene {
         this.anchiraTimer?.remove(); this.anchiraTimer = null;
         Object.values(this.bikaraTimers).forEach(timer => timer?.remove());
         this.bikaraTimers = {};
+           // ★ 初期ライフを INITIAL_PLAYER_LIVES から設定し、MAX_PLAYER_LIVES を超えないようにする
+        this.lives = Math.min(data?.lives ?? INITIAL_PLAYER_LIVES, MAX_PLAYER_LIVES);
+        console.log(`Initial lives set to: ${this.lives} (Max: ${MAX_PLAYER_LIVES})`);
       
         this.bossMoveTween?.stop(); this.bossMoveTween = null;
         this.randomVoiceTimer?.remove(); this.randomVoiceTimer = null;
@@ -1283,6 +1287,22 @@ if (this.isMakiraActive && this.balls && this.familiars && this.familiars.countA
                 }
                 // バイシュラヴァは即時効果なので、ボールの状態変更やタイマーは不要
                 break; // ★★★------------------------------------★★★
+                 // ★★★ ビカラ陽（ライフ回復）の処理を追加 ★★★
+            case POWERUP_TYPES.BIKARA_YANG:
+                console.log("[Bikara Yang] Activating: Heal 1 HP!");
+                if (this.lives < MAX_PLAYER_LIVES) {    this.lives++;
+                    console.log(`[Bikara Yang] HP recovered. Current lives: ${this.lives}`);
+                    // UIにライフ更新を通知
+                    this.events.emit('updateLives', this.lives);
+                    // TODO: 回復エフェクトや専用SEがあればここで再生
+                    // this.sound.play('se_heal');
+                } else {
+                    console.log(`[Bikara Yang] HP already at max (${this.lives}). No recovery.`);
+                    // TODO: 最大HP時に取得した場合のフィードバック（音だけ鳴らすなど）
+                }
+                // ビカラ陽は即時効果なので、ボールの状態変更やタイマーは不要
+                break;
+            // ★★★------------------------------------★★★
 
             default:
                 console.log(`[TriggerEffect] Power up ${type} has no specific activation in triggerPowerUpEffect.`);
