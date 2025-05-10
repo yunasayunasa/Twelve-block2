@@ -1768,26 +1768,7 @@ if (this.isMakiraActive && this.balls && this.familiars && this.familiars.countA
             }
         });
 
-        // 6. マキラの子機とビーム (表示サイズを更新)
-        const familiarSize = this.gameWidth * MAKIRA_FAMILIAR_SIZE_RATIO;
-        this.familiars?.getChildren().forEach(fam => {
-            if(fam.active) {
-                try {
-                    fam.setDisplaySize(familiarSize, familiarSize);
-                    if(fam.body) fam.body.updateFromGameObject();
-                } catch(e) { console.error("Error updating familiar size on resize:", e); }
-            }
-        });
-        const beamWidth = this.gameWidth * MAKIRA_BEAM_WIDTH_RATIO;
-        const beamHeight = this.gameHeight * MAKIRA_BEAM_HEIGHT_RATIO;
-         this.makiraBeams?.getChildren().forEach(beam => {
-             if(beam.active) {
-                 try {
-                     beam.setDisplaySize(beamWidth, beamHeight);
-                     if(beam.body) beam.body.updateFromGameObject();
-                 } catch(e) { console.error("Error updating beam size on resize:", e); }
-             }
-         });
+        
 
 
         // 7. ゲームオーバー/クリアテキストの位置とフォントサイズを更新
