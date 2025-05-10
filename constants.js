@@ -44,6 +44,7 @@ export const POWERUP_TYPES = {
     KUBIRA: 'kubira', SHATORA: 'shatora', HAILA: 'haila', ANCHIRA: 'anchira', SINDARA: 'sindara',
     BIKARA: 'bikara', INDARA: 'indara', ANILA: 'anila', BAISRAVA: 'baisrava', VAJRA: 'vajra',
     MAKIRA: 'makira', MAKORA: 'makora',BIKARA_YANG: 'bikara_yang' // ★ ビカラ陽を追加
+    BADRA: 'badra' // ★ バドラを追加
     // 新しい特殊ボールの定義場所 (例: BIKARA_YANG: 'bikara_yang', BADRA: 'badra', BAISYURA: 'baisyura')
 };
 
@@ -97,7 +98,7 @@ export const POWERUP_ICON_KEYS = {
     [POWERUP_TYPES.MAKIRA]: 'icon_makira', [POWERUP_TYPES.MAKORA]: 'icon_makora',
     // 新しい特殊ボールのアイコンキー
      [POWERUP_TYPES.BIKARA_YANG]: 'icon_bikara_yang',
-    // [POWERUP_TYPES.BADRA]: 'icon_badra',
+    [POWERUP_TYPES.BADRA]: 'icon_badra',
     // [POWERUP_TYPES.BAISYURA]: 'icon_baisyura',
 };
 
@@ -124,7 +125,7 @@ export const AUDIO_KEYS = {
     VOICE_BOSS_RANDOM_2: 'voice_boss_random_2',
     VOICE_BOSS_RANDOM_3: 'voice_boss_random_3',
     // 新しい特殊ボールのボイスキー
-    // VOICE_BADRA: 'voice_badra',
+    VOICE_BADRA: 'voice_badra',
     // VOICE_BAISYURA: 'voice_baisyura',
 };
 
