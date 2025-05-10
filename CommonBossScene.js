@@ -1788,7 +1788,10 @@ if (this.isMakiraActive && this.balls && this.familiars && this.familiars.countA
                     const finalOffsetY = -(hitboxHeight / 2);
                     brick.body.setOffset(finalOffsetX, finalOffsetY);
                     // ★★★-----------------------------------------------------★★★
-
+// ★★★ setOffset の後に updateFromGameObject を試す ★★★
+    brick.body.updateFromGameObject();
+    console.log(`[SetupAttackBrick] Called updateFromGameObject AFTER setOffset.`);
+    // ★★★---------------------------------------------★★★
                     console.log(`[SetupAttackBrick] Set body size: ${hitboxWidth.toFixed(0)}x${hitboxHeight.toFixed(0)}, Multiplier: ${hitboxScaleMultiplier}, Calculated Offset: (${finalOffsetX.toFixed(1)}, ${finalOffsetY.toFixed(1)})`);
                 } else {
                     // フォールバック
