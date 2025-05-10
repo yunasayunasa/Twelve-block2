@@ -4,6 +4,11 @@ import TitleScene from './TitleScene.js';
 import CommonBossScene from './CommonBossScene.js';
 import UIScene from './UIScene.js';
 import Boss1Scene from './Boss1Scene.js'; // ★ インポート追加
+import Boss2Scene from './Boss2Scene.js'; // ★ Boss2Scene をインポート
+// import Boss3Scene from './Boss3Scene.js'; // 今後追加
+// import Boss4Scene from './Boss4Scene.js'; // 今後追加
+// import Boss5Scene from './Boss5Scene.js'; // 今後追加
+
 // Phaserゲーム設定
 const config = {
     type: Phaser.AUTO, // WebGL優先、不可ならCanvas
@@ -27,7 +32,11 @@ const config = {
         }
     },
     // 使用するシーンのリスト (インポートしたクラスを指定)
-    scene: [BootScene, TitleScene, CommonBossScene, UIScene, Boss1Scene],
+    scene: [BootScene, TitleScene, CommonBossScene, UIScene, Boss1Scene,Boss2Scene//★ シーンリストに追加
+        // Boss3Scene, // 今後追加
+        // Boss4Scene, // 今後追加
+        // Boss5Scene  // 今後追加
+        ],
     input: {
         activePointers: 3, // 同時に認識するポインター数（マルチタッチ対応）
     },
