@@ -1,14 +1,7 @@
 // Boss1Scene.js (CommonBossSceneを継承し、旧BossSceneの挙動を移植)
 import CommonBossScene from './CommonBossScene.js';
-import {
-    AUDIO_KEYS,
-    // ボス1固有の挙動で直接使う定数があればここに追加
-    // (多くの定数は CommonBossScene または this.bossData 経由で利用)
-    DEFAULT_ATTACK_BRICK_SPAWN_DELAY_MIN, // Commonのデフォルト値を参照する場合など
-    DEFAULT_ATTACK_BRICK_SPAWN_DELAY_MAX,
-    DEFAULT_ATTACK_BRICK_VELOCITY_Y
-  //  ATTACK_BRICK_ITEM_DROP_RATE // これは chaosSettings で上書きされるはずだが念のため
-} from './constants.js';
+import { AUDIO_KEYS, DEFAULT_ATTACK_BRICK_SPAWN_DELAY_MIN, DEFAULT_ATTACK_BRICK_SPAWN_DELAY_MAX, DEFAULT_ATTACK_BRICK_VELOCITY_Y } from './constants.js';
+
 
 export default class Boss1Scene extends CommonBossScene {
     constructor() {
@@ -21,27 +14,23 @@ export default class Boss1Scene extends CommonBossScene {
      * ボス1固有のデータを初期化
      * 旧BossSceneの設定を元に値を設定
      */
-    initializeBossData() {
-        console.log("--- Boss1Scene initializeBossData ---");
-        // 旧BossSceneで使われていた値をボス1のデータとして設定
-        const oldBossMaxHealth = 20; // 旧BossSceneの値 (少なすぎるので調整)
-        const oldBossScore = 1500;   // 旧BossSceneの値 (スコアは廃止だが参考)
-        const oldMoveRangeRatio = 0.8; // 旧BossSceneの値
-        const oldMoveDuration = 4000;  // 旧BossSceneの値
-
+     initializeBossData() {
+        console.log("--- Boss1Scene initializeBossData (Artman HL) ---");
         this.bossData = {
-            health: 10,                     // HPを調整 (旧20 -> 150)
-            textureKey: 'bossStand',         // 旧BossSceneで使用していたテクスチャ
-            negativeKey: 'bossNegative',     // 旧BossSceneで使用していたテクスチャ
-            voiceAppear: AUDIO_KEYS.VOICE_BOSS_APPEAR, // 旧BossSceneで使用していたボイス
-            voiceDamage: AUDIO_KEYS.VOICE_BOSS_DAMAGE, // 旧BossSceneで使用していたボイス
-            voiceDefeat: AUDIO_KEYS.VOICE_BOSS_DEFEAT, // 旧BossSceneで使用していたボイス
-            voiceRandom: [                   // 旧BossSceneで使用していたランダムボイス
-                AUDIO_KEYS.VOICE_BOSS_RANDOM_1,
-                AUDIO_KEYS.VOICE_BOSS_RANDOM_2,
-                AUDIO_KEYS.VOICE_BOSS_RANDOM_3
+            health: 20,
+            textureKey: 'bossStand',
+            negativeKey: 'bossNegative',
+            // ★★★ アートマンHL専用のボイスキーを設定 ★★★
+            voiceAppear: AUDIO_KEYS.VOICE_ARTMAN_APPEAR,    // 内容はボイス
+            voiceDamage: AUDIO_KEYS.VOICE_ARTMAN_DAMAGE,    // アートマン専用被ダメージ
+            voiceDefeat: AUDIO_KEYS.VOICE_ARTMAN_DEFEAT,    // アートマン専用撃破
+            voiceRandom: [                                  // アートマン専用ランダムボイス配列
+                AUDIO_KEYS.VOICE_ARTMAN_RANDOM_1,
+                AUDIO_KEYS.VOICE_ARTMAN_RANDOM_2,
+                AUDIO_KEYS.VOICE_ARTMAN_RANDOM_3
             ],
-            bgmKey: AUDIO_KEYS.BGM2,         // 旧BossSceneで使用していたBGM (BGM2)
+            // ★★★------------------------------------★★★
+            bgmKey: AUDIO_KEYS.BGM2,       // 旧BossSceneで使用していたBGM (BGM2)
             cutsceneText: 'VS アートマンHL',      // 旧BossSceneのカットシーンテキスト
 
             // --- ボスの見た目・動きに関するデータ ---
@@ -57,9 +46,10 @@ export default class Boss1Scene extends CommonBossScene {
             attackBrickScale: 0.2 // 旧BossSceneで設定していた値 (要調整)
             // ---
         };
-        // CommonBossScene のプロパティも更新
-        this.bossVoiceKeys = this.bossData.voiceRandom;
-        console.log("Boss1 Specific Data Initialized:", this.bossData);
+         // CommonBossScene のプロパティも更新 (これが重要！)
+        this.bossVoiceKeys = Array.isArray(this.bossData.voiceRandom) ? this.bossData.voiceRandom : [];
+        console.log("Artman HL Specific Data Initialized:", this.bossData);
+        console.log("Artman HL Random Voices Set:", this.bossVoiceKeys);
     }
 
     createSpecificBoss() {
@@ -128,6 +118,25 @@ export default class Boss1Scene extends CommonBossScene {
         moveToRight(); // 開始
         console.log("Boss1 random ease movement initiated.");
     }
+
+    // アートマン登場時の特別なインパクトSEを鳴らす場合は、startFusionIntroをオーバーライド
+    startFusionIntro() {
+        console.log("[Boss1Scene] Overriding startFusionIntro for Artman HL specific SE.");
+        // CommonBossScene の基本的なフュージョン演出を呼び出す
+        super.startFusionIntro(); // これにより this.bossData.voiceAppear が再生される
+
+        // アートマン専用の登場インパクトSEを追加で再生 (少し遅らせるなど調整可能)
+        // CommonBossSceneのstartFusionIntroで共通インパクトSE (SE_FLASH_IMPACT_COMMON) も鳴るので、
+        // アートマンだけ違う音にしたい、または追加で鳴らしたい場合に記述。
+        // もしCommonのSE_FLASH_IMPACT_COMMONで十分なら、このオーバーライドは不要。
+        this.time.delayedCall(100, () => { // 例: 0.1秒遅延
+             try {
+                 console.log("[Boss1Scene] Playing Artman specific impact SE:", AUDIO_KEYS.SE_ARTMAN_IMPACT);
+                 this.sound.play(AUDIO_KEYS.SE_ARTMAN_IMPACT);
+             } catch(e) { console.error("Error playing Artman specific impact SE:", e); }
+        }, [], this);
+    }
+
 
     /**
      * ボス1固有の行動更新 (旧BossSceneの攻撃パターン)
