@@ -1681,6 +1681,27 @@ if (this.isMakiraActive && this.balls && this.familiars && this.familiars.countA
         }
         console.log("[HitBoss] Ball hit detected.");
 
+          // ★★★ ボスが無敵の場合の処理を追加 ★★★
+        if (boss.getData('isInvulnerable') === true) {
+            console.log("[HitBoss] Boss is invulnerable. Ball will be repelled.");
+            // ダメージは与えずにボールを跳ね返す処理のみ行う
+            if (ball.body) {
+                // ボス中心からボール中心へのベクトル
+                const repelAngle = Phaser.Math.Angle.Between(boss.x, boss.y, ball.x, ball.y);
+                const repelSpeed = NORMAL_BALL_SPEED * 0.8; // 通常より少し弱めに跳ね返すか、同じ強さで
+                // 角度から速度ベクトルを計算して設定
+                try {
+                    this.physics.velocityFromAngle(Phaser.Math.RadToDeg(repelAngle), repelSpeed, ball.body.velocity);
+                } catch(e) { console.error("Error setting repel velocity:", e); }
+
+                // (オプション) 無敵ヒットのSEやエフェクト
+                // this.sound.play('se_invincible_hit');
+                // this.createImpactParticles(ball.x, ball.y, [Phaser.Math.RadToDeg(repelAngle) - 30, Phaser.Math.RadToDeg(repelAngle) + 30], 0xaaaaaa, 3);
+            }
+            return; // 無敵なのでここで処理終了
+        }
+        // ★★★----------------------------------★★★
+
         // --- ダメージ計算 ---
         let damage = 1; // 基本ダメージ
         if (ball.getData('isKubiraActive') === true) { damage += 1; console.log("[HitBoss] Kubira active, damage increased."); }
