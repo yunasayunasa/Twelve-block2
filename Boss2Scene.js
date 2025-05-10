@@ -317,7 +317,7 @@ export default class Boss2Scene extends CommonBossScene {
         // ★★★-------------------------------------★★★
         const displayScale = this.bossData.attackBrickScale || 0.2; // 見た目のスケール
         // ★★★ 当たり判定の拡大率 (見た目に対して何倍にするか) ★★★
-        const hitboxMultiplier = 1.5; // 例: 見た目の1.5倍の当たり判定
+      //  const hitboxMultiplier = 1.5; // 例: 見た目の1.5倍の当たり判定
         // ★★★---------------------------------------------★★★
 
         const angleMin = this.bossData.sankaraBrickAngleMin || 30;
@@ -329,7 +329,7 @@ export default class Boss2Scene extends CommonBossScene {
       const brickLeft = this.attackBricks.create(bossX, bossY, '__TEMP__')
           //  .setOrigin(0, 0); // ★★★ 原点を左上に設定 ★★★
         if (brickLeft) {
-            this.setupAttackBrickAppearance(brickLeft, textureKey, displayScale, hitboxMultiplier);brickLeft.setVelocity(velocityLeft.x, velocityLeft.y);
+            this.setupAttackBrickAppearance(brickLeft, textureKey, displayScale);brickLeft.setVelocity(velocityLeft.x, velocityLeft.y);
             if (brickLeft.body) brickLeft.body.setAllowGravity(false).setCollideWorldBounds(false);
         }
 
@@ -339,7 +339,7 @@ export default class Boss2Scene extends CommonBossScene {
          const brickRight = this.attackBricks.create(bossX, bossY, '__TEMP__')
           //  .setOrigin(0, 0); // ★★★ 原点を左上に設定 ★★★
         if (brickRight) {
-            this.setupAttackBrickAppearance(brickRight, textureKey, displayScale, hitboxMultiplier); brickRight.setVelocity(velocityRight.x, velocityRight.y);
+            this.setupAttackBrickAppearance(brickRight, textureKey, displayScale); brickRight.setVelocity(velocityRight.x, velocityRight.y);
             if (brickRight.body) brickRight.body.setAllowGravity(false).setCollideWorldBounds(false);
         }
         console.log(`[Sankara Attack] Spawned bricks with hitbox multiplier: ${hitboxMultiplier}`);

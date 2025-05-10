@@ -1749,62 +1749,31 @@ if (this.isMakiraActive && this.balls && this.familiars && this.familiars.countA
    // CommonBossScene.js の setupAttackBrickAppearance メソッドを修正
 
    // setupAttackBrickAppearance メソッドを修正
-    setupAttackBrickAppearance(brick, textureKey, displayScale, hitboxScaleMultiplier = 1.0) {
+  // CommonBossScene.js の setupAttackBrickAppearance メソッドを修正
+
+    setupAttackBrickAppearance(brick, textureKey, displayScale /*, hitboxScaleMultiplier = 1.0  ← 不要に */) {
         if (!brick || !brick.scene) return;
 
         try {
             brick.setTexture(textureKey);
             brick.setScale(displayScale); // 1. 見た目のスケールを設定
-            // ★★★ setOrigin(0.5, 0.5) を呼び、GameObjectの原点を中心にする ★★★
-            brick.setOrigin(0.5, 0.5);
-            // ★★★-----------------------------------------------------★★★
+            brick.setOrigin(0.5, 0.5);    // 2. GameObjectの原点を中心に
 
             console.log(`[SetupAttackBrick] Texture: ${textureKey}, DisplayScale: ${displayScale.toFixed(2)}`);
             console.log(`  DisplaySize: ${brick.displayWidth.toFixed(1)}x${brick.displayHeight.toFixed(1)}, Origin: (${brick.originX.toFixed(1)}, ${brick.originY.toFixed(1)})`);
 
             if (brick.body) {
-                // 表示サイズ * 倍率 で当たり判定サイズを決定
-                const hitboxWidth = brick.displayWidth * hitboxScaleMultiplier;
-                const hitboxHeight = brick.displayHeight * hitboxScaleMultiplier;
-
-                if (hitboxWidth > 0 && hitboxHeight > 0) {
-                    // 1. ボディサイズを設定
-                    brick.body.setSize(hitboxWidth, hitboxHeight);
-
-                    // 2. ★★★ オフセットを再計算して設定 (原点が0.5, 0.5の場合) ★★★
-                    // 物理ボディの中心が見た目の中心 (原点) と一致するようにオフセットを設定
-                    // Arcade Physics の Body のアンカーは常に左上なので、
-                    // ボディの左上を、GameObjectの原点(中心)から (ボディ幅/2, ボディ高さ/2) だけ左上にずらす
-                   // const offsetX = brick.body.halfWidth - (brick.displayWidth * brick.originX);
-                   // const offsetY = brick.body.halfHeight - (brick.displayHeight * brick.originY);
-                    // 上記は setSize の後に halfWidth/halfHeight が更新されることを期待しているが、
-                    // より直接的には以下のように計算できる:
-                    // const offsetX = (brick.displayWidth - hitboxWidth) / 2; // これは原点が(0,0)の場合の考え方
-                    // 原点が(0.5,0.5)の時、表示の中心に当たり判定の中心を合わせるには、
-                    // 当たり判定の左上は、(表示幅/2 - 当たり判定幅/2) の位置に来る。
-                    // しかし、setOffsetはGameObjectの原点(今は中心)からの相対位置。
-                    // なので、オフセットは -(当たり判定幅/2), -(当たり判定高さ/2) となるはず。
-                    const finalOffsetX = -(hitboxWidth / 2);
-                    const finalOffsetY = -(hitboxHeight / 2);
-                    brick.body.setOffset(finalOffsetX, finalOffsetY);
-                    // ★★★-----------------------------------------------------★★★
-// ★★★ setOffset の後に updateFromGameObject を試す ★★★
-    brick.body.updateFromGameObject();
-    console.log(`[SetupAttackBrick] Called updateFromGameObject AFTER setOffset.`);
-    // ★★★---------------------------------------------★★★
-                    console.log(`[SetupAttackBrick] Set body size: ${hitboxWidth.toFixed(0)}x${hitboxHeight.toFixed(0)}, Multiplier: ${hitboxScaleMultiplier}, Calculated Offset: (${finalOffsetX.toFixed(1)}, ${finalOffsetY.toFixed(1)})`);
-                } else {
-                    // フォールバック
-                    console.warn(`[SetupAttackBrick] Calculated hitbox size zero or negative. Updating body from GameObject.`);
-                    brick.body.updateFromGameObject(); // 見た目に合わせる
-                }
-                 console.log(`[SetupAttackBrick] Final Body - Size: ${brick.body.width.toFixed(1)}x${brick.body.height.toFixed(1)}, Offset: ${brick.body.offset.x.toFixed(1)},${brick.body.offset.y.toFixed(1)}`);
+                // 3. ★★★ 物理ボディを GameObject の見た目に完全に合わせる ★★★
+                brick.body.updateFromGameObject();
+                // ★★★-------------------------------------------------★★★
+                console.log(`[SetupAttackBrick] Body updated from GameObject. Size: ${brick.body.width.toFixed(1)}x${brick.body.height.toFixed(1)}, Offset: ${brick.body.offset.x.toFixed(1)},${brick.body.offset.y.toFixed(1)}`);
+            } else {
+                console.warn("[SetupAttackBrick] Brick body does not exist.");
             }
         } catch (e) {
             console.error("Error setting up attack brick appearance:", e, brick);
         }
     }
-
 
 
     /**
