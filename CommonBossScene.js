@@ -476,7 +476,8 @@ export default class CommonBossScene extends Phaser.Scene {
 
         // 1. フラッシュと効果音
         try { this.cameras.main.flash(SHRINK_FLASH_DURATION, 255, 255, 255); } catch(e) { console.error("Flash error:", e); } // 既存の定数を流用
-      
+      try { this.sound.play(AUDIO_KEYS.SE_SHRINK); } catch(e) { console.error("Impact sound error:", e); } // 衝撃音
+
         // 2. 演出用クローンを破棄
         fusionGroup.destroy(true); // 子要素も一緒に破棄
         console.log("[Intro Fusion] Clones destroyed.");
