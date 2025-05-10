@@ -30,21 +30,16 @@ export default class Boss1Scene extends CommonBossScene {
                 AUDIO_KEYS.VOICE_ARTMAN_RANDOM_3
             ],
             // ★★★------------------------------------★★★
-            bgmKey: AUDIO_KEYS.BGM2,       // 旧BossSceneで使用していたBGM (BGM2)
-            cutsceneText: 'VS アートマンHL',      // 旧BossSceneのカットシーンテキスト
-
-            // --- ボスの見た目・動きに関するデータ ---
-            widthRatio: 0.20,                // 旧BossSceneのupdateBossSizeでの計算に近い値？ (要調整)
-            moveRangeXRatio: oldMoveRangeRatio, // 旧BossSceneの移動範囲
-            moveDuration: oldMoveDuration,     // 旧BossSceneの移動時間
-
-            // --- ボス1固有の攻撃データ (旧BossSceneの攻撃パターンを反映) ---
-            attackIntervalMin: 600, // 旧BossSceneの値 (ATTACK_BRICK_SPAWN_DELAY_MIN)
-            attackIntervalMax: 1400, // 旧BossSceneの値 (ATTACK_BRICK_SPAWN_DELAY_MAX)
-            attackVelocityY: 150, // 旧BossSceneの値 (ATTACK_BRICK_VELOCITY_Y)
-            attackSpawnFromTopChance: 0.5, // 旧BossSceneの値
-            attackBrickScale: 0.2 // 旧BossSceneで設定していた値 (要調整)
-            // ---
+           bgmKey: AUDIO_KEYS.BGM2,
+            cutsceneText: 'VS アートマンHL',
+            widthRatio: 0.22,
+            moveRangeXRatio: 0.65,
+            moveDuration: 4200,
+            attackIntervalMin: 600,
+            attackIntervalMax: 1400,
+            attackVelocityY: 150,
+            attackSpawnFromTopChance: 0.5,
+            attackBrickScale: 0.2
         };
          // CommonBossScene のプロパティも更新 (これが重要！)
         this.bossVoiceKeys = Array.isArray(this.bossData.voiceRandom) ? this.bossData.voiceRandom : [];
