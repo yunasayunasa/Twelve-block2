@@ -913,6 +913,14 @@ if (this.isMakiraActive && this.balls && this.familiars && this.familiars.countA
         console.log("[StageClear] Showing Stage Clear Popup for Boss:", this.currentBossIndex);
         this.canProceedToNextStage = false; // まだ進めない
 
+   // ★★★ ボスのインデックスに関わらず、ここでステージクリアSEを再生 ★★★
+        try {
+            this.sound.play(AUDIO_KEYS.SE_STAGE_CLEAR, { volume: 0.8 }); // 音量調整は任意
+            console.log(`[StageClear] Playing SE_STAGE_CLEAR for Boss ${this.currentBossIndex}.`);
+        } catch(e) { console.error("Error playing SE_STAGE_CLEAR in popup:", e); }
+        // ★★★------------------------------------------------------★★★
+
+
         // 既存のポップアップがあれば破棄
         if (this.stageClearPopup) {
             this.stageClearPopup.destroy(true); // グループなら子も破棄
