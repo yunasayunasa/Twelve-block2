@@ -198,28 +198,28 @@ export default class Boss2Scene extends CommonBossScene {
     /**
      * サンカラの突進攻撃を実行する (予備動作とターゲット設定まで)
      */
+    // Boss2Scene.js の executeSankaraRush メソッドを修正
+
     executeSankaraRush() {
         if (!this.boss || !this.boss.active || this.isSankaraRushing || this.bossDefeated || this.isGameOver) {
-            // 条件を満たさなければ次の突進を予約して終了
             if (!this.isSankaraRushing && !this.bossDefeated && !this.isGameOver) this.scheduleSankaraRush();
             return;
         }
 
         console.log("[Sankara] Executing Rush Attack Sequence...");
-        this.isSankaraRushing = true; // 突進開始フラグ
+        this.isSankaraRushing = true;
         this.bossMoveTween?.pause(); // 通常の左右移動を一時停止
 
-        // 1. 予備動作: 少し後ろに下がる (Y座標は変えない想定)
-        const retreatDistance = this.boss.displayWidth * 0.3; // ボス幅の30%程度後退
-        const originalX = this.boss.x; // 元のX座標を覚えておく
+        // 1. 予備動作: 少し上に身を引く ★★★ Y軸方向に変更 ★★★
+        const retreatDistanceY = this.boss.displayHeight * 0.4; // ボス表示高さの40%程度後退 (調整可能)
+        const originalY = this.boss.y; // 元のY座標を覚えておく
+        const targetRetreatY = Math.max(this.boss.displayHeight / 2, originalY - retreatDistanceY); // 画面上端にはみ出さないように
 
-        console.log(`[Sankara Rush] Retreating... Original X: ${originalX.toFixed(0)}`);
+        console.log(`[Sankara Rush] Retreating upwards... Original Y: ${originalY.toFixed(0)}, Target Retreat Y: ${targetRetreatY.toFixed(0)}`);
         this.tweens.add({
             targets: this.boss,
-            // ボスが向いている方向と逆へ後退 (X座標のみ)
-            // 現在は単純に画面中央から見て遠ざかる方向にしてみる (要調整)
-            x: (this.boss.x < this.gameWidth / 2) ? this.boss.x - retreatDistance : this.boss.x + retreatDistance,
-            duration: 500, // 0.5秒で後退
+            y: targetRetreatY, // ★ Y座標を上に変更
+            duration: 400,    // 0.4秒で後退 (調整可能)
             ease: 'Quad.easeOut',
             onComplete: () => {
                 console.log("[Sankara Rush] Retreat complete.");
@@ -231,12 +231,12 @@ export default class Boss2Scene extends CommonBossScene {
                 console.log("[Sankara Rush] TODO: Implement actual rush movement and projectile launch.");
 
                 // (テスト用) 一定時間後に突進完了として状態を戻し、次の突進を予約
-                this.time.delayedCall(1500, () => { // 仮に1.5秒後に突進完了
+                this.time.delayedCall(1500, () => {
                     console.log("[Sankara Rush] (Test) Rush finished. Returning to normal movement.");
-                    this.boss.x = originalX; // 簡単のため元のX座標に戻す (本来は突進後の位置)
+                    this.boss.y = originalY; // 簡単のため元のY座標に戻す
                     this.isSankaraRushing = false;
                     this.bossMoveTween?.resume();
-                    this.scheduleSankaraRush(); // 次の突進を予約
+                    this.scheduleSankaraRush();
                 }, [], this);
             }
         });
