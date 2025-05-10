@@ -818,7 +818,7 @@ export default class CommonBossScene extends Phaser.Scene {
         this.safeDestroyCollider(this.ballPaddleCollider); this.safeDestroyCollider(this.ballBossCollider);
         this.safeDestroyCollider(this.ballAttackBrickCollider); this.safeDestroyCollider(this.ballAttackBrickOverlap);
         this.safeDestroyCollider(this.paddlePowerUpOverlap); this.safeDestroyCollider(this.paddleAttackBrickCollider);
-        this.safeDestroyCollider(this.makiraBeamBossOverlap);
+        this.safeDestroyCollider(this.makiraBeamBossOverlap);this.safeDestroyCollider(this.paddleBossOverlap, "paddleBossOverlap"); // ★ 新しい参照用
           this.safeDestroyCollider(this.ballFamiliarCollider);
 this.ballFamiliarCollider = null; // 明示的にnullに
 console.log(`[SetColliders] Checking conditions for Ball-Familiar collider: isMakiraActive=${this.isMakiraActive}, balls=${!!this.balls}, familiars=${!!this.familiars}, familiars.countActive=${this.familiars?.countActive(true)}`);
@@ -841,7 +841,19 @@ if (this.isMakiraActive && this.balls && this.familiars && this.familiars.countA
     console.log("[SetColliders] Conditions NOT MET for Ball-Familiar collider or it was removed.");
 }
 
-
+    // ★★★ パドル vs ボス本体のオーバーラップ判定 ★★★
+        if (this.paddle && this.boss && this.boss.active && this.boss.body?.enable) {
+            this.paddleBossOverlap = this.physics.add.overlap(
+                this.paddle,
+                this.boss,
+                this.handlePaddleBossContact, // ★ 新しいコールバック関数
+                null, // processCallback はここでは不要（コールバック内で条件判定）
+                this
+            );
+            console.log("[SetColliders] Paddle-Boss overlap ADDED.");
+        } else {
+            console.log("[SetColliders] Paddle-Boss overlap SKIPPED.");
+        }
         if (this.paddle && this.balls) this.ballPaddleCollider = this.physics.add.collider(this.paddle, this.balls, this.hitPaddle, null, this);
         if (this.boss && this.balls) this.ballBossCollider = this.physics.add.collider(this.boss, this.balls, this.hitBoss, (b, ball) => !b.getData('isInvulnerable'), this);
         if (this.paddle && this.powerUps) this.paddlePowerUpOverlap = this.physics.add.overlap(this.paddle, this.powerUps, this.collectPowerUp, null, this);
@@ -1674,6 +1686,45 @@ if (this.isMakiraActive && this.balls && this.familiars && this.familiars.countA
         }
     }
 
+      // ★★★ 新しいメソッド：パドルとボスが接触した際の共通処理 ★★★
+    handlePaddleBossContact(paddle, boss) {
+        // このメソッドは CommonBossScene に置き、各ボスシーンで
+        // 突進中などの条件に応じてダメージ処理を呼び出すか、
+        // あるいはこのメソッド自体をボスシーンでオーバーライドする。
+        // ここでは、ボスシーン側に具体的な処理を委ねるフラグをチェックする例。
+
+        if (!paddle.active || !boss.active) return;
+
+        // 各ボスシーンで実装されるべき、接触ダメージが発生する条件かをチェックするメソッドを呼ぶ
+        // (または、ここでボスごとのタイプやフラグを見て直接処理する)
+        if (this.shouldPaddleTakeDamageFromBossContact(paddle, boss)) {
+            console.log(`[PaddleBossContact] Paddle contacted boss (${boss.texture.key}) under damage conditions.`);
+            this.loseLife(); // ライフを減らす
+            // TODO: パドル被弾エフェクト、無敵時間など
+            // パドルにも短い無敵時間を設けるか、ボス側を一時的にすり抜け可能にするなどの考慮も
+            if (boss.body) { // ボスが物理的な反動を受けるか (任意)
+                // boss.setVelocityY(-100); // 例: ボスが少し上に跳ねる
+            }
+        } else {
+            // console.log(`[PaddleBossContact] Paddle contacted boss but no damage condition.`);
+        }
+    }
+
+     // ★★★ プレースホルダーメソッド：ボスシーンでオーバーライドして接触ダメージ条件を定義 ★★★
+    /**
+     * パドルがボスと接触した際にダメージを受けるべきか判定する。
+     * 各ボスシーンで、そのボスの状態（例: 突進中か）に応じて true/false を返すようにオーバーライドする。
+     * @param {Phaser.Physics.Arcade.Image} paddle
+     * @param {Phaser.Physics.Arcade.Image} boss
+     * @returns {boolean} ダメージを受けるべきなら true
+     */
+    shouldPaddleTakeDamageFromBossContact(paddle, boss) {
+        // CommonBossScene ではデフォルトで false (ダメージなし)
+        // console.warn(`shouldPaddleTakeDamageFromBossContact not implemented in ${this.scene.key}`);
+        return false;
+    }
+
+
     /**
      * ボールがボスに衝突した際の処理
      * @param {Phaser.Physics.Arcade.Image} boss 衝突したボスオブジェクト
@@ -2292,6 +2343,8 @@ calculateDynamicFontSize(baseSizeMax) {
     shutdownScene() { /* ... (CommonBossScene.js 前回のコードと同様、内容は省略) ... */ this.stopBgm(); this.sound.stopAll(); this.tweens.killAll(); this.time.removeAllEvents();   if (this.stageClearPopup) {
             this.stageClearPopup.destroy(true);
             this.stageClearPopup = null;
-        }this.scale.off('resize', this.handleResize, this); if (this.physics.world) this.physics.world.off('worldbounds', this.handleWorldBounds, this); this.input.off('pointermove', this.handlePointerMove, this); this.input.off('pointerdown', this.handlePointerDown, this); this.events.off('shutdown', this.shutdownScene, this); this.events.removeAllListeners(); this.safeDestroyCollider(this.ballPaddleCollider); this.safeDestroyCollider(this.ballBossCollider); this.safeDestroyCollider(this.ballAttackBrickCollider); this.safeDestroyCollider(this.ballAttackBrickOverlap); this.safeDestroyCollider(this.paddlePowerUpOverlap); this.safeDestroyCollider(this.paddleAttackBrickCollider); this.safeDestroyCollider(this.makiraBeamBossOverlap); this.safeDestroy(this.paddle,"paddle"); this.safeDestroy(this.balls,"balls group",true); this.safeDestroy(this.boss,"boss"); this.safeDestroy(this.attackBricks,"attackBricks group",true); this.safeDestroy(this.powerUps,"powerUps group",true); this.safeDestroy(this.familiars,"familiars group",true); this.safeDestroy(this.makiraBeams,"makiraBeams group",true); this.safeDestroy(this.gameOverText,"gameOverText"); this.safeDestroy(this.gameClearText,"gameClearText"); this.safeDestroy(this.bossAfterImageEmitter,"bossAfterImageEmitter"); this.paddle=null;this.balls=null;this.boss=null;this.attackBricks=null;this.powerUps=null;this.familiars=null;this.makiraBeams=null;this.gameOverText=null;this.gameClearText=null;this.bossAfterImageEmitter=null;this.uiScene=null;this.currentBgm=null;this.powerUpTimers={};this.bikaraTimers={};this.lastPlayedVoiceTime={};this.bossMoveTween=null;this.randomVoiceTimer=null;this.attackBrickTimer=null;this.anilaTimer=null;this.anchiraTimer=null;this.makiraAttackTimer=null; console.log(`--- ${this.scene.key} SHUTDOWN Complete ---`); }
+        }this.scale.off('resize', this.handleResize, this); if (this.physics.world) this.physics.world.off('worldbounds', this.handleWorldBounds, this); this.input.off('pointermove', this.handlePointerMove, this); this.input.off('pointerdown', this.handlePointerDown, this); this.events.off('shutdown', this.shutdownScene, this); this.events.removeAllListeners(); this.safeDestroyCollider(this.ballPaddleCollider); this.safeDestroyCollider(this.ballBossCollider); this.safeDestroyCollider(this.ballAttackBrickCollider); 
+        this.safeDestroyCollider(this.paddleBossOverlap);
+        this.safeDestroyCollider(this.ballAttackBrickOverlap); this.safeDestroyCollider(this.paddlePowerUpOverlap); this.safeDestroyCollider(this.paddleAttackBrickCollider); this.safeDestroyCollider(this.makiraBeamBossOverlap); this.safeDestroy(this.paddle,"paddle"); this.safeDestroy(this.balls,"balls group",true); this.safeDestroy(this.boss,"boss"); this.safeDestroy(this.attackBricks,"attackBricks group",true); this.safeDestroy(this.powerUps,"powerUps group",true); this.safeDestroy(this.familiars,"familiars group",true); this.safeDestroy(this.makiraBeams,"makiraBeams group",true); this.safeDestroy(this.gameOverText,"gameOverText"); this.safeDestroy(this.gameClearText,"gameClearText"); this.safeDestroy(this.bossAfterImageEmitter,"bossAfterImageEmitter"); this.paddle=null;this.balls=null;this.boss=null;this.attackBricks=null;this.powerUps=null;this.familiars=null;this.makiraBeams=null;this.gameOverText=null;this.gameClearText=null;this.bossAfterImageEmitter=null;this.uiScene=null;this.currentBgm=null;this.powerUpTimers={};this.bikaraTimers={};this.lastPlayedVoiceTime={};this.bossMoveTween=null;this.randomVoiceTimer=null;this.attackBrickTimer=null;this.anilaTimer=null;this.anchiraTimer=null;this.makiraAttackTimer=null; console.log(`--- ${this.scene.key} SHUTDOWN Complete ---`); }
     // --- ▲ ヘルパーメソッド ▲ ---
 }
