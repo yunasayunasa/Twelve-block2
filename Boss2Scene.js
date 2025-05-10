@@ -15,6 +15,9 @@ export default class Boss2Scene extends CommonBossScene {
         // ボス2固有のプロパティ (形態管理など)
         this.currentPhase = 'sankara'; // 'sankara' または 'sowaka'
         this.sankaraData = {}; // サンカラ形態用のデータを保持
+            // ★ サンカラ突進攻撃用プロパティ ★
+        this.sankaraRushTimer = null;
+        this.isSankaraRushing = false; // 現在突進中かどうかのフラグ
         this.sowakaData = {};  // ソワカ形態用のデータを保持
 
         // ソワカのフィールド効果用
@@ -23,6 +26,15 @@ export default class Boss2Scene extends CommonBossScene {
         this.sowakaFieldDuration = 15000; // 例: フィールド効果15秒
         this.sowakaFieldCooldown = 10000; // 例: 再展開まで10秒
         this.sowakaLimitedItemType = null; // 限定されるアイテムタイプ
+    }
+
+    init(data) {
+        super.init(data); // 親のinitを呼び出す
+        this.isSankaraRushing = false; // シーン初期化時にリセット
+        if (this.sankaraRushTimer) {
+            this.sankaraRushTimer.remove();
+            this.sankaraRushTimer = null;
+        }
     }
 
     // initializeBossData: 現在のフェーズに応じて適切なボスデータをロード
@@ -129,6 +141,10 @@ export default class Boss2Scene extends CommonBossScene {
         // CommonBossScene の汎用左右往復移動を開始 (パラメータはthis.bossDataから読まれる)
         super.startSpecificBossMovement();
         console.log(`Boss2 (${this.currentPhase}) movement started.`);
+    // ★ 最初の突進攻撃を予約 ★
+        if (this.currentPhase === 'sankara' && !this.isSankaraRushing) {
+            this.scheduleSankaraRush();
+        }
     }
 
     // updateSpecificBossBehavior: 各形態の攻撃ロジックを呼び出す
@@ -137,8 +153,13 @@ export default class Boss2Scene extends CommonBossScene {
             return;
         }
 
-        if (this.currentPhase === 'sankara') {
-            this.updateSankaraAttacks(time, delta);
+            if (this.currentPhase === 'sankara') {
+            // ★ 突進中でなければ、次の突進のスケジューリングを確認 ★
+            // (executeSankaraRushの最後に次のスケジュールを呼ぶので、ここでは不要になるかも)
+            // if (!this.isSankaraRushing && (!this.sankaraRushTimer || this.sankaraRushTimer.getProgress() === 1)) {
+            //     this.scheduleSankaraRush();
+            // }
+            // サンカラの他の攻撃パターンがあればここに追加
         } else if (this.currentPhase === 'sowaka') {
             this.updateSowakaAttacksAndField(time, delta);
         }
@@ -151,20 +172,76 @@ export default class Boss2Scene extends CommonBossScene {
         //     this.scheduleSankaraRush();
         // }
     }
+   // --- ▼ サンカラ形態の攻撃ロジック ▼ ---
+
+    /**
+     * 次のサンカラの突進攻撃をランダムな間隔で予約する
+     */
     scheduleSankaraRush() {
-        // TODO: this.bossData.sankaraRushIntervalMin/Max を使ってタイマー設定
-        // this.sankaraRushTimer = this.time.addEvent({ delay: ..., callback: this.executeSankaraRush, ...});
+        if (this.isSankaraRushing || this.bossDefeated || this.isGameOver) return; // 突進中や終了時は予約しない
+
+        if (this.sankaraRushTimer) this.sankaraRushTimer.remove();
+
+        const minDelay = this.bossData.sankaraRushIntervalMin || 5000;
+        const maxDelay = this.bossData.sankaraRushIntervalMax || 8000;
+        const nextDelay = Phaser.Math.Between(minDelay, maxDelay);
+
+        console.log(`[Sankara] Scheduling next rush attack in ${nextDelay}ms.`);
+        this.sankaraRushTimer = this.time.addEvent({
+            delay: nextDelay,
+            callback: this.executeSankaraRush,
+            callbackScope: this,
+            loop: false
+        });
     }
+
+    /**
+     * サンカラの突進攻撃を実行する (予備動作とターゲット設定まで)
+     */
     executeSankaraRush() {
-        // TODO: 突進予備動作
-        // TODO: パドルX座標ターゲット設定
-        // TODO: 加速突進Tween
-        // TODO: 突進中の攻撃ブロック放出 (3回)
-        // TODO: 突進後の復帰と左右移動再開
-        // TODO: パドルとの接触ダメージ判定 (setCollidersで設定し、コールバックで処理)
-        console.log("Sankara: Execute Rush Attack (Not Implemented Yet)");
-        this.scheduleSankaraRush(); // 次の突進を予約
+        if (!this.boss || !this.boss.active || this.isSankaraRushing || this.bossDefeated || this.isGameOver) {
+            // 条件を満たさなければ次の突進を予約して終了
+            if (!this.isSankaraRushing && !this.bossDefeated && !this.isGameOver) this.scheduleSankaraRush();
+            return;
+        }
+
+        console.log("[Sankara] Executing Rush Attack Sequence...");
+        this.isSankaraRushing = true; // 突進開始フラグ
+        this.bossMoveTween?.pause(); // 通常の左右移動を一時停止
+
+        // 1. 予備動作: 少し後ろに下がる (Y座標は変えない想定)
+        const retreatDistance = this.boss.displayWidth * 0.3; // ボス幅の30%程度後退
+        const originalX = this.boss.x; // 元のX座標を覚えておく
+
+        console.log(`[Sankara Rush] Retreating... Original X: ${originalX.toFixed(0)}`);
+        this.tweens.add({
+            targets: this.boss,
+            // ボスが向いている方向と逆へ後退 (X座標のみ)
+            // 現在は単純に画面中央から見て遠ざかる方向にしてみる (要調整)
+            x: (this.boss.x < this.gameWidth / 2) ? this.boss.x - retreatDistance : this.boss.x + retreatDistance,
+            duration: 500, // 0.5秒で後退
+            ease: 'Quad.easeOut',
+            onComplete: () => {
+                console.log("[Sankara Rush] Retreat complete.");
+                // 2. パドルのX座標をターゲットとして記録
+                const targetPaddleX = this.paddle ? this.paddle.x : this.gameWidth / 2;
+                console.log(`[Sankara Rush] Paddle target X acquired: ${targetPaddleX.toFixed(0)}`);
+
+                // TODO: ここに実際の突進移動Tweenと攻撃ブロック放出処理を追加
+                console.log("[Sankara Rush] TODO: Implement actual rush movement and projectile launch.");
+
+                // (テスト用) 一定時間後に突進完了として状態を戻し、次の突進を予約
+                this.time.delayedCall(1500, () => { // 仮に1.5秒後に突進完了
+                    console.log("[Sankara Rush] (Test) Rush finished. Returning to normal movement.");
+                    this.boss.x = originalX; // 簡単のため元のX座標に戻す (本来は突進後の位置)
+                    this.isSankaraRushing = false;
+                    this.bossMoveTween?.resume();
+                    this.scheduleSankaraRush(); // 次の突進を予約
+                }, [], this);
+            }
+        });
     }
+
     spawnSankaraAttackBlock() {
         // TODO: サンカラ本体の左右から斜め下に攻撃ブロックを生成
         // this.bossData.sankaraBrickAngleMin/Max, sankaraBrickVelocity を使用
