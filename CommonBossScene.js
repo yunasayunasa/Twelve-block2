@@ -2099,11 +2099,11 @@ if (this.isMakiraActive && this.balls && this.familiars && this.familiars.countA
     updateBossSize(bossInstance, textureKey, widthRatio) {
         // テクスチャとソースの存在チェックを強化
         if (!bossInstance || !bossInstance.texture || !bossInstance.texture.key || bossInstance.texture.key === '__MISSING' || !bossInstance.texture.source || !bossInstance.texture.source[0]?.width) {
-            console.warn(`[updateBossSize] Invalid bossInstance or texture not ready for key: ${textureKey}. Cannot update size.`);
+          //  console.warn(`[updateBossSize] Invalid bossInstance or texture not ready for key: ${textureKey}. Cannot update size.`);
             if (bossInstance) { // フォールバック
                 const fallbackSize = this.gameWidth * 0.2;
                 try { bossInstance.setDisplaySize(fallbackSize, fallbackSize); } catch(e) { console.error("Error setting fallback display size:", e); }
-                console.log("[updateBossSize] Applied fallback display size.");
+               // console.log("[updateBossSize] Applied fallback display size.");
             }
             return;
         }
@@ -2186,15 +2186,15 @@ calculateDynamicFontSize(baseSizeMax) {
     const divisor = (UI_FONT_SIZE_SCALE_DIVISOR || 18); // constants.jsの値
     const minSize = (UI_FONT_SIZE_MIN || 12); // constants.jsの値
     // ★★★ 計算過程のログを追加 ★★★
-    console.log(`[Calc Font] Input - baseSizeMax: ${baseSizeMax}, gameWidth: ${this.gameWidth}, divisor: ${divisor}, minSize: ${minSize}`);
+ //   console.log(`[Calc Font] Input - baseSizeMax: ${baseSizeMax}, gameWidth: ${this.gameWidth}, divisor: ${divisor}, minSize: ${minSize}`);
     if (this.gameWidth === undefined || this.gameWidth <= 0) {
-        console.warn("[Calc Font] gameWidth is invalid! Using minSize.");
+     //   console.warn("[Calc Font] gameWidth is invalid! Using minSize.");
         return minSize;
     }
     const calculatedSize = Math.floor(this.gameWidth / divisor);
-    console.log(`[Calc Font] Calculated size before clamp: ${calculatedSize}`);
+   // console.log(`[Calc Font] Calculated size before clamp: ${calculatedSize}`);
     const finalSize = Phaser.Math.Clamp(calculatedSize, minSize, baseSizeMax);
-    console.log(`[Calc Font] Final clamped size: ${finalSize}`);
+ //   console.log(`[Calc Font] Final clamped size: ${finalSize}`);
     // ★★★----------------------★★★
     return finalSize;
 } 
