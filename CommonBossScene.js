@@ -925,7 +925,7 @@ if (this.isMakiraActive && this.balls && this.familiars && this.familiars.countA
 
         // 背景
         const bgGraphics = this.add.graphics();
-        bgGraphics.fillStyle(0x000033, 0.85); // 暗めの背景色
+        bgGraphics.fillStyle(0x336699, 0.6); // 暗めの背景色
         bgGraphics.fillRoundedRect(-this.gameWidth * 0.4, -this.gameHeight * 0.15, this.gameWidth * 0.8, this.gameHeight * 0.3, 20);
         this.stageClearPopup.add(bgGraphics);
 
