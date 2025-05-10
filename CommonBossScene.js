@@ -987,6 +987,11 @@ if (this.isMakiraActive && this.balls && this.familiars && this.familiars.countA
         // ★★★------------------------------------★★★
         Object.values(this.powerUpTimers).forEach(timer => timer?.remove()); this.powerUpTimers = {};
         this.balls?.getChildren().forEach(ball => { if(ball?.active) this.resetBallState(ball); }); this.updateBallAndPaddleAppearance();
+          // ★★★ フラグ解除後に必ず setColliders を呼び出す ★★★
+    console.log("[LoseLife] Calling setColliders to update collision rules.");
+    this.setColliders();
+    // ★★★----------------------------------------------★★★
+
         this.lives--; this.events.emit('updateLives', this.lives); this.isBallLaunched = false; this.balls?.clear(true, true);
         if (this.lives > 0) this.time.delayedCall(800, this.resetForNewLife, [], this);
         else { this.sound.play(AUDIO_KEYS.SE_GAME_OVER); this.stopBgm(); this.time.delayedCall(500, this.gameOver, [], this); }
