@@ -34,6 +34,13 @@ export default class BootScene extends Phaser.Scene {
 this.load.image('bossNegative', 'assets/bossNegative.png'); // ボス撃墜、キー名とファイル名を合わせる
         // --- ▲ ボス関連アセット読み込み ▲ ---
 
+         // --- サンカラソワカ戦画像 (例) ---
+    this.load.image('boss_sankara_stand', 'assets/boss_sankara_stand.png');
+    this.load.image('boss_sankara_negative', 'assets/boss_sankara_negative.png');
+    this.load.image('boss_sowaka_stand', 'assets/boss_sowaka_stand.png');
+    this.load.image('boss_sowaka_negative', 'assets/boss_sowaka_negative.png');
+    this.load.image('gameBackground_Boss2', 'assets/gameBackground_Boss2.jpg'); // ボス2専用背景
+
 
         // --- 音声読み込み ---
         console.log("Loading audio files (all as .mp3)...");
@@ -97,12 +104,15 @@ this.load.image('bossNegative', 'assets/bossNegative.png'); // ボス撃墜、�
         this.load.audio(AUDIO_KEYS.VOICE_SANKARA_DAMAGE, 'assets/voice_sankara_damage.mp3');
         this.load.audio(AUDIO_KEYS.VOICE_SANKARA_DEFEAT, 'assets/voice_sankara_defeat.mp3');
         this.load.audio(AUDIO_KEYS.VOICE_SANKARA_RANDOM_1, 'assets/voice_sankara_random_1.mp3');
+         this.load.audio(AUDIO_KEYS.VOICE_SANKARA_RANDOM_2, `assets/${AUDIO_KEYS.VOICE_SANKARA_RANDOM_2}.mp3`);
+
 
         // ★ ソワカ専用ボイス (新規ファイル) ★
         this.load.audio(AUDIO_KEYS.VOICE_SOWAKA_APPEAR, 'assets/voice_sowaka_appear.mp3');
         this.load.audio(AUDIO_KEYS.VOICE_SOWAKA_DAMAGE, 'assets/voice_sowaka_damage.mp3');
         this.load.audio(AUDIO_KEYS.VOICE_SOWAKA_DEFEAT, 'assets/voice_sowaka_defeat.mp3');
         this.load.audio(AUDIO_KEYS.VOICE_SOWAKA_RANDOM_1, 'assets/voice_sowaka_random_1.mp3');
+        this.load.audio(AUDIO_KEYS.VOICE_SOWAKA_RANDOM_2, `assets/${AUDIO_KEYS.VOICE_SOWAKA_RANDOM_2}.mp3`);
         // --- ▲▲▲ ボス戦用サウンド読み込み ▲▲▲ ---
         console.log("Finished loading audio files setup.");
     }

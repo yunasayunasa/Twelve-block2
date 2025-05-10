@@ -135,12 +135,15 @@ export const AUDIO_KEYS = {
     VOICE_SANKARA_DAMAGE: 'voice_sankara_damage',   // (要新規ファイル or 汎用)
     VOICE_SANKARA_DEFEAT: 'voice_sankara_defeat',   // (要新規ファイル or 汎用)
     VOICE_SANKARA_RANDOM_1: 'voice_sankara_random_1', // (要新規ファイル or 汎用)
+    VOICE_SANKARA_RANDOM_2: 'voice_sankara_random_2', // ★追加
+
 
     // --- ソワカ (Boss2後半) 専用ボイス ---
     VOICE_SOWAKA_APPEAR: 'voice_sowaka_appear',     // (要新規ファイル)
     VOICE_SOWAKA_DAMAGE: 'voice_sowaka_damage',     // (要新規ファイル or 汎用)
     VOICE_SOWAKA_DEFEAT: 'voice_sowaka_defeat',     // (要新規ファイル or 汎用)
     VOICE_SOWAKA_RANDOM_1: 'voice_sowaka_random_1',   // (要新規ファイル or 汎用)
+    VOICE_SOWAKA_RANDOM_2: 'voice_sowaka_random_2',   // ★追加
 
     // (他のボスも同様に専用ボイスキーを追加していく)
 };
