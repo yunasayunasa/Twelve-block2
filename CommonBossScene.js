@@ -1755,39 +1755,53 @@ if (this.isMakiraActive && this.balls && this.familiars && this.familiars.countA
         try {
             brick.setTexture(textureKey);
             brick.setScale(displayScale); // 1. 見た目のスケールを設定
-  // ★★★ スケール設定後の表示サイズと原点を確認 ★★★
-        console.log(`[SetupAttackBrick] Texture: ${textureKey}, DisplayScale: ${displayScale.toFixed(2)}`);
-        console.log(`  DisplaySize: ${brick.displayWidth.toFixed(1)}x${brick.displayHeight.toFixed(1)}, Origin: (${brick.originX}, ${brick.originY})`);
-        // ★★★------------------------------------------★★★
+            // ★★★ setOrigin(0.5, 0.5) を呼び、GameObjectの原点を中心にする ★★★
+            brick.setOrigin(0.5, 0.5);
+            // ★★★-----------------------------------------------------★★★
+
+            console.log(`[SetupAttackBrick] Texture: ${textureKey}, DisplayScale: ${displayScale.toFixed(2)}`);
+            console.log(`  DisplaySize: ${brick.displayWidth.toFixed(1)}x${brick.displayHeight.toFixed(1)}, Origin: (${brick.originX.toFixed(1)}, ${brick.originY.toFixed(1)})`);
+
             if (brick.body) {
-                // 2. ★★★ 物理ボディのサイズを設定 (原点が0,0なのでオフセットは基本的に0,0) ★★★
                 // 表示サイズ * 倍率 で当たり判定サイズを決定
                 const hitboxWidth = brick.displayWidth * hitboxScaleMultiplier;
                 const hitboxHeight = brick.displayHeight * hitboxScaleMultiplier;
 
                 if (hitboxWidth > 0 && hitboxHeight > 0) {
+                    // 1. ボディサイズを設定
                     brick.body.setSize(hitboxWidth, hitboxHeight);
-                    // 原点が (0,0) で、setSize がボディの左上をGameObjectの左上に合わせるので、
-                    // 通常、追加のオフセットは不要 (0,0 のまま)。
-                    // もし中心に合わせたい場合は、ここではなくGameObject自体のsetPositionで調整する。
-                    brick.body.setOffset(0, 0); // ★ オフセットを0,0に明示的に設定
 
-                    console.log(`[SetupAttackBrick] Set body size: ${hitboxWidth.toFixed(0)}x${hitboxHeight.toFixed(0)}, Multiplier: ${hitboxScaleMultiplier}, Offset: (0,0)`);
+                    // 2. ★★★ オフセットを再計算して設定 (原点が0.5, 0.5の場合) ★★★
+                    // 物理ボディの中心が見た目の中心 (原点) と一致するようにオフセットを設定
+                    // Arcade Physics の Body のアンカーは常に左上なので、
+                    // ボディの左上を、GameObjectの原点(中心)から (ボディ幅/2, ボディ高さ/2) だけ左上にずらす
+                    const offsetX = brick.body.halfWidth - (brick.displayWidth * brick.originX);
+                    const offsetY = brick.body.halfHeight - (brick.displayHeight * brick.originY);
+                    // 上記は setSize の後に halfWidth/halfHeight が更新されることを期待しているが、
+                    // より直接的には以下のように計算できる:
+                    // const offsetX = (brick.displayWidth - hitboxWidth) / 2; // これは原点が(0,0)の場合の考え方
+                    // 原点が(0.5,0.5)の時、表示の中心に当たり判定の中心を合わせるには、
+                    // 当たり判定の左上は、(表示幅/2 - 当たり判定幅/2) の位置に来る。
+                    // しかし、setOffsetはGameObjectの原点(今は中心)からの相対位置。
+                    // なので、オフセットは -(当たり判定幅/2), -(当たり判定高さ/2) となるはず。
+                    const finalOffsetX = -(hitboxWidth / 2);
+                    const finalOffsetY = -(hitboxHeight / 2);
+                    brick.body.setOffset(finalOffsetX, finalOffsetY);
+                    // ★★★-----------------------------------------------------★★★
+
+                    console.log(`[SetupAttackBrick] Set body size: ${hitboxWidth.toFixed(0)}x${hitboxHeight.toFixed(0)}, Multiplier: ${hitboxScaleMultiplier}, Calculated Offset: (${finalOffsetX.toFixed(1)}, ${finalOffsetY.toFixed(1)})`);
                 } else {
-                    // フォールバック: 表示サイズに合わせる (オフセット0,0)
-                    console.warn(`[SetupAttackBrick] Calculated hitbox size zero or negative. Setting body to display size.`);
-                    brick.body.setSize(brick.displayWidth, brick.displayHeight);
-                    brick.body.setOffset(0, 0);
+                    // フォールバック
+                    console.warn(`[SetupAttackBrick] Calculated hitbox size zero or negative. Updating body from GameObject.`);
+                    brick.body.updateFromGameObject(); // 見た目に合わせる
                 }
-                 // updateFromGameObject() は setSize/setOffset の後には不要なことが多い
-                 // brick.body.updateFromGameObject();
-
                  console.log(`[SetupAttackBrick] Final Body - Size: ${brick.body.width.toFixed(1)}x${brick.body.height.toFixed(1)}, Offset: ${brick.body.offset.x.toFixed(1)},${brick.body.offset.y.toFixed(1)}`);
             }
         } catch (e) {
             console.error("Error setting up attack brick appearance:", e, brick);
         }
     }
+
 
 
     /**
