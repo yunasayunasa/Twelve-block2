@@ -968,6 +968,23 @@ if (this.isMakiraActive && this.balls && this.familiars && this.familiars.countA
     loseLife() {
         if (this.isGameOver || this.bossDefeated) return; console.log(`Losing life. Lives remaining: ${this.lives - 1}`);
          this.deactivateAnila(); this.deactivateAnchira(true); this.deactivateSindara(null, true);
+           // ★★★ ビカラ陰（貫通）効果の解除処理を追加 ★★★
+        console.log("[LoseLife] Deactivating any active Bikara penetration effects.");
+        // 1. 存在する全ての Bikara タイマーをクリア
+        Object.values(this.bikaraTimers).forEach(timer => {
+            if (timer) timer.remove();
+        });
+        this.bikaraTimers = {}; // タイマー管理オブジェクトを空にする
+
+        // 2. 全てのボールから isBikaraPenetrating フラグを解除
+        this.balls?.getChildren().forEach(ball => {
+             if (ball?.active && ball.getData('isBikaraPenetrating')) {
+                 // setBallPowerUpState を使って解除するのが一貫性がある
+                 this.setBallPowerUpState(POWERUP_TYPES.BIKARA, false, ball);
+                 console.log(`[LoseLife] Bikara penetration flag removed from ball ${ball.name}`);
+             }
+        });
+        // ★★★------------------------------------★★★
         Object.values(this.powerUpTimers).forEach(timer => timer?.remove()); this.powerUpTimers = {};
         this.balls?.getChildren().forEach(ball => { if(ball?.active) this.resetBallState(ball); }); this.updateBallAndPaddleAppearance();
         this.lives--; this.events.emit('updateLives', this.lives); this.isBallLaunched = false; this.balls?.clear(true, true);
