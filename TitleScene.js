@@ -1,6 +1,6 @@
 // TitleScene.js (ボスラッシュ対応・テストボタン修正・完全版)
 import { AUDIO_KEYS, /* TOTAL_BOSSES */ } from './constants.js'; // TOTAL_BOSSESは任意
-
+import { INITIAL_PLAYER_LIVES } from './constants.js'; // インポートが必要
 export default class TitleScene extends Phaser.Scene {
      constructor() {
         super('TitleScene');
