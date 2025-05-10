@@ -1498,7 +1498,26 @@ if (this.isMakiraActive && this.balls && this.familiars && this.familiars.countA
         const copiedType = Phaser.Utils.Array.GetRandom(MAKORA_COPYABLE_POWERS);
         this.time.delayedCall(MAKORA_COPY_DELAY, () => { this.setBallPowerUpState(POWERUP_TYPES.MAKORA, false); const activateMethodName = `activate${copiedType.charAt(0).toUpperCase() + copiedType.slice(1)}`; if (typeof this[activateMethodName] === 'function') this[activateMethodName](); else { console.warn(`[Makora] No activate function ${activateMethodName} for ${copiedType}`); this.updateBallAndPaddleAppearance(); } }, [], this);
     }
-    playPowerUpVoice(type) { let vK = AUDIO_KEYS[`VOICE_${type.toUpperCase()}`]; if (type === POWERUP_TYPES.VAJRA) vK = AUDIO_KEYS.VOICE_VAJRA_GET; if (type === POWERUP_TYPES.BIKARA) vK = AUDIO_KEYS.VOICE_BIKARA_YIN; if (vK && (this.time.now - (this.lastPlayedVoiceTime[vK] || 0) > this.voiceThrottleTime)) try { this.sound.play(vK); this.lastPlayedVoiceTime[vK] = this.time.now; } catch (e) { console.error(`Error playing voice ${vK}:`, e); } }
+     playPowerUpVoice(type) {
+        let voiceKey = AUDIO_KEYS[`VOICE_${type.toUpperCase()}`];
+        // 特殊なキー名へのマッピング（例）
+        if (type === POWERUP_TYPES.VAJRA) voiceKey = AUDIO_KEYS.VOICE_VAJRA_GET;
+        if (type === POWERUP_TYPES.BIKARA) voiceKey = AUDIO_KEYS.VOICE_BIKARA_YIN; // デフォルトは陰
+        if (type === POWERUP_TYPES.BIKARA_YANG) voiceKey = AUDIO_KEYS.VOICE_BIKARA_YANG;
+        if (type === POWERUP_TYPES.BADRA) voiceKey = AUDIO_KEYS.VOICE_BADRA;
+
+
+        const now = this.time.now;
+        if (voiceKey && typeof voiceKey === 'string' && (now - (this.lastPlayedVoiceTime[voiceKey] || 0) > this.voiceThrottleTime)) {
+            try {
+                this.sound.play(voiceKey);
+                this.lastPlayedVoiceTime[voiceKey] = now;
+                console.log(`[PowerUpVoice] Playing: ${voiceKey}`);
+            } catch (e) { console.error(`Error playing power-up voice ${voiceKey}:`, e); }
+        } else if (!voiceKey) {
+            console.log(`[PowerUpVoice] No voice key defined for power-up type: ${type}`);
+        }
+    }
     // --- ▲ パワーアップ関連メソッド ▲ ---
 
      // launchBall の再確認
@@ -2035,8 +2054,35 @@ if (this.isMakiraActive && this.balls && this.familiars && this.familiars.countA
     spawnGenericAttackBrick(){if(!this.attackBricks||!this.boss?.active||this.isGameOver||this.bossDefeated){this.scheduleNextGenericAttackBrick();return;}const sX=Phaser.Math.FloatBetween(0,1)<0.6?Phaser.Math.Between(this.sideMargin,this.gameWidth-this.sideMargin):this.boss.x;const attackBrick=this.attackBricks.create(sX,-30,'attackBrick');if(attackBrick){const bS=this.gameWidth*(DEFAULT_ATTACK_BRICK_SCALE_RATIO||0.08)/attackBrick.width;attackBrick.setScale(bS).setVelocityY(DEFAULT_ATTACK_BRICK_VELOCITY_Y||ATTACK_BRICK_VELOCITY_Y);if(attackBrick.body)attackBrick.body.setAllowGravity(false).setCollideWorldBounds(false);}this.scheduleNextGenericAttackBrick();}
     updateAttackBricks(){this.attackBricks?.getChildren().forEach(b=>{if(b.active&&b.y>this.gameHeight+b.displayHeight)b.destroy();});}
     setupAfterImageEmitter(){if(this.bossAfterImageEmitter)this.bossAfterImageEmitter.destroy();if(!this.boss)return;this.bossAfterImageEmitter=this.add.particles(0,0,'whitePixel',{lifespan:{min:300,max:700},speed:0,scale:{start:this.boss.scale*0.7,end:0.1},alpha:{start:0.6,end:0},quantity:1,frequency:50,blendMode:'ADD',tint:[0xaaaaff,0xaaaaff,0xddddff],emitting:false});this.bossAfterImageEmitter.setDepth(this.boss.depth-1);}
-    startRandomVoiceTimer(){if(this.randomVoiceTimer)this.randomVoiceTimer.remove();if(!this.bossVoiceKeys||this.bossVoiceKeys.length===0)return;const pRV=()=>{if(this.bossDefeated||this.isGameOver||!this.boss?.active){this.randomVoiceTimer?.remove();return;}this.sound.play(Phaser.Utils.Array.GetRandom(this.bossVoiceKeys));this.randomVoiceTimer=this.time.delayedCall(Phaser.Math.Between(BOSS_RANDOM_VOICE_MIN_DELAY,BOSS_RANDOM_VOICE_MAX_DELAY),pRV,[],this);};this.randomVoiceTimer=this.time.delayedCall(Phaser.Math.Between(BOSS_RANDOM_VOICE_MIN_DELAY/2,BOSS_RANDOM_VOICE_MAX_DELAY/2),pRV,[],this);}
-   // CommonBossScene.js に追加または修正
+     startRandomVoiceTimer() {
+        if (this.randomVoiceTimer) this.randomVoiceTimer.remove();
+        // ★ this.bossVoiceKeys は this.bossData.voiceRandom から設定される ★
+        //    (initializeBossData の最後で this.bossVoiceKeys に代入済みのはず)
+        if (!this.bossVoiceKeys || this.bossVoiceKeys.length === 0) {
+            console.warn(`[Random Voice] No random voice keys array (this.bossVoiceKeys) defined for ${this.scene.key}. Check this.bossData.voiceRandom in initializeBossData.`);
+            return;
+        }
+        const playRandomVoice = () => {
+            if (this.bossDefeated || this.isGameOver || !this.boss?.active) {
+                this.randomVoiceTimer?.remove(); return;
+            }
+            const randomKey = Phaser.Utils.Array.GetRandom(this.bossVoiceKeys);
+            if (randomKey && typeof randomKey === 'string') { // キーが有効かチェック
+                try {
+                    this.sound.play(randomKey);
+                    console.log(`[Random Voice] Playing: ${randomKey}`);
+                } catch (e) { console.error(`Error playing random voice ${randomKey}:`, e); }
+            } else {
+                 console.warn("[Random Voice] Invalid or no key selected from bossVoiceKeys.");
+            }
+            const nextDelay = Phaser.Math.Between(BOSS_RANDOM_VOICE_MIN_DELAY, BOSS_RANDOM_VOICE_MAX_DELAY);
+            this.randomVoiceTimer = this.time.delayedCall(nextDelay, playRandomVoice, [], this);
+        };
+        const firstDelay = Phaser.Math.Between(BOSS_RANDOM_VOICE_MIN_DELAY / 2, BOSS_RANDOM_VOICE_MAX_DELAY / 2);
+        this.randomVoiceTimer = this.time.delayedCall(firstDelay, playRandomVoice, [], this);
+        console.log(`[Random Voice] Timer started for keys: [${this.bossVoiceKeys.join(', ')}]`);
+    }
+ // CommonBossScene.js に追加または修正
 calculateDynamicFontSize(baseSizeMax) {
     const divisor = (UI_FONT_SIZE_SCALE_DIVISOR || 18); // constants.jsの値
     const minSize = (UI_FONT_SIZE_MIN || 12); // constants.jsの値
