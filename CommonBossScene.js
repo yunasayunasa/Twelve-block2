@@ -2084,7 +2084,7 @@ if (this.isMakiraActive && this.balls && this.familiars && this.familiars.countA
         if (this.scene.isActive('UIScene')) {
             // 'gameResizeWithMargin' イベントを発行し、マージン情報を渡す
             this.events.emit('gameResizeWithMargin', { margin: this.dynamicBottomMargin });
-            console.log("Emitted gameResizeWithMargin event for UIScene.");
+           // console.log("Emitted gameResizeWithMargin event for UIScene.");
         }
     }
     
