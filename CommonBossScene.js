@@ -716,7 +716,7 @@ export default class CommonBossScene extends Phaser.Scene {
         if (gameDisplayHeight > availableHeight) {
              // ゲームの表示高さが表示領域より大きい場合、差分をマージンとする
              this.dynamicBottomMargin = gameDisplayHeight - availableHeight;
-             console.log(`[Dynamic Margin] Calculated bottom margin: ${this.dynamicBottomMargin.toFixed(0)}px`);
+           //  console.log(`[Dynamic Margin] Calculated bottom margin: ${this.dynamicBottomMargin.toFixed(0)}px`);
         } else {
              this.dynamicBottomMargin = 0; // はみ出てなければマージン不要
         }
@@ -734,7 +734,7 @@ export default class CommonBossScene extends Phaser.Scene {
         this.topMargin = Math.max(UI_TOP_MARGIN_MIN, this.gameHeight * UI_TOP_MARGIN_RATIO);
         this.sideMargin = Math.max(UI_SIDE_MARGIN_MIN, this.gameWidth * UI_SIDE_MARGIN_RATIO);
         // デバッグ用に topMargin の値を確認
-        console.log(`[Calculate Margins] Top: ${this.topMargin.toFixed(1)}, Side: ${this.sideMargin.toFixed(1)}`);
+      //  console.log(`[Calculate Margins] Top: ${this.topMargin.toFixed(1)}, Side: ${this.sideMargin.toFixed(1)}`);
     }
     setupBackground() {
         this.add.image(this.gameWidth / 2, this.gameHeight / 2, this.bossData.backgroundKey || 'gameBackground3')
@@ -1952,7 +1952,7 @@ if (this.isMakiraActive && this.balls && this.familiars && this.familiars.countA
         const targetY = this.scale.height * (1 - PADDLE_Y_OFFSET_RATIO);
         this.paddle.y = Phaser.Math.Clamp(targetY, maxY, minY);
         if (this.paddle.body) this.paddle.body.updateFromGameObject();
-         console.log(`[Clamp Paddle Y] Clamped to ${this.paddle.y.toFixed(0)}, Bottom Margin: ${this.dynamicBottomMargin.toFixed(0)}`);
+        //log console.log(`[Clamp Paddle Y] Clamped to ${this.paddle.y.toFixed(0)}, Bottom Margin: ${this.dynamicBottomMargin.toFixed(0)}`);
     }
 
         // CommonBossScene.js のクラス内に以下のメソッドを追加してください
@@ -1967,7 +1967,7 @@ if (this.isMakiraActive && this.balls && this.familiars && this.familiars.countA
             gameSize = this.scale; // scaleオブジェクト自体がサイズ情報を持つことが多い
         }
 
-        console.log(`${this.scene.key} resized to ${gameSize.width}x${gameSize.height}`);
+     //   console.log(`${this.scene.key} resized to ${gameSize.width}x${gameSize.height}`);
 
         // 内部の幅・高さを更新
         this.gameWidth = gameSize.width;
@@ -2011,7 +2011,7 @@ if (this.isMakiraActive && this.balls && this.familiars && this.familiars.countA
                         // ★ 物理ボディの円サイズも更新 ★
                         ball.setCircle(newHitboxRadius);
                         // ★★★ 設定直後のボディ半径をログ出力 ★★★
-    console.log(`[Resize Ball ${ball.name}] Set Circle Radius: ${newHitboxRadius.toFixed(1)}, Actual Body Radius: ${ball.body.radius.toFixed(1)}`);
+   // console.log(`[Resize Ball ${ball.name}] Set Circle Radius: ${newHitboxRadius.toFixed(1)}, Actual Body Radius: ${ball.body.radius.toFixed(1)}`);
     // ★★★--------------------------------★★★
                         // setCircle後はupdateFromGameObjectが必要な場合があるが、
                         // setCircleが内部で呼ぶことも多い。必要ならコメント解除。
@@ -2019,7 +2019,7 @@ if (this.isMakiraActive && this.balls && this.familiars && this.familiars.countA
                         // console.log(`[Resize Ball] Updated Visual Size: ${newVisualDiameter.toFixed(1)}, Hitbox Radius: ${newHitboxRadius.toFixed(1)}`);
                     }
                 } catch (e) {
-                    console.error("Error updating ball size/body on resize:", e);
+                   // console.error("Error updating ball size/body on resize:", e);
                 }
             }
         });
@@ -2033,17 +2033,37 @@ if (this.isMakiraActive && this.balls && this.familiars && this.familiars.countA
                  } catch (e) { console.error("Error updating powerup size on resize:", e); }
             }
         });
-
-        // 5. 攻撃ブロック (表示サイズを更新、必要なら)
+  // 5. 攻撃ブロック (表示サイズを更新、必要なら)
         this.attackBricks?.getChildren().forEach(brick => {
-            if (brick.active) {
+            // ★★★ brickオブジェクト、texture、widthの存在と有効性をチェック ★★★
+            if (brick && brick.active && brick.texture && brick.texture.key !== '__MISSING' && typeof brick.width === 'number' && brick.width > 0) {
                 try {
-                    // スケールは元のテクスチャサイズに依存するため、単純なsetDisplaySizeより
-                    // 再度スケール計算をする方が良い場合がある
-                    const desiredScale = (brick.width > 0) ? (this.gameWidth * (this.bossData?.attackBrickScaleRatio || DEFAULT_ATTACK_BRICK_SCALE_RATIO)) / brick.width : 1;
+                    // bossData と attackBrickScaleRatio の存在確認とデフォルト値
+                    const scaleRatioToUse = (this.bossData && typeof this.bossData.attackBrickScaleRatio === 'number')
+                                          ? this.bossData.attackBrickScaleRatio
+                                          : (typeof DEFAULT_ATTACK_BRICK_SCALE_RATIO === 'number' ? DEFAULT_ATTACK_BRICK_SCALE_RATIO : 0.08); // 更にフォールバック
+
+                    // desiredScale の計算
+                    let desiredScale = (this.gameWidth * scaleRatioToUse) / brick.width;
+
+                    // 計算結果が有効な数値か確認
+                    if (!Number.isFinite(desiredScale) || desiredScale <= 0) {
+                     //   console.warn(`[Resize AttackBrick] Invalid calculated scale (${desiredScale}) for brick. Using default scale 1.`);
+                        desiredScale = 1; // 不正な場合はデフォルトスケール
+                    }
+
                     brick.setScale(desiredScale);
-                    if (brick.body) brick.body.updateFromGameObject();
-                } catch (e) { console.error("Error updating attack brick size on resize:", e); }
+                    if (brick.body) {
+                        brick.body.updateFromGameObject();
+                    }
+                    // console.log(`[Resize AttackBrick] Brick ${brick.texture?.key} resized. Scale: ${desiredScale.toFixed(2)}`); // 成功ログは必要なら
+                } catch (e) {
+                    // エラーログは既にここでキャッチされているので、内容は同じ
+                  //  console.error(`Error updating attack brick (${brick.texture?.key}) size on resize:`, e, "Brick details:", brick);
+                }
+            } else if (brick && brick.active) {
+                // width が不正だった場合のログ
+             //   console.warn(`[Resize AttackBrick] Skipping size update for brick due to invalid width or texture. Width: ${brick.width}, Texture: ${brick.texture?.key}`);
             }
         });
 
