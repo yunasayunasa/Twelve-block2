@@ -398,6 +398,7 @@ export default class CommonBossScene extends Phaser.Scene {
         this.playBossBgm();
         // 登場ボイスもここで再生
         try { this.sound.play(this.bossData.voiceAppear || AUDIO_KEYS.VOICE_BOSS_APPEAR); } catch(e) { console.error("Error playing appear voice:", e);}
+  try { this.sound.play(AUDIO_KEYS.SE_IMPACT_FLASH); } catch(e) { console.error("Impact sound error:", e); } // 衝撃音
 
         // --- 左右の分身を作成 ---
         const startXOffset = this.gameWidth * 0.6; // 画面外から開始するためのオフセット量
@@ -471,8 +472,7 @@ export default class CommonBossScene extends Phaser.Scene {
 
         // 1. フラッシュと効果音
         try { this.cameras.main.flash(SHRINK_FLASH_DURATION, 255, 255, 255); } catch(e) { console.error("Flash error:", e); } // 既存の定数を流用
-        try { this.sound.play(AUDIO_KEYS.SE_IMPACT_FLASH); } catch(e) { console.error("Impact sound error:", e); } // 衝撃音
-
+      
         // 2. 演出用クローンを破棄
         fusionGroup.destroy(true); // 子要素も一緒に破棄
         console.log("[Intro Fusion] Clones destroyed.");
