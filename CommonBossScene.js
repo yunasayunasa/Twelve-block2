@@ -2116,14 +2116,14 @@ if (this.isMakiraActive && this.balls && this.familiars && this.familiars.countA
         try {
             // 1. 見た目のスケールを設定
             bossInstance.setScale(desiredScale);
-            console.log(`[updateBossSize] Set scale to ${desiredScale.toFixed(3)}`);
-            console.log(`[updateBossSize] AFTER setScale - Display Size: ${bossInstance.displayWidth?.toFixed(1)}x${bossInstance.displayHeight?.toFixed(1)}`);
+           // console.log(`[updateBossSize] Set scale to ${desiredScale.toFixed(3)}`);
+          //  console.log(`[updateBossSize] AFTER setScale - Display Size: ${bossInstance.displayWidth?.toFixed(1)}x${bossInstance.displayHeight?.toFixed(1)}`);
 
             // 2. 物理ボディを GameObject の見た目に合わせる
             if (bossInstance.body) {
                  try {
                      bossInstance.body.updateFromGameObject();
-                     console.log(`[updateBossSize] Updated body from GameObject. Initial Size: ${bossInstance.body.width.toFixed(0)}x${bossInstance.body.height.toFixed(0)}`);
+                    // console.log(`[updateBossSize] Updated body from GameObject. Initial Size: ${bossInstance.body.width.toFixed(0)}x${bossInstance.body.height.toFixed(0)}`);
 
                      // 3. ★★★ ボディのスケールを少しだけ縮小 ★★★
                      const hitboxScaleMultiplier = 0.5; // ← 1.0 より少し小さく (90%にする例)
@@ -2134,11 +2134,11 @@ if (this.isMakiraActive && this.balls && this.familiars && this.familiars.countA
                      // 必要なら: bossInstance.body.setSize(bossInstance.displayWidth * hitboxScaleMultiplier, bossInstance.displayHeight * hitboxScaleMultiplier);
                      // オフセットは自動調整されるはずなので setOffset は不要
 
-                     console.log(`[updateBossSize] Applied body scale multiplier: ${hitboxScaleMultiplier}. Final Body Size approx: ${(bossInstance.body.width * hitboxScaleMultiplier).toFixed(0)}x${(bossInstance.body.height * hitboxScaleMultiplier).toFixed(0)}`);
+                    // console.log(`[updateBossSize] Applied body scale multiplier: ${hitboxScaleMultiplier}. Final Body Size approx: ${(bossInstance.body.width * hitboxScaleMultiplier).toFixed(0)}x${(bossInstance.body.height * hitboxScaleMultiplier).toFixed(0)}`);
                  } catch (e) { console.error("!!! ERROR updating body from GameObject or scaling body:", e); }
 
             } else {
-                console.warn("[updateBossSize] Boss body does not exist.");
+               // console.warn("[updateBossSize] Boss body does not exist.");
             }
             // ★★★------------------------------------------★★★
 
