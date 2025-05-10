@@ -1775,8 +1775,8 @@ if (this.isMakiraActive && this.balls && this.familiars && this.familiars.countA
                     // 物理ボディの中心が見た目の中心 (原点) と一致するようにオフセットを設定
                     // Arcade Physics の Body のアンカーは常に左上なので、
                     // ボディの左上を、GameObjectの原点(中心)から (ボディ幅/2, ボディ高さ/2) だけ左上にずらす
-                    const offsetX = brick.body.halfWidth - (brick.displayWidth * brick.originX);
-                    const offsetY = brick.body.halfHeight - (brick.displayHeight * brick.originY);
+                   // const offsetX = brick.body.halfWidth - (brick.displayWidth * brick.originX);
+                   // const offsetY = brick.body.halfHeight - (brick.displayHeight * brick.originY);
                     // 上記は setSize の後に halfWidth/halfHeight が更新されることを期待しているが、
                     // より直接的には以下のように計算できる:
                     // const offsetX = (brick.displayWidth - hitboxWidth) / 2; // これは原点が(0,0)の場合の考え方
