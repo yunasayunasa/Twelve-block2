@@ -2027,6 +2027,8 @@ calculateDynamicFontSize(baseSizeMax) {
     return finalSize;
 } 
    // handlePointerMove メソッドを修正
+   // CommonBossScene.js の handlePointerMove メソッドを修正
+
     handlePointerMove(pointer) {
         if (!this.playerControlEnabled || this.isGameOver || !this.paddle?.active) return;
 
@@ -2035,43 +2037,22 @@ calculateDynamicFontSize(baseSizeMax) {
         const clampedX = Phaser.Math.Clamp(targetX, halfWidth + this.sideMargin/2, this.gameWidth - halfWidth - this.sideMargin/2);
         this.paddle.x = clampedX;
 
-        // ★★★ isBallLaunched が false の時のボール追従処理を見直す ★★★
-        if (!this.isBallLaunched && this.balls && this.balls.countActive(true) > 0) {
-            // 追従させるボールを1つに限定するか、バドラの仕様に合わせて
-            // 「プレイヤーが発射操作をするまではどのボールも動かない」とするか。
-            // ここでは、バドラの挙動と合わせるため、
-            // isBallLaunched が false の間は「全てのボールがパドルX座標に追従する」
-            // という以前の挙動のままにするか、あるいは
-            // 「どのボールも追従しない」とするかを選択できます。
-            // バドラで全ボールがパドル上に集まるので、ここでは追従させない方が自然かもしれません。
-            // その場合、この if ブロック内のボール位置設定は不要になります。
-            //
-            // 一旦、以前の「最初のボールだけ追従」という挙動を残すなら以下ですが、
-            // バドラの効果とは少し矛盾します。
-            // const firstBall = this.balls.getFirstAlive();
-            // if (firstBall) {
-            //     firstBall.x = clampedX;
-            // }
-            //
-            // 仕様変更：「バドラ後は発射まで全ボール静止」とするなら、
-            // この部分は削除するか、特定の条件（例：ボールが1球の時だけ）で追従させます。
-            // 今回は、バドラで全ボールがパドル上に集まるので、
-            // isBallLaunched = false の間は、発射されるまでどのボールもX追従しない方が自然かもしれません。
-            // その場合、この下のボールX座標設定は削除します。
-            //
-            // ★★★推奨：バドラの挙動と合わせるため、一度全てのボールを静止させるのであれば、
-            //          ここで特定のボールだけを動かすのはやめ、launchBallで全ボールを
-            //          発射するのを待つ。つまり、以下のループは削除する。
-            /*
-            this.balls.getChildren().forEach(ball => {
-                if (ball.active && !ball.body.velocity.y) { // Y速度がない（静止している）ボールのみX追従
-                    ball.x = clampedX;
+        // ★★★ isBallLaunched が false の時、アクティブなボールが1つだけなら追従させる ★★★
+        if (!this.isBallLaunched && this.balls) {
+            const activeBalls = this.balls.getMatching('active', true);
+            if (activeBalls.length === 1) { // アクティブなボールが1つの場合のみ
+                const ballToFollow = activeBalls[0]; // その唯一のボール
+                if (ballToFollow && ballToFollow.body) { // 念のためボディも確認
+                    ballToFollow.x = clampedX;
+                    // Y座標は変更しない（パドル上に固定されているはず）
                 }
-            });
-            */
-            // ★★★ もしバドラで全ボールがパドル上に静止するなら、この追従処理は不要 ★★★
+            } else if (activeBalls.length > 1) {
+                // 複数ボールがある場合は、バドラ効果後などを想定し、追従させない
+                // (全てのボールがパドル上で静止し、次のタップで一斉発射を待つ)
+                console.log("[PointerMove] Multiple balls present and not launched, no X follow.");
+            }
         }
-    } // handlePointerDown メソッドを修正してポップアップ対応
+    }// handlePointerDown メソッドを修正してポップアップ対応
     handlePointerDown() {
         if (this.isGameOver && this.gameOverText?.visible) {
             this.returnToTitle();
