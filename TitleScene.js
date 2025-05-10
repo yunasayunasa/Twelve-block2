@@ -1,11 +1,11 @@
 // TitleScene.js (ボスラッシュ対応・テストボタン修正・完全版)
-import { AUDIO_KEYS, /* TOTAL_BOSSES */ } from './constants.js'; // TOTAL_BOSSESは任意
+import { AUDIO_KEYS, POWERUP_TYPES } from './constants.js'; // TOTAL_BOSSESは任意
 import { INITIAL_PLAYER_LIVES } from './constants.js'; // インポートが必要
 export default class TitleScene extends Phaser.Scene {
      constructor() {
         super('TitleScene');
         // デフォルトのハチャメチャ度設定
-        this.selectedCount = 4; // 抽選候補数 (0-11) - 必要なら調整
+        this.selectedCount = 6; // 抽選候補数 (0-11) - 必要なら調整
         this.selectedRate = 50; // ドロップ率 (0-100%)
         this.domElements = []; // DOM要素管理用
         this.currentBgm = null; // BGM管理用
@@ -61,8 +61,9 @@ export default class TitleScene extends Phaser.Scene {
         countSlider.type = 'range';
         countSlider.id = 'count-slider';
         countSlider.min = '0';
-        countSlider.max = '11'; // 最大値確認 (ALL_POSSIBLE_POWERUPS基準)
-        countSlider.value = this.selectedCount.toString();
+       const totalPowerUps = Object.keys(POWERUP_TYPES).length;
+countSlider.max = totalPowerUps.toString();
+console.log(`[TitleScene] Item抽選数スライダーの最大値を ${totalPowerUps} に設定しました。`); countSlider.value = this.selectedCount.toString();
         countSlider.step = '1';
         countSlider.style.width = 'calc(100% - 190px)'; // 要調整
         countSlider.style.verticalAlign = 'middle';
