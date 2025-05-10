@@ -878,10 +878,9 @@ if (this.isMakiraActive && this.balls && this.familiars && this.familiars.countA
         if (this.bossDefeated) return;
         console.log("[Defeat] Boss defeated! Starting defeat sequence.");
         this.bossDefeated = true;
-        this.playerControlEnabled = false;
-        this.randomVoiceTimer?.remove();
+        this.playerControlEnabled = false; // ★ プレイヤー操作をまず無効化
 
-        // ★ ボス固有の撃破ボイスを再生 (キーが設定されていれば) ★
+        // 1. ボス固有の撃破ボイスを再生 (これが一番最初に聞こえてほしい)
         if (this.bossData.voiceDefeat && typeof this.bossData.voiceDefeat === 'string') {
             try {
                 this.sound.play(this.bossData.voiceDefeat);
@@ -889,26 +888,82 @@ if (this.isMakiraActive && this.balls && this.familiars && this.familiars.countA
             } catch (e) { console.error(`Error playing boss defeat voice (${this.bossData.voiceDefeat}):`, e); }
         } else {
              console.log("[Defeat] No specific 'voiceDefeat' key for this boss.");
-        } 
-         try { this.sound.play(AUDIO_KEYS.SE_DEFEAT_FLASH); } catch(e) { /* ... */ } // フラッシュSE
-        if (bossObject?.active) try { bossObject.setTexture(this.bossData.negativeKey || 'bossNegative'); } catch (e) { console.error("Error setting negative texture:", e); }
-       // 3回フラッシュ
+        }
+
+        // 2. ボイス以外の戦闘に関連する音を止める
+        //    - BGMは後で止めるか、ポップアップ表示時に止める
+        //    - ランダムボイスタイマーは確実に停止
+        this.randomVoiceTimer?.remove();
+        this.randomVoiceTimer = null; // 参照もクリア
+        console.log("[Defeat] Random voice timer stopped.");
+        //    - 他の持続的なSEがあればここで個別に stop() する
+
+        // 3. ゲームオブジェクトの動きを止める
+        this.bossMoveTween?.stop(); // ボスの動きのTweenを停止
+        this.bossMoveTween = null;
+        console.log("[Defeat] Boss movement tween stopped.");
+
+        this.attackBrickTimer?.remove(); // 攻撃ブロック生成タイマーを停止
+        this.attackBrickTimer = null;
+        console.log("[Defeat] Attack brick timer stopped.");
+
+        this.balls?.children.each(ball => { // 全てのボールの動きを止める
+            if (ball.active && ball.body) {
+                ball.setVelocity(0, 0);
+                ball.body.stop(); // 念のため
+            }
+        });
+        console.log("[Defeat] All active balls stopped.");
+
+        // マキラがアクティブなら解除 (子機やビームタイマーも停止される)
+        if (this.isMakiraActive) {
+            this.deactivateMakira();
+            console.log("[Defeat] Deactivated Makira effect.");
+        }
+        // 他の持続系パワーアップもここで解除した方が良い場合がある (loseLifeと共通化も検討)
+        // this.deactivateAnila();
+        // this.deactivateAnchira(true);
+        // this.deactivateSindara(null, true);
+        // Object.values(this.bikaraTimers).forEach(timer => timer?.remove());
+        // this.bikaraTimers = {};
+        // Object.values(this.powerUpTimers).forEach(timer => timer?.remove());
+        // this.powerUpTimers = {};
+
+
+        // 4. 物理ボディの無効化 (ボールや他のものと衝突しなくなる)
+        if (bossObject?.body) {
+            bossObject.disableBody(false, false); // GameObjectは表示されたまま
+            console.log("[Defeat] Boss physics body disabled.");
+        }
+
+        // 5. 撃破演出SE (ボイスと多少重なっても良いインパクト音など)
+        try { this.sound.play(AUDIO_KEYS.SE_DEFEAT_FLASH); } catch(e) { /* ... */ }
+
+        // 6. 見た目の変更 (ネガ反転など)
+        if (bossObject?.active) {
+            try {
+                bossObject.setTexture(this.bossData.negativeKey || 'bossNegative');
+                console.log("[Defeat] Boss texture set to negative.");
+            } catch (e) { console.error("Error setting negative texture:", e); }
+        }
+
+        // 7. 画面フラッシュ演出と、その完了後にシェイク＆フェードを開始
         for (let i = 0; i < DEFEAT_FLASH_COUNT; i++) {
             this.time.delayedCall(i * DEFEAT_FLASH_INTERVAL, () => {
-                if (!this.scene.isActive()) return;
+                if (!this.scene.isActive() || !this.bossDefeated) return; // すでに次の処理に進んでいないか確認
                 this.cameras.main.flash(DEFEAT_FLASH_DURATION, 255, 255, 255);
                 if (i === DEFEAT_FLASH_COUNT - 1) { // 最後のフラッシュ後
-                    if (bossObject?.active) {
-                        // ★ シェイク＆フェードの完了時にポップアップ表示を呼ぶように変更 ★
-                        this.startBossShakeAndFade(bossObject, true); // 第2引数でポップアップ表示を指示
+                    if (bossObject?.active) { // ボスオブジェクトがまだ存在すれば
+                        this.startBossShakeAndFade(bossObject, true); // ポップアップ表示を指示
                     } else {
-                        // ボスが既にいない場合は直接ポップアップ表示
-                        this.showStageClearPopup();
+                        console.warn("[Defeat] Boss object became inactive during flash sequence. Showing popup directly.");
+                        this.showStageClearPopup(); // ボスがいないなら直接ポップアップ
                     }
                 }
             }, [], this);
         }
     }
+
    // startBossShakeAndFade メソッドに完了後処理のフラグを追加
     startBossShakeAndFade(bossObject, showPopupAfter = false) { // ★ 引数追加
         if (!bossObject || !bossObject.active) {
@@ -932,16 +987,19 @@ if (this.isMakiraActive && this.balls && this.familiars && this.familiars.countA
         });
     }
      // ★★★ 新しいメソッド：ステージクリアポップアップ表示 ★★★
-    showStageClearPopup() {
+  showStageClearPopup() {
         console.log("[StageClear] Showing Stage Clear Popup for Boss:", this.currentBossIndex);
-        this.canProceedToNextStage = false; // まだ進めない
+        this.canProceedToNextStage = false;
 
-   // ★★★ ボスのインデックスに関わらず、ここでステージクリアSEを再生 ★★★
+        // ★★★ BGMをここで停止 ★★★
+        this.stopBgm();
+        console.log("[StageClear] BGM stopped.");
+        // ★★★------------------★★★
+
         try {
-            this.sound.play(AUDIO_KEYS.SE_STAGE_CLEAR, { volume: 0.8 }); // 音量調整は任意
+            this.sound.play(AUDIO_KEYS.SE_STAGE_CLEAR, { volume: 0.8 });
             console.log(`[StageClear] Playing SE_STAGE_CLEAR for Boss ${this.currentBossIndex}.`);
         } catch(e) { console.error("Error playing SE_STAGE_CLEAR in popup:", e); }
-        // ★★★------------------------------------------------------★★★
 
 
         // 既存のポップアップがあれば破棄
