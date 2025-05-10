@@ -26,7 +26,7 @@ import {
 
     // --- ゲームシステム (ボスラッシュ) ---
     TOTAL_BOSSES, BAISRAVA_DROP_RATE,
-    VAJRA_GAUGE_MAX, VAJRA_GAUGE_INCREMENT,
+    VAJRA_GAUGE_MAX, VAJRA_GAUGE_INCREMENT,  DEFAULT_BOSS_MAX_HEALTH,
     INITIAL_PLAYER_LIVES, MAX_PLAYER_LIVES, // ★ 追加
 
     // --- パワーアップ ---
@@ -161,6 +161,9 @@ export default class CommonBossScene extends Phaser.Scene {
 
         this.currentBossIndex = data?.currentBossIndex ?? 1;
         this.totalBosses = TOTAL_BOSSES;
+        this.initializeBossData(); // ★ ボス固有データ初期化を呼ぶ
+        // initializeBossData の中で this.bossVoiceKeys = this.bossData.voiceRandom; が実行される想定
+        console.log(`[Init - ${this.scene.key}] Boss voice keys for random:`, this.bossVoiceKeys);
 
         Object.values(this.powerUpTimers).forEach(timer => timer?.remove());
         this.powerUpTimers = {};
@@ -400,10 +403,21 @@ export default class CommonBossScene extends Phaser.Scene {
 
         // ボス戦BGM再生開始
         this.playBossBgm();
-        // 登場ボイスもここで再生
-        try { this.sound.play(this.bossData.voiceAppear || AUDIO_KEYS.VOICE_BOSS_APPEAR); } catch(e) { console.error("Error playing appear voice:", e);}
-  try { this.sound.play(AUDIO_KEYS.SE_IMPACT_FLASH); } catch(e) { console.error("Impact sound error:", e); } // 衝撃音
+         // ★ ボス固有の登場ボイスを再生 (キーが設定されていれば) ★
+        if (this.bossData.voiceAppear && typeof this.bossData.voiceAppear === 'string') {
+            try {
+                this.sound.play(this.bossData.voiceAppear);
+                console.log(`[Intro Fusion] Playing boss appear voice: ${this.bossData.voiceAppear}`);
+            } catch(e) { console.error(`Error playing boss appear voice (${this.bossData.voiceAppear}):`, e);}
+        } else {
+            console.log("[Intro Fusion] No specific 'voiceAppear' key set in this.bossData for this boss.");
+        }
 
+        // ★ インパクトSEは共通のものを使う (新しいキーに変更) ★
+        try {
+            this.sound.play(AUDIO_KEYS.SE_FLASH_IMPACT_COMMON); // 汎用インパクトSE
+            console.log("[Intro Fusion] Common impact SE played.");
+        } catch(e) { console.error("Error playing common impact SE:", e); }
         // --- 左右の分身を作成 ---
         const startXOffset = this.gameWidth * 0.6; // 画面外から開始するためのオフセット量
         const startY = this.boss.getData('targetY'); // 最終的なボスのY座標を使う
@@ -552,24 +566,25 @@ export default class CommonBossScene extends Phaser.Scene {
     }
 
 
-    // --- ▼▼▼ プレースホルダーメソッド (継承先で実装) ▼▼▼ ---
+       // このメソッドは各ボスシーンでオーバーライドされ、具体的な値が設定される
     initializeBossData() {
-        console.warn(`CommonBossScene: initializeBossData() not implemented in ${this.scene.key}`);
+        console.warn(`CommonBossScene: initializeBossData() MUST BE IMPLEMENTED in ${this.scene.key}. Setting minimal defaults.`);
         this.bossData = {
-            health: COMMON_BOSS_MAX_HEALTH,
+            health: DEFAULT_BOSS_MAX_HEALTH,
             textureKey: 'bossStand',
             negativeKey: 'bossNegative',
-            voiceAppear: AUDIO_KEYS.VOICE_BOSS_APPEAR,
-            voiceDamage: AUDIO_KEYS.VOICE_BOSS_DAMAGE,
-            voiceDefeat: AUDIO_KEYS.VOICE_BOSS_DEFEAT,
-            voiceRandom: [AUDIO_KEYS.VOICE_BOSS_RANDOM_1, AUDIO_KEYS.VOICE_BOSS_RANDOM_2, AUDIO_KEYS.VOICE_BOSS_RANDOM_3],
-            bgmKey: AUDIO_KEYS.BGM2,
-            cutsceneText: `VS BOSS ${this.currentBossIndex}`,
-            moveRangeXRatio: DEFAULT_BOSS_MOVE_RANGE_X_RATIO,
+            // ★ ボイスキーは各ボスシーンで責任を持って設定する ★
+            voiceAppear: null,         // (例: AUDIO_KEYS.VOICE_ARTMAN_APPEAR)
+            voiceDamage: null,         // (例: AUDIO_KEYS.VOICE_ARTMAN_DAMAGE)
+            voiceDefeat: null,         // (例: AUDIO_KEYS.VOICE_ARTMAN_DEFEAT)
+            voiceRandom: [],           // (例: [AUDIO_KEYS.VOICE_ARTMAN_RANDOM_1])
+            bgmKey: AUDIO_KEYS.BGM2,   // デフォルトBGM
+            cutsceneText: `VS BOSS ${this.currentBossIndex}`,moveRangeXRatio: DEFAULT_BOSS_MOVE_RANGE_X_RATIO,
             moveDuration: DEFAULT_BOSS_MOVE_DURATION,
             widthRatio: 0.25,
         };
-        this.bossVoiceKeys = this.bossData.voiceRandom;
+         // ★ initializeBossDataの最後に必ずこれを呼んで、Commonのプロパティも更新 ★
+        this.bossVoiceKeys = Array.isArray(this.bossData.voiceRandom) ? this.bossData.voiceRandom : [];
     }
 
       /**
@@ -858,20 +873,23 @@ if (this.isMakiraActive && this.balls && this.familiars && this.familiars.countA
         console.log("[Intro] Enabling player control. Boss fight start!"); this.playerControlEnabled = true;
         if (this.boss?.body) this.boss.body.enable = true; this.startSpecificBossMovement(); this.startRandomVoiceTimer();
     }
+    // defeatBoss
     defeatBoss(bossObject) {
-        if (this.bossDefeated) return; console.log("[Defeat] Boss defeated! Starting defeat sequence."); this.bossDefeated = true; this.playerControlEnabled = false;
-        this.sound.stopAll(); this.randomVoiceTimer?.remove();
-        this.safeDestroyCollider(this.ballBossCollider); this.ballBossCollider = null;
-        this.safeDestroyCollider(this.makiraBeamBossOverlap); this.makiraBeamBossOverlap = null;
-        this.bossMoveTween?.stop(); this.attackBrickTimer?.remove(); this.balls?.children.each(ball => ball.body?.stop());
-        if (bossObject?.body) bossObject.disableBody(false, false);
-        // ★★★ 撃破ボイス再生をここで行う ★★★
-        // (startBossShakeAndFade の前、ポップアップ表示より十分前)
-        try {
-            this.sound.play(this.bossData.voiceDefeat || AUDIO_KEYS.VOICE_BOSS_DEFEAT);
-            console.log("[Defeat] Playing defeat voice.");
-        } catch (e) { console.error("Error playing defeat voice:", e); }
-        // ★★★-----------------------------★★★  
+        if (this.bossDefeated) return;
+        console.log("[Defeat] Boss defeated! Starting defeat sequence.");
+        this.bossDefeated = true;
+        this.playerControlEnabled = false;
+        this.randomVoiceTimer?.remove();
+
+        // ★ ボス固有の撃破ボイスを再生 (キーが設定されていれば) ★
+        if (this.bossData.voiceDefeat && typeof this.bossData.voiceDefeat === 'string') {
+            try {
+                this.sound.play(this.bossData.voiceDefeat);
+                console.log(`[Defeat] Playing boss defeat voice: ${this.bossData.voiceDefeat}`);
+            } catch (e) { console.error(`Error playing boss defeat voice (${this.bossData.voiceDefeat}):`, e); }
+        } else {
+             console.log("[Defeat] No specific 'voiceDefeat' key for this boss.");
+        } 
          try { this.sound.play(AUDIO_KEYS.SE_DEFEAT_FLASH); } catch(e) { /* ... */ } // フラッシュSE
         if (bossObject?.active) try { bossObject.setTexture(this.bossData.negativeKey || 'bossNegative'); } catch (e) { console.error("Error setting negative texture:", e); }
        // 3回フラッシュ
@@ -1663,9 +1681,17 @@ if (this.isMakiraActive && this.balls && this.familiars && this.familiars.countA
         } catch (e) { console.error("Error emitting updateBossHp:", e); }
 
         // --- ダメージリアクション ---
-        const now = this.time.now;
+         const now = this.time.now;
+        // ★ ボス固有のダメージボイスを再生 (キーが設定されていれば) ★
         if (now - (this.lastDamageVoiceTime || 0) > BOSS_DAMAGE_VOICE_THROTTLE) {
-            try { this.sound.play(this.bossData.voiceDamage || AUDIO_KEYS.VOICE_BOSS_DAMAGE); } catch(e) {/* ... */}
+            if (this.bossData.voiceDamage && typeof this.bossData.voiceDamage === 'string') {
+                try {
+                    this.sound.play(this.bossData.voiceDamage);
+                    console.log(`[ApplyDamage] Playing boss damage voice: ${this.bossData.voiceDamage}`);
+                } catch(e) { console.error(`Error playing boss damage voice (${this.bossData.voiceDamage}):`, e); }
+            } else {
+                 console.log("[ApplyDamage] No specific 'voiceDamage' key for this boss or key is invalid.");
+            }
             this.lastDamageVoiceTime = now;
         }
         try {
