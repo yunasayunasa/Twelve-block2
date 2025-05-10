@@ -1755,7 +1755,10 @@ if (this.isMakiraActive && this.balls && this.familiars && this.familiars.countA
         try {
             brick.setTexture(textureKey);
             brick.setScale(displayScale); // 1. 見た目のスケールを設定
-
+  // ★★★ スケール設定後の表示サイズと原点を確認 ★★★
+        console.log(`[SetupAttackBrick] Texture: ${textureKey}, DisplayScale: ${displayScale.toFixed(2)}`);
+        console.log(`  DisplaySize: ${brick.displayWidth.toFixed(1)}x${brick.displayHeight.toFixed(1)}, Origin: (${brick.originX}, ${brick.originY})`);
+        // ★★★------------------------------------------★★★
             if (brick.body) {
                 // 2. ★★★ 物理ボディのサイズを設定 (原点が0,0なのでオフセットは基本的に0,0) ★★★
                 // 表示サイズ * 倍率 で当たり判定サイズを決定
