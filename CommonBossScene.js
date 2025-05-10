@@ -2026,8 +2026,52 @@ calculateDynamicFontSize(baseSizeMax) {
     // ★★★----------------------★★★
     return finalSize;
 } 
-    handlePointerMove(pointer){if(!this.playerControlEnabled||this.isGameOver||!this.paddle?.active)return;const tX=pointer.x;const hW=this.paddle.displayWidth/2;const cX=Phaser.Math.Clamp(tX,hW+this.sideMargin/2,this.gameWidth-hW-this.sideMargin/2);this.paddle.x=cX;if(!this.isBallLaunched&&this.balls?.countActive(true)>0)this.balls.getFirstAlive().x=cX;}
-    // handlePointerDown メソッドを修正してポップアップ対応
+   // handlePointerMove メソッドを修正
+    handlePointerMove(pointer) {
+        if (!this.playerControlEnabled || this.isGameOver || !this.paddle?.active) return;
+
+        const targetX = pointer.x;
+        const halfWidth = this.paddle.displayWidth / 2;
+        const clampedX = Phaser.Math.Clamp(targetX, halfWidth + this.sideMargin/2, this.gameWidth - halfWidth - this.sideMargin/2);
+        this.paddle.x = clampedX;
+
+        // ★★★ isBallLaunched が false の時のボール追従処理を見直す ★★★
+        if (!this.isBallLaunched && this.balls && this.balls.countActive(true) > 0) {
+            // 追従させるボールを1つに限定するか、バドラの仕様に合わせて
+            // 「プレイヤーが発射操作をするまではどのボールも動かない」とするか。
+            // ここでは、バドラの挙動と合わせるため、
+            // isBallLaunched が false の間は「全てのボールがパドルX座標に追従する」
+            // という以前の挙動のままにするか、あるいは
+            // 「どのボールも追従しない」とするかを選択できます。
+            // バドラで全ボールがパドル上に集まるので、ここでは追従させない方が自然かもしれません。
+            // その場合、この if ブロック内のボール位置設定は不要になります。
+            //
+            // 一旦、以前の「最初のボールだけ追従」という挙動を残すなら以下ですが、
+            // バドラの効果とは少し矛盾します。
+            // const firstBall = this.balls.getFirstAlive();
+            // if (firstBall) {
+            //     firstBall.x = clampedX;
+            // }
+            //
+            // 仕様変更：「バドラ後は発射まで全ボール静止」とするなら、
+            // この部分は削除するか、特定の条件（例：ボールが1球の時だけ）で追従させます。
+            // 今回は、バドラで全ボールがパドル上に集まるので、
+            // isBallLaunched = false の間は、発射されるまでどのボールもX追従しない方が自然かもしれません。
+            // その場合、この下のボールX座標設定は削除します。
+            //
+            // ★★★推奨：バドラの挙動と合わせるため、一度全てのボールを静止させるのであれば、
+            //          ここで特定のボールだけを動かすのはやめ、launchBallで全ボールを
+            //          発射するのを待つ。つまり、以下のループは削除する。
+            /*
+            this.balls.getChildren().forEach(ball => {
+                if (ball.active && !ball.body.velocity.y) { // Y速度がない（静止している）ボールのみX追従
+                    ball.x = clampedX;
+                }
+            });
+            */
+            // ★★★ もしバドラで全ボールがパドル上に静止するなら、この追従処理は不要 ★★★
+        }
+    } // handlePointerDown メソッドを修正してポップアップ対応
     handlePointerDown() {
         if (this.isGameOver && this.gameOverText?.visible) {
             this.returnToTitle();
@@ -2043,7 +2087,41 @@ calculateDynamicFontSize(baseSizeMax) {
             this.launchBall();
         }
     }
- launchBall(){if(!this.balls?.countActive(true))return;const bTL=this.balls.getFirstAlive();if(bTL){bTL.setVelocity(Phaser.Math.Between(BALL_INITIAL_VELOCITY_X_RANGE[0],BALL_INITIAL_VELOCITY_X_RANGE[1]),BALL_INITIAL_VELOCITY_Y);this.isBallLaunched=true;this.sound.play(AUDIO_KEYS.SE_LAUNCH);}}
+ // launchBall メソッドを修正 (複数ボール同時発射)
+    launchBall() {
+        // isBallLaunched と playerControlEnabled のチェック
+        if (!this.isBallLaunched && this.playerControlEnabled && this.balls?.countActive(true) > 0) {
+            console.log(">>> launchBall() called! Launching ALL active balls. <<<");
+            let launchedCount = 0;
+            const initialVy = BALL_INITIAL_VELOCITY_Y; // Y方向の初速は共通
+
+            // ★★★ アクティブなボール全てに速度を設定 ★★★
+            this.balls.getChildren().forEach(ball => {
+                if (ball.active) { // アクティブなボールのみ対象
+                    const initialVx = Phaser.Math.Between(BALL_INITIAL_VELOCITY_X_RANGE[0], BALL_INITIAL_VELOCITY_X_RANGE[1]);
+                    try {
+                        ball.setVelocity(initialVx, initialVy);
+                        console.log(`  Launched ball ${ball.name} with V(${initialVx}, ${initialVy})`);
+                        launchedCount++;
+                    } catch (e) {
+                        console.error(`Error setting velocity for ball ${ball.name}:`, e);
+                    }
+                }
+            });
+            // ★★★------------------------------------★★★
+
+            if (launchedCount > 0) {
+                this.isBallLaunched = true; // 全て発射したらフラグを立てる
+                try {
+                    this.sound.play(AUDIO_KEYS.SE_LAUNCH);
+                } catch (e) { console.error("Error playing launch SE:", e); }
+            } else {
+                console.log("No active balls were launched.");
+            }
+        } else {
+             console.log(">>> launchBall() called but conditions not met (isBallLaunched:", this.isBallLaunched, "playerControlEnabled:", this.playerControlEnabled, "Active Balls:", this.balls?.countActive(true), ")");
+        }
+    }
     updateBallFall(){if(!this.balls?.active)return;let aBC=0,sLLTF=false,dSB=null;this.balls.getChildren().forEach(b=>{if(b.active){aBC++;if(this.isBallLaunched&&b.y>this.gameHeight+b.displayHeight*2){if(this.isAnilaActive){this.deactivateAnila();b.y=this.paddle.y-this.paddle.displayHeight;b.setVelocityY(BALL_INITIAL_VELOCITY_Y*0.8);console.log("[Anila] Ball bounced!");}else{b.setActive(false).setVisible(false);if(b.body)b.body.enable=false;sLLTF=true;if(b.getData('isSindaraActive'))dSB=b;}}}});if(dSB){const rS=this.balls.getMatching('isSindaraActive',true);if(rS.length<=1)rS.forEach(b=>this.deactivateSindara(b,true));}if(sLLTF&&this.balls.countActive(true)===0&&this.lives>0&&!this.isGameOver&&!this.bossDefeated)this.loseLife();}
     handleWorldBounds(body,up,down,left,right){const gO=body.gameObject;if(!gO||!(gO instanceof Phaser.Physics.Arcade.Image)||!gO.active)return;if(this.balls.contains(gO)){if(up||left||right){this.sound.play(AUDIO_KEYS.SE_REFLECT,{volume:0.7});let iX=gO.x,iY=gO.y,aR=[0,0];if(up){iY=body.y;aR=[60,120];}else if(left){iX=body.x;aR=[-30,30];}else if(right){iX=body.x+body.width;aR=[150,210];}this.createImpactParticles(iX,iY,aR,0xffffff,5);}}}
     createImpactParticles(x,y,angleRange,tint,count=8){const p=this.add.particles(0,0,'whitePixel',{x:x,y:y,lifespan:{min:100,max:300},speed:{min:80,max:150},angle:{min:angleRange[0],max:angleRange[1]},gravityY:200,scale:{start:0.6,end:0},quantity:count,blendMode:'ADD',emitting:false});p.setParticleTint(tint);p.explode(count);this.time.delayedCall(400,()=>p.destroy());}
