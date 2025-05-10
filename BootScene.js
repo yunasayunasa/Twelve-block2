@@ -63,6 +63,7 @@ this.load.image('bossNegative', 'assets/bossNegative.png'); // ボス撃墜、�
         this.load.audio(AUDIO_KEYS.VOICE_VAJRA_TRIGGER, 'assets/voice_vajra_trigger.mp3');
         this.load.audio(AUDIO_KEYS.VOICE_MAKIRA, 'assets/voice_makira.mp3');
         this.load.audio(AUDIO_KEYS.VOICE_MAKORA, 'assets/voice_makora.mp3');
+        this.load.audio(AUDIO_KEYS.VOICE_BADRA, `assets/${AUDIO_KEYS.VOICE_BADRA}.mp3`);
         // --- ▼▼▼ ボス戦用サウンド読み込み ▼▼▼ ---
         console.log("Loading boss scene sounds...");
         this.load.audio(AUDIO_KEYS.SE_CUTSCENE_START, 'assets/se_cutscene_start.mp3');

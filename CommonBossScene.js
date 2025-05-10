@@ -1355,6 +1355,48 @@ if (this.isMakiraActive && this.balls && this.familiars && this.familiars.countA
                 // ビカラ陽は即時効果なので、ボールの状態変更やタイマーは不要
                 break;
             // ★★★------------------------------------★★★
+             // ★★★ バドラ（ボール位置リセット、強化維持）の処理を追加 ★★★
+            case POWERUP_TYPES.BADRA:
+                console.log("[Badra] Activating: Teleport all balls to paddle!");
+                if (this.balls && this.balls.countActive(true) > 0 && this.paddle && this.paddle.active) {
+                    const paddleX = this.paddle.x;
+                    // パドル上部のY座標 (ボールの半径を考慮して少し上に)
+                    const targetY = this.paddle.y - (this.paddle.displayHeight / 2) - (this.gameWidth * BALL_RADIUS_RATIO);
+                    let teleportedCount = 0;
+
+                    // 全てのアクティブなボールに対して処理
+                    // ループ中にボールの状態を変更するので、先に配列にコピーする方が安全
+                    const activeBalls = [...this.balls.getMatching('active', true)];
+
+                    activeBalls.forEach(ball => {
+                        if (ball && ball.active && ball.body) { // 存在とアクティブ状態、ボディを確認
+                            // 1. 速度を0にする
+                            ball.setVelocity(0, 0);
+                            ball.body.stop(); // 物理的な動きを完全に停止
+
+                            // 2. パドル中央上部に位置をセット
+                            ball.setPosition(paddleX, targetY);
+
+                            // 3. isBallLaunched フラグは全ボールがリセットされた後にまとめて false にする
+                            teleportedCount++;
+                            console.log(`[Badra] Teleported ball ${ball.name} to (${paddleX.toFixed(0)}, ${targetY.toFixed(0)})`);
+                        }
+                    });
+
+                    if (teleportedCount > 0) {
+                        this.isBallLaunched = false; // ボールは再発射が必要な状態になる
+                        console.log(`[Badra] ${teleportedCount} balls teleported. isBallLaunched set to false.`);
+                    } else {
+                        console.log("[Badra] No active balls found to teleport.");
+                    }
+                } else {
+                    console.log("[Badra] No active balls or paddle to perform teleport.");
+                }
+                // バドラは即時効果なので、ボールの状態変更（アイコンなど）やタイマーは不要
+                // ただし、もしボールに「バドラ効果でテレポートした」という一時的なフラグを立てたい場合はここで設定可能
+                break;
+            // ★★★-------------------------------------------------★★★
+
 
             default:
                 console.log(`[TriggerEffect] Power up ${type} has no specific activation in triggerPowerUpEffect.`);
