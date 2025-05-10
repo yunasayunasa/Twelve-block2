@@ -1695,8 +1695,40 @@ if (this.isMakiraActive && this.balls && this.familiars && this.familiars.countA
         } else {
              console.log(`[Apply Damage - ${source}] Health > 0. Boss survives.`);
         }
-    }hitAttackBrick(brick, ball) { if (!brick?.active || !ball?.active) return; this.destroyAttackBrickAndDropItem(brick); }
-    handleBallAttackBrickOverlap(brick, ball) { if (!brick?.active || !ball?.active) return; this.destroyAttackBrick(brick, false); }
+    }hitAttackBrick(brick, ball) { if (!brick?.active || !ball?.active) return;
+           // ★★★ ボールが未発射の場合の処理を追加 ★★★
+    if (!this.isBallLaunched) {
+        console.log("[HitAttackBrick] Hit by brick while ball was NOT launched. Launching ball now.");
+        // ボールに初期速度（またはブロックからの反発速度）を与えて発射済みにする
+        // ここでは例として、ブロックの真下に少し跳ねるような速度を与える
+        const initialVy = ATTACK_BRICK_VELOCITY_Y * 0.5; // ブロック落下速度の半分で上に
+        const initialVx = Phaser.Math.Between(-50, 50); // 少し左右にランダム
+        ball.setVelocity(initialVx, initialVy);
+        this.isBallLaunched = true; // ★ 発射済みフラグを立てる
+        this.sound.play(AUDIO_KEYS.SE_LAUNCH); // 発射音
+
+        // 通常のブロック破壊処理も行う
+        this.destroyAttackBrickAndDropItem(brick);
+        return; // この後のボール速度維持処理などはスキップ
+    }
+    // ★★★------------------------------------★★★
+
+         this.destroyAttackBrickAndDropItem(brick); }
+    handleBallAttackBrickOverlap(brick, ball) { if (!brick?.active || !ball?.active) return;
+           // ★★★ ボールが未発射の場合の処理を追加 ★★★
+    if (!this.isBallLaunched) {
+        console.log("[OverlapAttackBrick] Overlapped by brick while ball was NOT launched. Launching ball now.");
+        const initialVy = ATTACK_BRICK_VELOCITY_Y * 0.3; // 少し弱めに
+        const initialVx = Phaser.Math.Between(-30, 30);
+        ball.setVelocity(initialVx, initialVy);
+        this.isBallLaunched = true;
+        this.sound.play(AUDIO_KEYS.SE_LAUNCH);
+
+        this.destroyAttackBrick(brick, false); // アイテムドロップなしで破壊
+        return;
+    }
+    // ★★★------------------------------------★★★
+        this.destroyAttackBrick(brick, false); }
     destroyAttackBrickAndDropItem(brick) {
         const brickX = brick.x; const brickY = brick.y;
         this.destroyAttackBrick(brick, true); // ヴァジラゲージ増加などはこの中で行われる
