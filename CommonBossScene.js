@@ -1159,19 +1159,24 @@ if (this.isMakiraActive && this.balls && this.familiars && this.familiars.countA
 
     // --- ▼ ゲーム進行メソッド ▼ ---
         // CommonBossScene.js の loseLife メソッドを修正
+    // ライフを失った時の処理 (完全版)
     loseLife() {
-
-           // ★★★ 完全無敵チェックを冒頭に追加 ★★★
+        console.log(">>> loseLife called <<<");
+        console.log(`[LoseLife] Checking invincibility: isPlayerTrulyInvincible = ${this.isPlayerTrulyInvincible}`);
         if (this.isPlayerTrulyInvincible) {
             console.log("[LoseLife] Life loss prevented by Player True Invincibility (Anila).");
+            // (オプション) 無敵で防いだSEやエフェクト
+            // this.sound.play('se_anila_block');
             return; // ライフは減らない
         }
+
         if (this.isGameOver || this.bossDefeated) return;
-        console.log(`Losing life. Lives remaining: ${this.lives - 1}`);
+        console.log(`Losing life. Current lives: ${this.lives}, Remaining after loss: ${this.lives - 1}`);
 
         // --- 持続系パワーアップ解除 ---
-      //  this.deactivateMakira(); // ★ マキラ解除を追加
-        this.deactivateAnila();
+        console.log("[LoseLife] Deactivating persistent power-ups...");
+        // this.deactivateMakira(); // マキラは即時効果なので解除不要
+        this.deactivateAnila();      // ★ アニラもここで確実に解除する (タイマーが残っていても)
         this.deactivateAnchira(true);
         this.deactivateSindara(null, true);
 
@@ -1179,7 +1184,6 @@ if (this.isMakiraActive && this.balls && this.familiars && this.familiars.countA
         console.log("[LoseLife] Deactivating any active Bikara penetration effects.");
         Object.values(this.bikaraTimers).forEach(timer => timer?.remove());
         this.bikaraTimers = {};
-        // ボールが存在するうちにフラグ解除 (setBallPowerUpState はボールの見た目更新も含むので、破棄前が良い)
         this.balls?.getChildren().forEach(ball => {
              if (ball?.active && ball.getData('isBikaraPenetrating')) {
                  this.setBallPowerUpState(POWERUP_TYPES.BIKARA, false, ball);
@@ -1190,11 +1194,11 @@ if (this.isMakiraActive && this.balls && this.familiars && this.familiars.countA
         Object.values(this.powerUpTimers).forEach(timer => timer?.remove());
         this.powerUpTimers = {};
 
-        // ★ ボールの状態リセットと見た目更新 (ボール破棄前に行う) ★
+        // ボールの状態もリセット (汎用的なパワーアップフラグやlastActivatedPowerなど)
         this.balls?.getChildren().forEach(ball => {
             if(ball?.active) this.resetBallState(ball);
         });
-        this.updateBallAndPaddleAppearance();
+        this.updateBallAndPaddleAppearance(); // ボールとパドルの見た目もリセット
 
         // --- ライフ減少とボールのクリア ---
         this.lives--;
@@ -1202,35 +1206,42 @@ if (this.isMakiraActive && this.balls && this.familiars && this.familiars.countA
         this.isBallLaunched = false; // 新しいボールは未発射状態
 
         console.log("[LoseLife] Clearing existing balls...");
-        this.balls?.clear(true, true); // ★★★ ここでボールを全て破棄 ★★★
-
-        // ★★★ ボールをクリアした【後】に setColliders を呼び出す ★★★
-        // (resetForNewLifeで新しいボールが作られた【後】に再度setCollidersが呼ばれるので、ここでの呼び出しは不要かもしれない。
-        //  むしろ、resetForNewLife の最後で呼ぶのが最も確実)
-        // console.log("[LoseLife] Calling setColliders AFTER clearing balls (may be redundant).");
-        // this.setColliders();
-        // ★★★------------------------------------------------------★★★
+        this.balls?.clear(true, true); // 古いボールを全て破棄
 
         // --- 次の処理 ---
         if (this.lives > 0) {
             console.log("[LoseLife] Scheduling resetForNewLife.");
             this.time.delayedCall(800, this.resetForNewLife, [], this);
         } else {
+            console.log("[LoseLife] No lives remaining. Triggering Game Over.");
             this.sound.play(AUDIO_KEYS.SE_GAME_OVER);
             this.stopBgm();
             this.time.delayedCall(500, this.gameOver, [], this);
         }
     }
+       // resetForNewLife メソッド (ボール再生成時にコライダーも更新)
     resetForNewLife() {
         if (this.isGameOver || this.bossDefeated) return;
-        if (this.paddle?.active) this.createAndAddBall(this.paddle.x, this.paddle.y - (this.paddle.displayHeight / 2) - (this.gameWidth * BALL_RADIUS_RATIO));
-        else this.createAndAddBall(this.gameWidth / 2, this.gameHeight * 0.7);
-        this.isBallLaunched = false; this.playerControlEnabled = true;
-           // ★★★ 新しいボールが生成された【後】に setColliders を呼び出す ★★★
-        console.log("[ResetForNewLife] New ball created. Calling setColliders NOW to update for new ball.");
+        console.log("[ResetForNewLife] Resetting for new life...");
+        let newBall = null;
+
+        if (this.paddle && this.paddle.active) {
+             newBall = this.createAndAddBall(this.paddle.x, this.paddle.y - (this.paddle.displayHeight / 2) - (this.gameWidth * BALL_RADIUS_RATIO));
+        } else {
+             newBall = this.createAndAddBall(this.scale.width / 2, this.scale.height - PADDLE_Y_OFFSET_RATIO - PADDLE_HEIGHT/2 - (this.gameWidth * BALL_RADIUS_RATIO));
+        }
+        this.isBallLaunched = false;
+        this.playerControlEnabled = true;
+
+        if (newBall && newBall.body) {
+            console.log(`[ResetForNewLife] New ball created. Name: ${newBall.name}`);
+        } else {
+            console.error("[ResetForNewLife] Failed to create new ball or its body!");
+        }
+        console.log("[ResetForNewLife] Calling setColliders after new ball creation.");
         this.setColliders();
-        // ★★★-------
     }
+
       // CommonBossScene.js 内の gameOver メソッド
       gameOver() {
         if (this.isGameOver) return;
@@ -1406,13 +1417,67 @@ if (this.isMakiraActive && this.balls && this.familiars && this.familiars.countA
     deactivateBikara(ball) { if (!ball?.active || !ball.getData('isBikaraPenetrating')) return; this.setBallPowerUpState(POWERUP_TYPES.BIKARA, false, ball); this.setColliders(); this.updateBallAppearance(ball); }
     activateIndara() { this.balls?.getMatching('active', true).forEach(ball => this.setBallPowerUpState(POWERUP_TYPES.INDARA, true, ball)); this.updateBallAndPaddleAppearance(); this.setColliders(); }
     deactivateIndara(ball) { if (!ball?.active || !ball.getData('isIndaraActive')) return; this.setBallPowerUpState(POWERUP_TYPES.INDARA, false, ball); this.setColliders(); this.updateBallAppearance(ball); }
-    activateAnila() { if (this.isAnilaActive) this.anilaTimer?.remove(); else { this.isAnilaActive = true;
-          // ★★★ 完全無敵フラグを立てる ★★★
+    // アニラ有効化メソッド (完全版)
+    activateAnila() {
+        // 既に見た目効果がアクティブならタイマーをリセットするだけ
+        if (this.isAnilaActive) {
+            console.log("[Anila Activate] Already visually active, resetting duration timer.");
+            this.anilaTimer?.remove(); // 既存タイマーがあればクリア
+        } else {
+            console.log("[Anila Activate] Activating visual effect!");
+            this.isAnilaActive = true; // パドルの見た目変更用フラグなど
+        }
+
+        // ★ 完全無敵フラグを立てる (これが主要な効果) ★
         this.isPlayerTrulyInvincible = true;
-        console.log("[Anila] Player True Invincibility ENABLED.");
-        // ★★★--------------------------★★★
-        this.setBallPowerUpState(POWERUP_TYPES.ANILA, true); } this.anilaTimer = this.time.delayedCall(POWERUP_DURATION[POWERUP_TYPES.ANILA], this.deactivateAnila, [], this); this.updateBallAndPaddleAppearance(); }
-    deactivateAnila() { if (!this.isAnilaActive) return; this.isAnilaActive = false; this.anilaTimer?.remove(); this.anilaTimer = null; this.setBallPowerUpState(POWERUP_TYPES.ANILA, false); this.updateBallAndPaddleAppearance(); }
+        console.log(`[Anila Activate] Player True Invincibility ENABLED. isAnilaActive: ${this.isAnilaActive}, isPlayerTrulyInvincible: ${this.isPlayerTrulyInvincible}`);
+
+        // 見た目の変更
+        this.updateBallAndPaddleAppearance(); // これでパドルが白くなるなどの処理を期待
+        // ボールにANILA状態を設定 (アイコン表示用など)
+        this.setBallPowerUpState(POWERUP_TYPES.ANILA, true);
+
+        // 効果時間タイマー設定
+        const duration = POWERUP_DURATION[POWERUP_TYPES.ANILA] || 10000;
+        console.log(`[Anila Activate] Setting deactivation timer for ${duration}ms.`);
+        // 既存のタイマーがあればクリアしてから新しいタイマーを設定
+        if (this.anilaTimer) this.anilaTimer.remove();
+        this.anilaTimer = this.time.delayedCall(duration, () => {
+            console.log(">>> Anila Timer CALLBACK EXECUTED <<<");
+            this.deactivateAnila(); // 効果時間が終了したら解除メソッドを呼ぶ
+        }, [], this);
+    }
+      // アニラ無効化メソッド (完全版)
+    deactivateAnila() {
+        console.log(">>> deactivateAnila called <<<");
+        // 効果が既に無効なら何もしない (重複呼び出しや手動解除後のタイマー発動に対応)
+        if (!this.isAnilaActive && !this.isPlayerTrulyInvincible) {
+            console.log("[Anila Deactivate] Already fully inactive. Skipping.");
+            return;
+        }
+
+        console.log(`[Anila Deactivate] Before deactivation: isAnilaActive: ${this.isAnilaActive}, isPlayerTrulyInvincible: ${this.isPlayerTrulyInvincible}`);
+
+        this.isAnilaActive = false;           // 見た目用フラグ解除
+        this.isPlayerTrulyInvincible = false; // ★ 完全無敵フラグOFF ★
+
+        console.log(`[Anila Deactivate] Player True Invincibility DISABLED. isAnilaActive: ${this.isAnilaActive}, isPlayerTrulyInvincible: ${this.isPlayerTrulyInvincible}`);
+
+        // タイマー参照をクリア (タイマー自身はdelayedCallの完了で自動的に消えるが、参照は残る可能性がある)
+        if (this.anilaTimer) {
+            // this.anilaTimer.remove(); // delayedCall のタイマーは remove しなくても良いが、念のため
+            this.anilaTimer = null;
+            console.log("[Anila Deactivate] Anila timer reference nulled.");
+        }
+
+        // ボールのANILA状態を解除 (アイコンなど)
+        this.setBallPowerUpState(POWERUP_TYPES.ANILA, false);
+        // パドルの見た目を元に戻す
+        this.updateBallAndPaddleAppearance();
+
+        console.log("[Anila Deactivate] Anila fully deactivated.");
+    }
+  
     activateVajra() { if (!this.isVajraSystemActive) { this.isVajraSystemActive = true;
          // ★★★ 完全無敵フラグを解除 ★★★
         this.isPlayerTrulyInvincible = false;
@@ -2106,15 +2171,16 @@ if (this.isMakiraActive && this.balls && this.familiars && this.familiars.countA
     } 
     destroyAttackBrick(brick, triggerItemDropLogic = false) { if (!brick?.active) return; this.sound.play(AUDIO_KEYS.SE_DESTROY); this.createImpactParticles(brick.x,brick.y,[0,360],brick.tintTopLeft||0xaa88ff,10); brick.destroy(); this.increaseVajraGauge(); }
     dropSpecificPowerUp(x,y,type){if(!type||!this.powerUps)return;let tK=POWERUP_ICON_KEYS[type]||'whitePixel';const iS=this.gameWidth*POWERUP_SIZE_RATIO;let tC=(tK==='whitePixel'&&type===POWERUP_TYPES.BAISRAVA)?0xffd700:(tK==='whitePixel'?0xcccccc:null);const pU=this.powerUps.create(x,y,tK).setDisplaySize(iS,iS).setData('type',type);if(tC)pU.setTint(tC);if(pU.body){pU.setVelocity(0,POWERUP_SPEED_Y);pU.body.setCollideWorldBounds(false).setAllowGravity(false);}else if(pU)pU.destroy();}
-    handlePaddleHitByAttackBrick(paddle, attackBrick) { if (!paddle?.active || !attackBrick?.active) return; this.destroyAttackBrick(attackBrick, false); 
-        // ★★★ 完全無敵チェックを追加 ★★★
-        if (this.isPlayerTrulyInvincible) {
+     handlePaddleHitByAttackBrick(paddle, attackBrick) {
+        if (!paddle?.active || !attackBrick?.active) return;
+        this.destroyAttackBrick(attackBrick, false);
+        if (this.isPlayerTrulyInvincible) { // ★ アニラ完全無敵チェック
             console.log("[PaddleAttackBrick] Damage avoided due to Player True Invincibility (Anila).");
-            // TODO: 無敵ヒットエフェクト (パドル側)
             return;
         }
-        if (!this.isAnilaActive) this.loseLife(); else console.log("[Anila] Paddle hit blocked!"); }
-   
+        if (!this.isGameOver && !this.bossDefeated) this.loseLife();
+    }
+
   hitFamiliarWithBall
     // --- ▼ ヘルパーメソッド (主要部分) ▼ ---
     createAndAddBall(x, y, vx = 0, vy = 0, dataToCopy = null) {
@@ -2509,44 +2575,30 @@ calculateDynamicFontSize(baseSizeMax) {
 
 
     
-       updateBallFall() {
+       // ボール落下処理 (完全版 - アニラバウンド削除済み)
+    updateBallFall() {
         if (!this.balls || !this.balls.active || this.balls.countActive(true) === 0) {
-            // ボールグループが存在しないか、アクティブなボールが1つもなければ何もしない
             return;
         }
-
         let shouldLoseLifeThisFrame = false;
-        let allBallsLostThisFrame = true; // このフレームで全てのボールが失われたかのフラグ
-
-        // getChildren() で配列のコピーを取得してループする方が、ループ中に要素が削除されても安全
         const currentActiveBalls = [...this.balls.getMatching('active', true)];
 
         if (currentActiveBalls.length === 0 && this.isBallLaunched) {
-            // isBallLaunched なのにアクティブなボールがない場合は、即座にライフ減少を試みる
-            // (ただし、これは通常 shouldLoseLifeThisFrame と下の判定でカバーされるはず)
             console.log("[UpdateBallFall] No active balls found while ball was launched. Setting shouldLoseLife.");
             shouldLoseLifeThisFrame = true;
         }
 
-        currentActiveBalls.forEach(currentBall => { // ★ ループ変数を currentBall に変更（明確化）
-            if (currentBall.active) { // ループ中にもう一度アクティブ確認 (念のため)
+        currentActiveBalls.forEach(currentBall => {
+            if (currentBall.active) {
                 if (this.isBallLaunched && currentBall.y > this.gameHeight + currentBall.displayHeight * 2) {
                     console.log(`[UpdateBallFall] Ball ${currentBall.name} went out of bounds.`);
                     currentBall.setActive(false).setVisible(false);
                     if (currentBall.body) currentBall.body.enable = false;
-
-                    shouldLoseLifeThisFrame = true; // ボールが1つでも落ちたらライフ減少の可能性
+                    shouldLoseLifeThisFrame = true;
 
                     if (currentBall.getData('isSindaraActive')) {
-                        // シンダラ解除判定 (CommonBossScene内に deactivateSindara がある前提)
                         const remainingSindara = this.balls.getMatching('isSindaraActive', true);
-                        console.log(`[UpdateBallFall] A Sindara ball dropped. Remaining active Sindara: ${remainingSindara.length}`);
-                        if (remainingSindara.length === 0) { // ★ 落ちた後、アクティブなシンダラがいなくなったら
-                            console.log("[UpdateBallFall] Last Sindara ball dropped or all became inactive. Deactivating Sindara effect for any remaining (inactive) balls.");
-                            // もし deactivateSindara が特定のボールを引数に取るなら、
-                            // ここで全てのボールに対して解除処理を行うか、
-                            // あるいはシーンレベルのシンダラフラグを管理する必要がある。
-                            // 簡単なのは、全てのボールからシンダラ状態を解除。
+                        if (remainingSindara.length === 0) {
                             this.balls.getChildren().forEach(b => {
                                 if (b.getData('isSindaraActive')) {
                                     this.setBallPowerUpState(POWERUP_TYPES.SINDARA, false, b);
@@ -2555,24 +2607,17 @@ calculateDynamicFontSize(baseSizeMax) {
                             this.updateBallAndPaddleAppearance();
                         }
                     }
-                } else {
-                    // このボールはまだ画面内に残っている
-                    allBallsLostThisFrame = false;
                 }
             }
         });
 
-        // ライフ減少判定
-        // shouldLoseLifeThisFrame が true (このフレームで少なくとも1球落ちた)
-        // かつ allBallsLostThisFrame が true (このフレームで画面上に残ったアクティブなボールがない)
-        // または、単純に現在アクティブなボールが0になった場合
         if (shouldLoseLifeThisFrame && this.balls.countActive(true) === 0) {
-            if (this.lives > 0 && !this.isGameOver && !this.bossDefeated) {
-                console.log("[UpdateBallFall] Conditions met to lose life (a ball dropped AND no active balls remain). Calling loseLife.");
-                this.loseLife();
+            if (!this.isGameOver && !this.bossDefeated) { // ライフが0より大きいかのチェックは loseLife 内で行う
+                console.log("[UpdateBallFall] Conditions met to potentially lose life. Calling loseLife.");
+                this.loseLife(); // loseLife内で isPlayerTrulyInvincible がチェックされる
             }
         }
-    }   
+    }
     handleWorldBounds(body,up,down,left,right){const gO=body.gameObject;if(!gO||!(gO instanceof Phaser.Physics.Arcade.Image)||!gO.active)return;if(this.balls.contains(gO)){if(up||left||right){this.sound.play(AUDIO_KEYS.SE_REFLECT,{volume:0.7});let iX=gO.x,iY=gO.y,aR=[0,0];if(up){iY=body.y;aR=[60,120];}else if(left){iX=body.x;aR=[-30,30];}else if(right){iX=body.x+body.width;aR=[150,210];}this.createImpactParticles(iX,iY,aR,0xffffff,5);}}}
     createImpactParticles(x,y,angleRange,tint,count=8){const p=this.add.particles(0,0,'whitePixel',{x:x,y:y,lifespan:{min:100,max:300},speed:{min:80,max:150},angle:{min:angleRange[0],max:angleRange[1]},gravityY:200,scale:{start:0.6,end:0},quantity:count,blendMode:'ADD',emitting:false});p.setParticleTint(tint);p.explode(count);this.time.delayedCall(400,()=>p.destroy());}
     playBossBgm(){this.stopBgm();const bK=this.bossData.bgmKey||AUDIO_KEYS.BGM2;this.currentBgm=this.sound.add(bK,{loop:true,volume:0.45});try{this.currentBgm.play();}catch(e){console.error(`Error playing BGM ${bK}:`,e);}}
