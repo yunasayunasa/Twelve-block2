@@ -408,7 +408,8 @@ export default class Boss2Scene extends CommonBossScene {
         this.powerUps?.clear(true, true);
         this.attackBricks?.clear(true, true);
         // プレイヤーパワーアップ解除 (loseLifeから持ってくる)
-        this.deactivateMakira(); this.deactivateAnila(); /* ...他のパワーアップ解除... */
+     //   this.deactivateMakira(); 
+        this.deactivateAnila(); /* ...他のパワーアップ解除... */
         Object.values(this.powerUpTimers).forEach(timer => timer?.remove()); this.powerUpTimers = {};
         Object.values(this.bikaraTimers).forEach(timer => timer?.remove()); this.bikaraTimers = {};
         this.isVajraSystemActive = false; this.vajraGauge = 0; // ヴァジラもリセット
