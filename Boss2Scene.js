@@ -37,6 +37,7 @@ export default class Boss2Scene extends CommonBossScene {
         this.sowakaFieldCooldownTimer = null;   // フィールド再展開までのクールダウンタイマー
         this.sowakaLimitedItemType = null;      // 現在限定されているアイテムのタイプ
         this.sowakaFieldVisual = null;          // ★ フィールドの見た目用オブジェクト (後で使う)
+        this.sowakaFieldDamageToDeactivate = 0; // ★ フィールド解除に必要な残りダメージ
     }
 
     init(data) {
@@ -59,7 +60,7 @@ export default class Boss2Scene extends CommonBossScene {
         this.sowakaFieldCooldownTimer?.remove(); this.sowakaFieldCooldownTimer = null;
         this.sowakaLimitedItemType = null;
         this.sowakaFieldVisual?.destroy(); this.sowakaFieldVisual = null; // ★ 見た目もクリア
-    
+    this.sowakaFieldDamageToDeactivate = 0;
     }
 
     // initializeBossData: 現在のフェーズに応じて適切なボスデータをロード
@@ -120,6 +121,7 @@ export default class Boss2Scene extends CommonBossScene {
             // ソワカフィールド関連
               sowakaFieldDuration: 15000, // フィールド効果時間 (ms)
             sowakaFieldCooldown: 10000, // 再展開までのクールダウン (ms)
+            sowakaFieldDamageThreshold: 5, // ★ フィールド解除に必要な総ダメージ量 (例: 5ダメージ)
             sowakaFieldItemCandidates: [
                 POWERUP_TYPES.ANCHIRA, POWERUP_TYPES.SINDARA, POWERUP_TYPES.INDARA,
                 POWERUP_TYPES.BIKARA, POWERUP_TYPES.BAISRAVA, POWERUP_TYPES.VAJRA,
@@ -679,12 +681,19 @@ export default class Boss2Scene extends CommonBossScene {
 
         super.applyBossDamage(bossInstance, damageAmount, source); // まず親のダメージ処理
 
-        // ダメージ処理の結果ボスが倒されていなければ、フィールド解除処理を行う
-        if (this.currentPhase === 'sowaka' && wasFieldActiveBeforeDamage && bossInstance === this.boss && damageAmount > 0 && !this.bossDefeated) {
-            console.log("[Sowaka] Boss damaged, deactivating field effect.");
-            this.deactivateSowakaField(false); // 時間切れではない解除
+        // ★★★ ソワカのフィールド効果中にダメージを受けたら ★★★
+        if (this.currentPhase === 'sowaka' && this.sowakaFieldActive && bossInstance === this.boss && damageAmount > 0 && !this.bossDefeated) {
+            this.sowakaFieldDamageToDeactivate -= damageAmount;
+            console.log(`[SowakaField] Damaged while field active. Damage taken for field: ${damageAmount}, Remaining to deactivate: ${this.sowakaFieldDamageToDeactivate}`);
+
+            if (this.sowakaFieldDamageToDeactivate <= 0) {
+                console.log("[Sowaka] Field damage threshold reached, deactivating field effect.");
+                this.deactivateSowakaField(false); // 時間切れではない解除
+            }
         }
+        // ★★★-------------------------------------------★★★
     }
+
 
      /**
      * 次のソワカの放射攻撃をランダムな間隔で予約する
@@ -742,12 +751,30 @@ export default class Boss2Scene extends CommonBossScene {
         }, [], this);
         console.log(`[SowakaField] Duration timer started for ${duration}ms.`);
 
-        // 4. ★ 展開モーション (後で実装) ★
-        // this.showSowakaFieldActivationAnimation();
-        console.log("[SowakaField] TODO: Implement field activation animation.");
-        // (仮の視覚フィードバックとして背景色を少し変えるなど)
-        // this.cameras.main.setBackgroundColor(0x330033);
+            // ★★★ フィールド展開モーション ★★★
+        console.log("[SowakaField] Starting field activation animation.");
+        // 既存のビジュアルがあれば破棄
+        this.sowakaFieldVisual?.destroy();
+
+        // 半透明の円を生成 (画面中央)
+        this.sowakaFieldVisual = this.add.circle(this.gameWidth / 2, this.gameHeight / 2, 0, 0x6600cc, 0.3); // 初期半径0、紫っぽい色、透明度30%
+        this.sowakaFieldVisual.setDepth(-1); // ボスやボールより後ろ、背景より手前くらい
+
+        // Tweenで円を画面全体を覆うくらいまで広げる
+        const targetRadius = Math.max(this.gameWidth, this.gameHeight) / 1.5; // 画面の長辺の半分強くらい
+        this.tweens.add({
+            targets: this.sowakaFieldVisual,
+            radius: targetRadius,
+            alpha: { from: 0, to: 0.3 }, // 最初は見えなくて徐々に現れる
+            duration: 800, // 0.8秒で広がる (調整可能)
+            ease: 'Sine.easeOut' // ゆっくり広がる感じ
+        });
+       // ★★★ フィールド解除に必要なダメージを設定 ★★★
+        this.sowakaFieldDamageToDeactivate = this.bossData.sowakaFieldDamageThreshold || 5;
+        console.log(`[SowakaField] Damage needed to deactivate field: ${this.sowakaFieldDamageToDeactivate}`);
+        // ★★★-----------------------------------★★★
     }
+
 
     /**
      * ソワカのフィールド効果を解除する
@@ -764,13 +791,26 @@ export default class Boss2Scene extends CommonBossScene {
         // UIに通知
         this.events.emit('sowakaFieldUpdate', { active: false, itemType: null });
         console.log("[SowakaField] Emitted sowakaFieldUpdate event (deactivated).");
-
-        // ★ 解除モーション (後で実装) ★
-        // this.showSowakaFieldDeactivationAnimation();
-        console.log("[SowakaField] TODO: Implement field deactivation animation.");
-        // (仮の視覚フィードバックとして背景色を戻すなど)
-        // this.cameras.main.setBackgroundColor(0x000000); // 元の背景色に戻す処理 (背景画像なら不要)
-
+ // ★★★ フィールド解除モーション ★★★
+        if (this.sowakaFieldVisual && this.sowakaFieldVisual.active) {
+            console.log("[SowakaField] Starting field deactivation animation.");
+            this.tweens.add({
+                targets: this.sowakaFieldVisual,
+                alpha: 0, // 透明にして消す
+                radius: this.sowakaFieldVisual.radius * 0.5, // 少し縮みながら消える (任意)
+                duration: 500, // 0.5秒で消える (調整可能)
+                ease: 'Sine.easeIn',
+                onComplete: () => {
+                    this.sowakaFieldVisual?.destroy(); // アニメーション完了後に破棄
+                    this.sowakaFieldVisual = null;
+                    console.log("[SowakaField] Visual field object destroyed.");
+                }
+            });
+        } else {
+            this.sowakaFieldVisual?.destroy(); // 即座に破棄
+            this.sowakaFieldVisual = null;
+        }
+        // ★★★--------------------------★★★
         // クールダウンタイマーを開始して再展開を予約 (戦闘中のみ)
         if (!this.bossDefeated && !this.isGameOver) {
             const cooldown = this.bossData.sowakaFieldCooldown;
