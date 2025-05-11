@@ -2509,18 +2509,70 @@ calculateDynamicFontSize(baseSizeMax) {
 
 
     
-    updateBallFall(){if(!this.balls?.active)return;let aBC=0,sLLTF=false,dSB=null;this.balls.getChildren().forEach(b=>{if(b.active){aBC++;if(this.isBallLaunched&&b.y>this.gameHeight+b.displayHeight*2){
-       // if(this.isAnilaActive){this.deactivateAnila();b.y=this.paddle.y-this.paddle.displayHeight;b.setVelocityY(BALL_INITIAL_VELOCITY_Y*0.8);console.log("[Anila] Ball bounced!");}else{b.setActive(false).setVisible(false);if(b.body)b.body.enable=false;sLLTF=true;if(b.getData('isSindaraActive'))dSB=b;}}}});
-        
-         console.log(`[UpdateBallFall] Ball ${ball.name} went out of bounds.`);
-                    ball.setActive(false).setVisible(false);
-                    if (ball.body) ball.body.enable = false;
-                    shouldLoseLifeThisFrame = true; // ライフ減少の可能性
-                    if (ball.getData('isSindaraActive')) droppedSindaraBall = ball;
-                      }
+       updateBallFall() {
+        if (!this.balls || !this.balls.active || this.balls.countActive(true) === 0) {
+            // ボールグループが存在しないか、アクティブなボールが1つもなければ何もしない
+            return;
+        }
+
+        let shouldLoseLifeThisFrame = false;
+        let allBallsLostThisFrame = true; // このフレームで全てのボールが失われたかのフラグ
+
+        // getChildren() で配列のコピーを取得してループする方が、ループ中に要素が削除されても安全
+        const currentActiveBalls = [...this.balls.getMatching('active', true)];
+
+        if (currentActiveBalls.length === 0 && this.isBallLaunched) {
+            // isBallLaunched なのにアクティブなボールがない場合は、即座にライフ減少を試みる
+            // (ただし、これは通常 shouldLoseLifeThisFrame と下の判定でカバーされるはず)
+            console.log("[UpdateBallFall] No active balls found while ball was launched. Setting shouldLoseLife.");
+            shouldLoseLifeThisFrame = true;
+        }
+
+        currentActiveBalls.forEach(currentBall => { // ★ ループ変数を currentBall に変更（明確化）
+            if (currentBall.active) { // ループ中にもう一度アクティブ確認 (念のため)
+                if (this.isBallLaunched && currentBall.y > this.gameHeight + currentBall.displayHeight * 2) {
+                    console.log(`[UpdateBallFall] Ball ${currentBall.name} went out of bounds.`);
+                    currentBall.setActive(false).setVisible(false);
+                    if (currentBall.body) currentBall.body.enable = false;
+
+                    shouldLoseLifeThisFrame = true; // ボールが1つでも落ちたらライフ減少の可能性
+
+                    if (currentBall.getData('isSindaraActive')) {
+                        // シンダラ解除判定 (CommonBossScene内に deactivateSindara がある前提)
+                        const remainingSindara = this.balls.getMatching('isSindaraActive', true);
+                        console.log(`[UpdateBallFall] A Sindara ball dropped. Remaining active Sindara: ${remainingSindara.length}`);
+                        if (remainingSindara.length === 0) { // ★ 落ちた後、アクティブなシンダラがいなくなったら
+                            console.log("[UpdateBallFall] Last Sindara ball dropped or all became inactive. Deactivating Sindara effect for any remaining (inactive) balls.");
+                            // もし deactivateSindara が特定のボールを引数に取るなら、
+                            // ここで全てのボールに対して解除処理を行うか、
+                            // あるいはシーンレベルのシンダラフラグを管理する必要がある。
+                            // 簡単なのは、全てのボールからシンダラ状態を解除。
+                            this.balls.getChildren().forEach(b => {
+                                if (b.getData('isSindaraActive')) {
+                                    this.setBallPowerUpState(POWERUP_TYPES.SINDARA, false, b);
+                                }
+                            });
+                            this.updateBallAndPaddleAppearance();
+                        }
+                    }
+                } else {
+                    // このボールはまだ画面内に残っている
+                    allBallsLostThisFrame = false;
+                }
             }
         });
-       if(dSB){const rS=this.balls.getMatching('isSindaraActive',true);if(rS.length<=1)rS.forEach(b=>this.deactivateSindara(b,true));}if(sLLTF&&this.balls.countActive(true)===0&&this.lives>0&&!this.isGameOver&&!this.bossDefeated)this.loseLife();}
+
+        // ライフ減少判定
+        // shouldLoseLifeThisFrame が true (このフレームで少なくとも1球落ちた)
+        // かつ allBallsLostThisFrame が true (このフレームで画面上に残ったアクティブなボールがない)
+        // または、単純に現在アクティブなボールが0になった場合
+        if (shouldLoseLifeThisFrame && this.balls.countActive(true) === 0) {
+            if (this.lives > 0 && !this.isGameOver && !this.bossDefeated) {
+                console.log("[UpdateBallFall] Conditions met to lose life (a ball dropped AND no active balls remain). Calling loseLife.");
+                this.loseLife();
+            }
+        }
+    }   
     handleWorldBounds(body,up,down,left,right){const gO=body.gameObject;if(!gO||!(gO instanceof Phaser.Physics.Arcade.Image)||!gO.active)return;if(this.balls.contains(gO)){if(up||left||right){this.sound.play(AUDIO_KEYS.SE_REFLECT,{volume:0.7});let iX=gO.x,iY=gO.y,aR=[0,0];if(up){iY=body.y;aR=[60,120];}else if(left){iX=body.x;aR=[-30,30];}else if(right){iX=body.x+body.width;aR=[150,210];}this.createImpactParticles(iX,iY,aR,0xffffff,5);}}}
     createImpactParticles(x,y,angleRange,tint,count=8){const p=this.add.particles(0,0,'whitePixel',{x:x,y:y,lifespan:{min:100,max:300},speed:{min:80,max:150},angle:{min:angleRange[0],max:angleRange[1]},gravityY:200,scale:{start:0.6,end:0},quantity:count,blendMode:'ADD',emitting:false});p.setParticleTint(tint);p.explode(count);this.time.delayedCall(400,()=>p.destroy());}
     playBossBgm(){this.stopBgm();const bK=this.bossData.bgmKey||AUDIO_KEYS.BGM2;this.currentBgm=this.sound.add(bK,{loop:true,volume:0.45});try{this.currentBgm.play();}catch(e){console.error(`Error playing BGM ${bK}:`,e);}}
