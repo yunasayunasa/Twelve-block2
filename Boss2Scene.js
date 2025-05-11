@@ -1,6 +1,10 @@
 // Boss2Scene.js (サンカラ＆ソワカ戦)
 import CommonBossScene from './CommonBossScene.js';
 import {
+  // ★★★ ボス撃破演出関連の定数をインポート (もしこのファイル内で直接使うなら) ★★★
+    DEFEAT_FLASH_DURATION, DEFEAT_FLASH_INTERVAL, DEFEAT_FLASH_COUNT,
+    DEFEAT_SHAKE_DURATION, DEFEAT_FADE_DURATION,
+    // ★★★--------------------------------------------
     DEFEAT_FLASH_COUNT, DEFEAT_FLASH_INTERVAL, DEFEAT_FLASH_DURATION, 
     AUDIO_KEYS,
     POWERUP_TYPES, // ソワカのフィールドギミックで使う可能性
