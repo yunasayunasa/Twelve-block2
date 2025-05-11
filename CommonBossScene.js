@@ -542,6 +542,15 @@ export default class CommonBossScene extends Phaser.Scene {
                 }
             } else { console.error("!!! ERROR: Boss body missing when finalizing appearance!"); }
             // ★-------------------------------------------------------★
+              // ★★★ 戦闘開始直前に無敵を確実に解除 ★★★
+            this.boss.setData('isInvulnerable', false);
+            console.log(`[FinalizeAppearance] Boss invulnerability set to: ${this.boss.getData('isInvulnerable')}`);
+            // ★★★---------------------------------★★★
+
+            // ★★★ コライダーを最新の状態に更新 ★★★
+            console.log("[FinalizeAppearance] Calling setColliders before starting gameplay.");
+            this.setColliders();
+            // ★★★-----------------------------★★★
 
         } catch(e) { console.error("!!! ERROR finalizing boss appearance or enabling body:", e); }
 
