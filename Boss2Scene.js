@@ -119,7 +119,7 @@ export default class Boss2Scene extends CommonBossScene {
             sowakaProjectileScale: this.sankaraData.attackBrickScale || 0.2, // サンカラと同じスケールを使う例
             // ★★★--------------------------★★★
             // ソワカフィールド関連
-              sowakaFieldDuration: 15000, // フィールド効果時間 (ms)
+              sowakaFieldDuration: 30000, // フィールド効果時間 (ms)
             sowakaFieldCooldown: 10000, // 再展開までのクールダウン (ms)
             sowakaFieldDamageThreshold: 5, // ★ フィールド解除に必要な総ダメージ量 (例: 5ダメージ)
             sowakaFieldItemCandidates: [
@@ -757,7 +757,7 @@ export default class Boss2Scene extends CommonBossScene {
         this.sowakaFieldVisual?.destroy();
 
         // 半透明の円を生成 (画面中央)
-        this.sowakaFieldVisual = this.add.circle(this.gameWidth / 2, this.gameHeight / 2, 0, 0x6600cc, 0.3); // 初期半径0、紫っぽい色、透明度30%
+        this.sowakaFieldVisual = this.add.circle(this.gameWidth / 2, this.gameHeight / 2, 0, 0x6600cc, 0.5); // 初期半径0、紫っぽい色、透明度30%
         this.sowakaFieldVisual.setDepth(-1); // ボスやボールより後ろ、背景より手前くらい
 
         // Tweenで円を画面全体を覆うくらいまで広げる
@@ -765,7 +765,7 @@ export default class Boss2Scene extends CommonBossScene {
         this.tweens.add({
             targets: this.sowakaFieldVisual,
             radius: targetRadius,
-            alpha: { from: 0, to: 0.3 }, // 最初は見えなくて徐々に現れる
+            alpha: { from: 0, to: 0.5 }, // 最初は見えなくて徐々に現れる
             duration: 800, // 0.8秒で広がる (調整可能)
             ease: 'Sine.easeOut' // ゆっくり広がる感じ
         });
@@ -793,6 +793,11 @@ export default class Boss2Scene extends CommonBossScene {
         console.log("[SowakaField] Emitted sowakaFieldUpdate event (deactivated).");
  // ★★★ フィールド解除モーション ★★★
         if (this.sowakaFieldVisual && this.sowakaFieldVisual.active) {
+
+               // ★★★ 消えるアニメーションの開始アルファを targetAlpha に合わせる ★★★
+            const currentAlpha = this.sowakaFieldVisual.alpha; // 現在のアルファ (Tween中かもしれないので)
+            const startAlphaForFadeOut = Math.min(currentAlpha, 0.5); // 例: activateSowakaFieldのtargetAlphaと同じ
+            // ★★★-------------------------------------------------------★★★
             console.log("[SowakaField] Starting field deactivation animation.");
             this.tweens.add({
                 targets: this.sowakaFieldVisual,
