@@ -1159,24 +1159,31 @@ if (this.isMakiraActive && this.balls && this.familiars && this.familiars.countA
 
     // --- ▼ ゲーム進行メソッド ▼ ---
         // CommonBossScene.js の loseLife メソッドを修正
-    // ライフを失った時の処理 (完全版)
-    loseLife() {
-        console.log(">>> loseLife called <<<");
-        console.log(`[LoseLife] Checking invincibility: isPlayerTrulyInvincible = ${this.isPlayerTrulyInvincible}`);
+     // loseLife メソッドに引数を追加
+    /**
+     * ライフを処理し、ボールをリセットする
+     * @param {boolean} [preventLifeLoss=false] trueの場合、ライフを減らさずにボールリセットのみ行う
+     */
+    loseLife(preventLifeLoss = false) {
+        // isPlayerTrulyInvincible はアニラ効果がまだ「有効」な場合。
+        // preventLifeLoss はアニラ効果が「今しがた切れた」場合。
         if (this.isPlayerTrulyInvincible) {
-            console.log("[LoseLife] Life loss prevented by Player True Invincibility (Anila).");
-            // (オプション) 無敵で防いだSEやエフェクト
-            // this.sound.play('se_anila_block');
-            return; // ライフは減らない
+            console.log("[LoseLife] Called, but Player True Invincibility is ACTIVE. No life loss, no ball reset from here.");
+            return;
+        }
+        if (this.isGameOver || this.bossDefeated) return;
+
+        if (!preventLifeLoss) { // ★ ライフを減らさないフラグが false の場合のみライフを減らす
+            console.log(`Losing life. Current lives: ${this.lives}, Remaining after loss: ${this.lives - 1}`);
+            this.lives--;
+            this.events.emit('updateLives', this.lives);
+        } else {
+            console.log("[LoseLife] Life loss PREVENTED (e.g., by Anila effect ending on ball loss). Ball reset will still occur.");
         }
 
-        if (this.isGameOver || this.bossDefeated) return;
-        console.log(`Losing life. Current lives: ${this.lives}, Remaining after loss: ${this.lives - 1}`);
-
-        // --- 持続系パワーアップ解除 ---
+        // --- 持続系パワーアップ解除 (preventLifeLossに関わらず行う) ---
         console.log("[LoseLife] Deactivating persistent power-ups...");
-        // this.deactivateMakira(); // マキラは即時効果なので解除不要
-        this.deactivateAnila();      // ★ アニラもここで確実に解除する (タイマーが残っていても)
+        this.deactivateAnila(); // 効果が残っていればここで完全に解除
         this.deactivateAnchira(true);
         this.deactivateSindara(null, true);
 
@@ -1209,7 +1216,7 @@ if (this.isMakiraActive && this.balls && this.familiars && this.familiars.countA
         this.balls?.clear(true, true); // 古いボールを全て破棄
 
         // --- 次の処理 ---
-        if (this.lives > 0) {
+        if (this.lives > 0 || preventLifeLoss) { // ★ ライフがあるか、ライフ減少が抑制されたならボール再生成
             console.log("[LoseLife] Scheduling resetForNewLife.");
             this.time.delayedCall(800, this.resetForNewLife, [], this);
         } else {
@@ -1449,6 +1456,7 @@ if (this.isMakiraActive && this.balls && this.familiars && this.familiars.countA
     }
       // アニラ無効化メソッド (完全版)
     deactivateAnila() {
+        
         console.log(">>> deactivateAnila called <<<");
         // 効果が既に無効なら何もしない (重複呼び出しや手動解除後のタイマー発動に対応)
         if (!this.isAnilaActive && !this.isPlayerTrulyInvincible) {
@@ -2580,12 +2588,12 @@ calculateDynamicFontSize(baseSizeMax) {
         if (!this.balls || !this.balls.active || this.balls.countActive(true) === 0) {
             return;
         }
-        let shouldLoseLifeThisFrame = false;
+           let shouldTriggerBallResetCycle = false; // ★ ボール再生成サイクルを開始するかのフラグ
         const currentActiveBalls = [...this.balls.getMatching('active', true)];
 
         if (currentActiveBalls.length === 0 && this.isBallLaunched) {
-            console.log("[UpdateBallFall] No active balls found while ball was launched. Setting shouldLoseLife.");
-            shouldLoseLifeThisFrame = true;
+            console.log("[UpdateBallFall] No active balls found while ball was launched. Triggering reset cycle.");
+            shouldTriggerBallResetCycle = true;
         }
 
         currentActiveBalls.forEach(currentBall => {
@@ -2594,7 +2602,8 @@ calculateDynamicFontSize(baseSizeMax) {
                     console.log(`[UpdateBallFall] Ball ${currentBall.name} went out of bounds.`);
                     currentBall.setActive(false).setVisible(false);
                     if (currentBall.body) currentBall.body.enable = false;
-                    shouldLoseLifeThisFrame = true;
+
+                    shouldTriggerBallResetCycle = true; // ボールが落ちたら再生成サイクルへ
 
                     if (currentBall.getData('isSindaraActive')) {
                         const remainingSindara = this.balls.getMatching('isSindaraActive', true);
@@ -2607,17 +2616,51 @@ calculateDynamicFontSize(baseSizeMax) {
                             this.updateBallAndPaddleAppearance();
                         }
                     }
+                       // ★★★ アニラ効果中にボールが落ちた場合の特別処理 ★★★
+                    if (this.isPlayerTrulyInvincible) {
+                        console.log("[UpdateBallFall] Ball lost during Anila's True Invincibility. Deactivating Anila and preparing for ball reset WITHOUT life loss.");
+                        this.deactivateAnila(); // ★ アニラ効果を即座に解除
+                        // shouldTriggerBallResetCycle は既に true
+                        // ライフは減らさないので、loseLife を直接呼ばないか、特別なフラグで呼ぶ
+                        // ここでは、下の共通のボール数チェックで resetForNewLife のみが呼ばれるようにする
+                    }
                 }
             }
         });
 
-        if (shouldLoseLifeThisFrame && this.balls.countActive(true) === 0) {
-            if (!this.isGameOver && !this.bossDefeated) { // ライフが0より大きいかのチェックは loseLife 内で行う
-                console.log("[UpdateBallFall] Conditions met to potentially lose life. Calling loseLife.");
-                this.loseLife(); // loseLife内で isPlayerTrulyInvincible がチェックされる
+         // ボール再生成サイクルの判定
+        if (shouldTriggerBallResetCycle && this.balls.countActive(true) === 0) {
+            if (!this.isGameOver && !this.bossDefeated) {
+                // ★★★ アニラ無敵が「直前まで」有効だったかを判断 ★★★
+                // (deactivateAnilaが呼ばれた直後なら、まだ isPlayerTrulyInvincible は false になっているはず)
+                // しかし、この updateBallFall の一連の処理中に deactivateAnila が呼ばれたことを
+                // loseLife に伝える必要がある。
+                // もっと簡単なのは、loseLife でライフを減らすかどうかを isPlayerTrulyInvincible "だったか"で判断する。
+                // ただし、deactivateAnila が isPlayerTrulyInvincible を false にするので、
+                // loseLife が呼ばれるときには既に false になっている。
+
+                // 対策：アニラ効果でボールをロストしたことを示す一時的なフラグを使うか、
+                // loseLife に引数を渡す。
+                // ここでは、loseLife の中で isPlayerTrulyInvincible を再度チェックさせる方針を維持し、
+                // deactivateAnila が呼ばれたことを信じる。
+                // isPlayerTrulyInvincible は deactivateAnila で false になっているはず。
+
+                // もしアニラでボールを失った直後なら、ライフは減らしたくない。
+                // しかし、deactivateAnila で isPlayerTrulyInvincible は false になっている。
+                // → loseLife に「ライフを減らさない」オプションを追加するのが一番クリーン。
+
+                if (this.wasAnilaJustDeactivatedByBallLoss) { // ★ このようなフラグを使う
+                    console.log("[UpdateBallFall] Anila was just deactivated by ball loss. Resetting ball without life loss.");
+                    this.loseLife(true); // true は "don't actually lose life" の意
+                    this.wasAnilaJustDeactivatedByBallLoss = false; // フラグを戻す
+                } else {
+                    console.log("[UpdateBallFall] Ball lost (not due to immediate Anila deactivation). Calling loseLife normally.");
+                    this.loseLife(false); // 通常のライフ減少
+                }
             }
         }
     }
+
     handleWorldBounds(body,up,down,left,right){const gO=body.gameObject;if(!gO||!(gO instanceof Phaser.Physics.Arcade.Image)||!gO.active)return;if(this.balls.contains(gO)){if(up||left||right){this.sound.play(AUDIO_KEYS.SE_REFLECT,{volume:0.7});let iX=gO.x,iY=gO.y,aR=[0,0];if(up){iY=body.y;aR=[60,120];}else if(left){iX=body.x;aR=[-30,30];}else if(right){iX=body.x+body.width;aR=[150,210];}this.createImpactParticles(iX,iY,aR,0xffffff,5);}}}
     createImpactParticles(x,y,angleRange,tint,count=8){const p=this.add.particles(0,0,'whitePixel',{x:x,y:y,lifespan:{min:100,max:300},speed:{min:80,max:150},angle:{min:angleRange[0],max:angleRange[1]},gravityY:200,scale:{start:0.6,end:0},quantity:count,blendMode:'ADD',emitting:false});p.setParticleTint(tint);p.explode(count);this.time.delayedCall(400,()=>p.destroy());}
     playBossBgm(){this.stopBgm();const bK=this.bossData.bgmKey||AUDIO_KEYS.BGM2;this.currentBgm=this.sound.add(bK,{loop:true,volume:0.45});try{this.currentBgm.play();}catch(e){console.error(`Error playing BGM ${bK}:`,e);}}
