@@ -659,7 +659,9 @@ export default class CommonBossScene extends Phaser.Scene {
                 }
                 // ★★★--------------------------------------------★★★
 
-                this.boss.setData('isInvulnerable', false);
+                this.boss.setData('isInvulnerable', false);  
+                console.log(`[CreateSpecificBoss - ${this.scene.key}] Set isInvulnerable to: ${this.boss.getData('isInvulnerable')}`);
+  
                 this.boss.setData('targetY', bossY);
                 console.log("[CommonBossScene] Boss data (invulnerable, targetY) set.");
 
@@ -825,6 +827,8 @@ export default class CommonBossScene extends Phaser.Scene {
         if (this.uiScene?.scene.isActive()) this.events.emit('updateDropPoolUI', this.bossDropPool);
     }
     setColliders() {
+        console.log(`[SetColliders] Starting for scene: ${this.scene.key}. Boss: ${this.boss?.texture?.key}, Active: ${this.boss?.active}, BodyEnabled: ${this.boss?.body?.enable}`);
+  
         this.safeDestroyCollider(this.ballPaddleCollider); this.safeDestroyCollider(this.ballBossCollider);
         this.safeDestroyCollider(this.ballAttackBrickCollider); this.safeDestroyCollider(this.ballAttackBrickOverlap);
         this.safeDestroyCollider(this.paddlePowerUpOverlap); this.safeDestroyCollider(this.paddleAttackBrickCollider);

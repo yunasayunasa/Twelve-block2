@@ -545,7 +545,7 @@ export default class Boss2Scene extends CommonBossScene {
         console.log("[SowakaCutscene] Starting Sowaka's cutscene...");
         // CommonBossSceneのstartIntroCutsceneのロジックを参考に、ソワカ用に調整
         const cutsceneDurationToUse = CUTSCENE_DURATION || 1800; // constants.jsからかデフォルト値
-        // try { this.sound.play(AUDIO_KEYS.SE_CUTSCENE_START); } catch(e) {} // 必要ならカットインSE
+        try { this.sound.play(AUDIO_KEYS.SE_CUTSCENE_START); } catch(e) {} // 必要ならカットインSE
 
         const overlay = this.add.rectangle(0, 0, this.gameWidth, this.gameHeight, 0x100010, 0.8) // ソワカ用オーバーレイ色
             .setOrigin(0,0).setDepth(1900);
@@ -650,6 +650,8 @@ export default class Boss2Scene extends CommonBossScene {
                     this.createAndAddBall(this.gameWidth / 2, this.gameHeight * 0.7);
                 }
                 this.isBallLaunched = false;
+                  console.log(`[${this.scene.key} startGameplay for Sowaka] Calling setColliders. Boss active: ${this.boss?.active}, Boss body enabled: ${this.boss?.body?.enable}`);
+        this.setColliders(); // ★ ここで確実に呼ぶ
             }
 
             // ソワカのフィールドを初回展開
