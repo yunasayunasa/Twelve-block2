@@ -24,6 +24,8 @@ export default class Boss2Scene extends CommonBossScene {
         this.sankaraRushTimer = null;
         this.isSankaraRushing = false; // 現在突進中かどうかのフラグ
         this.sowakaData = {};  // ソワカ形態用のデータを保持
+         this.bossDefeatedThisPhase = false; // ★ constructor で初期化
+      
 
         // ソワカのフィールド効果用
         this.sowakaFieldActive = false;
@@ -38,6 +40,8 @@ export default class Boss2Scene extends CommonBossScene {
         super.init(data); // 親のinitを呼び出す
         this.currentPhase = 'sankara'; // ★ シーン開始時は必ずサンカラから
         this.isSankaraRushing = false; // シーン初期化時にリセット
+        this.bossDefeatedThisPhase = false; // ★ initでも確実にリセット
+       
         if (this.sankaraRushTimer) {
             this.sankaraRushTimer.remove();
             this.sankaraRushTimer = null;
@@ -388,29 +392,30 @@ export default class Boss2Scene extends CommonBossScene {
     // --- ▲ ソワカ形態の攻撃とフィールドロジック ▲ ---
 
 
-    handleZeroHealth(bossInstance) {
+  handleZeroHealth(bossInstance) {
+        console.log(`[Boss2Scene handleZeroHealth] Called for phase: ${this.currentPhase}. Boss defeated this phase: ${this.bossDefeatedThisPhase}`);
         if (this.currentPhase === 'sankara') {
-            console.log("[Boss2Scene] Sankara's health is zero. Starting transition to Sowaka.");
-            if (!this.bossDefeatedThisPhase) { // ★ 重複実行防止
+            if (!this.bossDefeatedThisPhase) { // ★ まだサンカラ撃破処理が開始されていなければ
+                console.log("[Boss2Scene] Sankara's health is zero. Triggering transition to Sowaka.");
                 this.triggerSankaraDefeatAndTransitionToSowaka(bossInstance);
             } else {
-                console.log("[Boss2Scene] Sankara defeat sequence already triggered.");
+                console.log("[Boss2Scene] Sankara defeat sequence ALREADY TRIGGERED. Ignoring duplicate call.");
             }
         } else if (this.currentPhase === 'sowaka') {
-            console.log("[Boss2Scene] Sowaka's health is zero. Calling Common defeatBoss.");
-            // ソワカが倒されたら CommonBossScene の通常の撃破処理を呼ぶ
-            // (Common の defeatBoss 内で this.bossDefeated = true; になる)
-            super.defeatBoss(bossInstance); // ★ super.handleZeroHealthではなく、直接super.defeatBossを呼ぶ
-        } else {
-            console.error("[Boss2Scene] Unknown phase in handleZeroHealth:", this.currentPhase);
-            super.defeatBoss(bossInstance); // 想定外なら通常の撃破
-        }
+            // ソワカが倒されたら CommonBossScene の通常の撃破処理
+            if (!this.bossDefeated) { // Commonの全体撃破フラグもチェック
+                 console.log("[Boss2Scene] Sowaka's health is zero. Calling Common's defeatBoss.");
+                 super.defeatBoss(bossInstance); // Commonの defeatBoss を呼ぶ
+            } else {
+                 console.log("[Boss2Scene] Sowaka defeat (via Common) ALREADY TRIGGERED.");
+            }
+        } else { /* ... */ }
     }
 
     // ★ 新しいメソッド：サンカラ撃破とソワカへの移行処理を開始
     triggerSankaraDefeatAndTransitionToSowaka(sankaraBossObject) {
-        console.log("[Boss2Scene] triggerSankaraDefeatAndTransitionToSowaka called.");
-        // this.bossDefeated = true; // ← Commonのフラグはまだ立てない
+        // このメソッドの冒頭の this.bossDefeatedThisPhase = true; は正しい
+        console.log("[Boss2Scene] triggerSankaraDefeatAndTransitionToSowaka actually executing.");   // this.bossDefeated = true; // ← Commonのフラグはまだ立てない
         this.bossDefeatedThisPhase = true; // ★ この形態は倒された
         this.playerControlEnabled = false;
 
@@ -479,10 +484,10 @@ export default class Boss2Scene extends CommonBossScene {
         // ★★★ 定数が正しく参照されているかログで確認 ★★★
         console.log(`[Transition Debug] Using constants - DEFEAT_SHAKE_DURATION: ${DEFEAT_SHAKE_DURATION}, DEFEAT_FADE_DURATION: ${DEFEAT_FADE_DURATION}`);
 
-        const shakeDuration = (DEFEAT_SHAKE_DURATION || 1200) / 1.5; // 定数にフォールバック値
-        const fadeDuration = (DEFEAT_FADE_DURATION || 1500) / 1.5;   // 定数にフォールバック値
+          const shakeDuration = (DEFEAT_SHAKE_DURATION || 1200) / 1.5;
+        const fadeDuration = (DEFEAT_FADE_DURATION || 1500) / 1.5;
         const fadeDelay = shakeDuration * 0.2;
-
+        console.log(`[Transition] Starting Shake (dur: ${shakeDuration.toFixed(0)}) and Fade (dur: ${fadeDuration.toFixed(0)}, delay: ${fadeDelay.toFixed(0)}) for Sankara.`);
         console.log(`[Transition] Starting Shake (calc dur: ${shakeDuration.toFixed(0)}) and Fade (calc dur: ${fadeDuration.toFixed(0)}, delay: ${fadeDelay.toFixed(0)}) for Sankara.`);
 
         if (sankaraBossObject.active) {
@@ -518,7 +523,8 @@ export default class Boss2Scene extends CommonBossScene {
     startSowakaAppearance() {
         console.log("[Boss2Scene] startSowakaAppearance called.");
         // TODO: (必要なら短い暗転や特殊エフェクト)
-
+ this.bossDefeatedThisPhase = false; // ★ ソワカ戦開始時にリセット
+        // this.bossDefeated = false; // Commonのフラグもリセット（最終ボスでないため）
         // ソワカカットイン表示
         // CommonBossSceneのstartIntroCutsceneを参考に、テキストとボイスをソワカ用に
         // ここでは簡略化して直接ソワカ登場演出へ

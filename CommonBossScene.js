@@ -1952,21 +1952,25 @@ if (this.isMakiraActive && this.balls && this.familiars && this.familiars.countA
 
         // --- 体力ゼロ判定と撃破処理 ---
        console.log(`[Apply Damage - ${source}] Checking if health <= 0: (${currentHealth} <= 0) is ${currentHealth <= 0}`);
-        if (currentHealth <= 0) {
-            console.log(`[Apply Damage - ${source}] Health is zero or below.`);
-            if (bossInstance.active) {
-                // ★★★ ボスシーンに形態変化などの特別処理があるか確認 ★★★
-                if (typeof this.handleZeroHealth === 'function') {
-                    console.log(`[Apply Damage - ${source}] Calling scene specific handleZeroHealth...`);
-                    this.handleZeroHealth(bossInstance); // 各ボスシーンでオーバーライド可能なメソッドを呼ぶ
+      if (currentHealth <= 0) {
+            // ★★★ 既にこのボスが撃破処理に入っていないか、より厳密にチェック ★★★
+            // CommonBossSceneの全体的なボス撃破フラグと、
+            // Boss2Sceneのような形態変化を持つシーンのフェーズごとの撃破フラグを考慮
+            const sceneSpecificDefeatFlag = this.bossDefeatedThisPhase; // Boss2Sceneならこれ、他はundefinedのはず
+
+            if (!this.bossDefeated && !sceneSpecificDefeatFlag) { // 全体もフェーズもまだ倒されていない
+                console.log(`[Apply Damage - ${source}] Health is zero or below. Calling handleZeroHealth for boss:`, bossInstance.name || bossInstance.texture.key);
+                if (bossInstance.active) {
+                    // ★★★ ここで this.bossDefeated を true にしても良いかもしれない (形態変化がないボスの場合) ★★★
+                    // ただし、形態変化がある場合は、最終形態が倒された時に true にする
+                    this.handleZeroHealth(bossInstance);
                 } else {
-                    // デフォルトの撃破処理
-                    console.log(`[Apply Damage - ${source}] Calling default defeatBoss...`);
-                    this.defeatBoss(bossInstance);
+                    console.warn(`[Apply Damage - ${source}] Boss became inactive BEFORE calling handleZeroHealth!`);
                 }
-                // ★★★-------------------------------------------------★★★
-             } else { /* ボス非アクティブ警告 */ }
-        } else { /* ボス生存ログ */ }
+            } else {
+                console.log(`[Apply Damage - ${source}] Health is zero or below, BUT defeat sequence already initiated (bossDefeated: ${this.bossDefeated}, sceneSpecificDefeatFlag: ${sceneSpecificDefeatFlag}). Skipping duplicate call.`);
+            }
+        } else { /* ボス生存 */ }
     }
 
     hitAttackBrick(brick, ball) { if (!brick?.active || !ball?.active) return;
