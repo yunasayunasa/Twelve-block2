@@ -23,6 +23,7 @@ export default class UIScene extends Phaser.Scene {
         this.bossNumberText = null; // ボス番号表示用 (Boss X/Y形式)
         this.vajraGaugeText = null;
         this.dropPoolIconsGroup = null;
+        this.sowakaFieldInfoText = null; // ★ ソワカフィールド情報表示用テキスト
 
         this.parentSceneKey = null;
         this.parentScene = null;
@@ -86,6 +87,18 @@ export default class UIScene extends Phaser.Scene {
             // ドロッププール (ヴァジラゲージの右側、または左下)
             this.dropPoolIconsGroup = this.add.group();
 
+              // ★★★ ソワカフィールド情報テキストを生成 ★★★
+        // 位置はボス番号の下あたり、またはドロッププールの近くなど、分かりやすい場所
+        const fieldInfoStyle = this.createTextStyle(UI_FONT_SIZE_MIN + 4); // 少し小さめのフォント
+        // 例: ボス番号テキストの下に配置
+        const fieldInfoY = (this.bossNumberText ? this.bossNumberText.y + this.bossNumberText.displayHeight / 2 + 10 : this.calculateTopMargin() + 30);
+        this.sowakaFieldInfoText = this.add.text(this.gameWidth / 2, fieldInfoY, '', fieldInfoStyle)
+            .setOrigin(0.5, 0) // 上端中央基準
+            .setVisible(false) // 最初は非表示
+            .setDepth(1000);   // 他のUI要素と同じ深度
+        console.log("[UIScene Create] Sowaka field info text created.");
+        // ★★★------------------------------------★★★
+
             console.log("[UIScene Create] UI elements created.");
 
             this.registerParentEventListeners(this.parentScene);
@@ -145,6 +158,8 @@ export default class UIScene extends Phaser.Scene {
         this.bossNumberText?.destroy(); this.bossNumberText = null;
         this.vajraGaugeText?.destroy(); this.vajraGaugeText = null;
         this.dropPoolIconsGroup?.destroy(true, true); this.dropPoolIconsGroup = null; // 子要素も一緒に破棄
+        this.sowakaFieldInfoText?.destroy(); this.sowakaFieldInfoText = null;
+        console.log("[Destroy UI] Existing UI elements destroyed, including Sowaka field info.");
         console.log("[Destroy UI] Existing UI elements destroyed.");
     }
 
@@ -169,6 +184,11 @@ export default class UIScene extends Phaser.Scene {
         parentScene.events.on('updateVajraGauge', this.updateVajraGaugeDisplay, this);
         parentScene.events.on('deactivateVajraUI', this.deactivateVajraUIDisplay, this);
         parentScene.events.on('updateDropPoolUI', this.updateDropPoolDisplay, this);
+        // ★★★ ソワカフィールド更新イベントを購読 ★★★
+        parentScene.events.on('sowakaFieldUpdate', this.updateSowakaFieldInfoDisplay, this);
+        console.log("[Register Listeners] Added listener for sowakaFieldUpdate.");
+        // ★★★-----------------------------------★★★
+
 
         this.eventListenerAttached = true;
         console.log("[Register Listeners] Listeners registered.");
@@ -186,6 +206,7 @@ export default class UIScene extends Phaser.Scene {
             ps.events.off('updateVajraGauge', this.updateVajraGaugeDisplay, this);
             ps.events.off('deactivateVajraUI', this.deactivateVajraUIDisplay, this);
             ps.events.off('updateDropPoolUI', this.updateDropPoolDisplay, this);
+            ps.events.off('sowakaFieldUpdate', this.updateSowakaFieldInfoDisplay, this); // ★ 解除
         }
         this.eventListenerAttached = false;
     }
@@ -206,10 +227,53 @@ export default class UIScene extends Phaser.Scene {
                 this.deactivateVajraUIDisplay();
             }
             this.updateDropPoolDisplay(parentScene.bossDropPool ?? []);
+            if (parentScene.scene.key === 'Boss2Scene' && parentScene.currentPhase === 'sowaka') {
+            this.updateSowakaFieldInfoDisplay({
+                active: parentScene.sowakaFieldActive,
+                itemType: parentScene.sowakaLimitedItemType
+            });
+            console.log(`[Reflect State] Initial Sowaka field state: Active=${parentScene.sowakaFieldActive}, Item=${parentScene.sowakaLimitedItemType}`);
+        } else {
+            this.updateSowakaFieldInfoDisplay({ active: false, itemType: null }); // 他のシーンやフェーズでは非表示
+        }
 
         } catch (e) { console.error(`!!! ERROR reflecting initial state:`, e.message, e.stack); }
         console.log(`[Reflect State] Initial state reflected.`);
     }
+
+    // ★★★ 新しいメソッド：ソワカフィールド情報表示を更新 ★★★
+    updateSowakaFieldInfoDisplay(fieldData) {
+        if (!this.sowakaFieldInfoText) return;
+
+        if (fieldData && fieldData.active && fieldData.itemType) {
+            // POWERUP_TYPES のキーから、より分かりやすい日本語名などに変換するテーブルを別途用意しても良い
+            let displayItemName = fieldData.itemType.toUpperCase(); // とりあえず大文字で表示
+            // 例: if (fieldData.itemType === POWERUP_TYPES.ANCHIRA) displayItemName = "アンチラ";
+
+            this.sowakaFieldInfoText.setText(`サンカラの願い\nドロップ限定: ${displayItemName}`)
+                .setVisible(true)
+                .setColor('#ffcc00'); // 目立つ色にする (例: オレンジ黄色)
+            console.log(`[Update UI] Sowaka Field ACTIVE. Limited to: ${displayItemName}`);
+        } else {
+            this.sowakaFieldInfoText.setVisible(false);
+            console.log("[Update UI] Sowaka Field DEACTIVATED.");
+        }
+        // 必要なら onGameResize で位置調整も行う
+        this.repositionSowakaFieldInfoText();
+    }
+
+    // ★★★ 新しいメソッド：ソワカフィールド情報テキストの位置調整 ★★★
+    repositionSowakaFieldInfoText() {
+        if (this.sowakaFieldInfoText && this.bossNumberText) {
+            const fieldInfoY = this.bossNumberText.y + this.bossNumberText.displayHeight / 2 + (this.gameHeight * 0.015); // ボス番号の下、少し隙間
+            this.sowakaFieldInfoText.setPosition(this.gameWidth / 2, fieldInfoY);
+        } else if (this.sowakaFieldInfoText) {
+            // bossNumberText がない場合のフォールバック位置
+            this.sowakaFieldInfoText.setPosition(this.gameWidth / 2, this.calculateTopMargin() + 30);
+        }
+    }
+
+
 
     onGameResize() {
         console.log("[On Resize] UIScene handling resize...");
@@ -225,6 +289,9 @@ export default class UIScene extends Phaser.Scene {
         this.bossHpText?.setPosition(this.gameWidth - sideMargin, topMargin).setStyle(textStyle).setOrigin(1, 0.5);
         this.vajraGaugeText?.setPosition(sideMargin, vajraGaugeY).setStyle(gaugeStyle).setOrigin(0, 1);
         this.updateDropPoolPosition(); // ドロッププールも再配置
+        this.repositionSowakaFieldInfoText(); // ★ 追加
+        console.log("[On Resize] UI elements repositioned and resized, including Sowaka field info.");
+    
         console.log("[On Resize] UI elements repositioned and resized.");
     }
 
