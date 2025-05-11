@@ -408,13 +408,16 @@ export default class Boss2Scene extends CommonBossScene {
             // const angleRad = Phaser.Math.DegToRad(angleDeg);
             const projectileVelocity = this.physics.velocityFromAngle(angleDeg, velocity);
 
-            const attackBrick = this.attackBricks.create(bossX, bossY, '__TEMP__');
+            const attackBrick = this.attackBricks.create(bossX, bossY, textureKey); // ★ テクスチャを直接指定
             if (attackBrick) {
-                this.setupAttackBrickAppearance(attackBrick, textureKey, displayScale);
+                attackBrick.setOrigin(0.5, 0.5); // ★ 原点を中心に
+                attackBrick.setScale(displayScale); // スケール設定
                 attackBrick.setVelocity(projectileVelocity.x, projectileVelocity.y);
                 if (attackBrick.body) {
                     attackBrick.body.setAllowGravity(false);
                     attackBrick.body.setCollideWorldBounds(false);
+                    // ★ 物理ボディのサイズ・オフセットはPhaserの自動設定に任せる ★
+                    // (updateFromGameObject もここでは呼ばない)
                 }
                 console.log(`  Spawned Sowaka brick at angle ${angleDeg} deg. Velocity: (${projectileVelocity.x.toFixed(1)}, ${projectileVelocity.y.toFixed(1)})`);
             } else {
