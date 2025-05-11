@@ -113,6 +113,7 @@ export default class CommonBossScene extends Phaser.Scene {
         this.anilaTimer = null;
         this.anchiraTimer = null;
         this.bikaraTimers = {};
+        this.isPlayerTrulyInvincible = false; // ★ アニラ完全無敵フラグ
         
         this.ALL_POSSIBLE_POWERUPS = Object.values(POWERUP_TYPES); // constants.jsから移動
       
@@ -181,6 +182,7 @@ export default class CommonBossScene extends Phaser.Scene {
         this.vajraGauge = 0;
         this.isAnilaActive = false;
         this.anilaTimer?.remove(); this.anilaTimer = null;
+        this.isPlayerTrulyInvincible = false; // ★ initでリセット
         this.anchiraTimer?.remove(); this.anchiraTimer = null;
         Object.values(this.bikaraTimers).forEach(timer => timer?.remove());
         this.bikaraTimers = {};
@@ -1158,6 +1160,12 @@ if (this.isMakiraActive && this.balls && this.familiars && this.familiars.countA
     // --- ▼ ゲーム進行メソッド ▼ ---
         // CommonBossScene.js の loseLife メソッドを修正
     loseLife() {
+
+           // ★★★ 完全無敵チェックを冒頭に追加 ★★★
+        if (this.isPlayerTrulyInvincible) {
+            console.log("[LoseLife] Life loss prevented by Player True Invincibility (Anila).");
+            return; // ライフは減らない
+        }
         if (this.isGameOver || this.bossDefeated) return;
         console.log(`Losing life. Lives remaining: ${this.lives - 1}`);
 
@@ -1398,9 +1406,19 @@ if (this.isMakiraActive && this.balls && this.familiars && this.familiars.countA
     deactivateBikara(ball) { if (!ball?.active || !ball.getData('isBikaraPenetrating')) return; this.setBallPowerUpState(POWERUP_TYPES.BIKARA, false, ball); this.setColliders(); this.updateBallAppearance(ball); }
     activateIndara() { this.balls?.getMatching('active', true).forEach(ball => this.setBallPowerUpState(POWERUP_TYPES.INDARA, true, ball)); this.updateBallAndPaddleAppearance(); this.setColliders(); }
     deactivateIndara(ball) { if (!ball?.active || !ball.getData('isIndaraActive')) return; this.setBallPowerUpState(POWERUP_TYPES.INDARA, false, ball); this.setColliders(); this.updateBallAppearance(ball); }
-    activateAnila() { if (this.isAnilaActive) this.anilaTimer?.remove(); else { this.isAnilaActive = true; this.setBallPowerUpState(POWERUP_TYPES.ANILA, true); } this.anilaTimer = this.time.delayedCall(POWERUP_DURATION[POWERUP_TYPES.ANILA], this.deactivateAnila, [], this); this.updateBallAndPaddleAppearance(); }
+    activateAnila() { if (this.isAnilaActive) this.anilaTimer?.remove(); else { this.isAnilaActive = true;
+          // ★★★ 完全無敵フラグを立てる ★★★
+        this.isPlayerTrulyInvincible = true;
+        console.log("[Anila] Player True Invincibility ENABLED.");
+        // ★★★--------------------------★★★
+        this.setBallPowerUpState(POWERUP_TYPES.ANILA, true); } this.anilaTimer = this.time.delayedCall(POWERUP_DURATION[POWERUP_TYPES.ANILA], this.deactivateAnila, [], this); this.updateBallAndPaddleAppearance(); }
     deactivateAnila() { if (!this.isAnilaActive) return; this.isAnilaActive = false; this.anilaTimer?.remove(); this.anilaTimer = null; this.setBallPowerUpState(POWERUP_TYPES.ANILA, false); this.updateBallAndPaddleAppearance(); }
-    activateVajra() { if (!this.isVajraSystemActive) { this.isVajraSystemActive = true; this.vajraGauge = 0; this.events.emit('activateVajraUI', this.vajraGauge, VAJRA_GAUGE_MAX); this.setBallPowerUpState(POWERUP_TYPES.VAJRA, true); this.updateBallAndPaddleAppearance(); } }
+    activateVajra() { if (!this.isVajraSystemActive) { this.isVajraSystemActive = true;
+         // ★★★ 完全無敵フラグを解除 ★★★
+        this.isPlayerTrulyInvincible = false;
+        console.log("[Anila] Player True Invincibility DISABLED.");
+        // ★★★--------------------------★★★
+        this.vajraGauge = 0; this.events.emit('activateVajraUI', this.vajraGauge, VAJRA_GAUGE_MAX); this.setBallPowerUpState(POWERUP_TYPES.VAJRA, true); this.updateBallAndPaddleAppearance(); } }
     increaseVajraGauge() { if (!this.isVajraSystemActive || this.isGameOver || this.bossDefeated) return; this.vajraGauge = Math.min(this.vajraGauge + VAJRA_GAUGE_INCREMENT, VAJRA_GAUGE_MAX); this.events.emit('updateVajraGauge', this.vajraGauge); if (this.vajraGauge >= VAJRA_GAUGE_MAX) this.triggerVajraOugi(); }
     triggerVajraOugi() { if (!this.isVajraSystemActive) return; this.isVajraSystemActive = false; this.events.emit('deactivateVajraUI'); this.setBallPowerUpState(POWERUP_TYPES.VAJRA, false); this.updateBallAndPaddleAppearance(); this.sound.play(AUDIO_KEYS.VOICE_VAJRA_TRIGGER); if (this.boss?.active) this.applyBossDamage(this.boss, 7, "Vajra Ougi"); }
      
@@ -1787,6 +1805,13 @@ if (this.isMakiraActive && this.balls && this.familiars && this.familiars.countA
         if (!paddle.active || !boss.active || this.isPaddleInvulnerable) { // ★ パドル無敵中は処理しない
             return;
         }
+             // ★★★ 完全無敵チェックを追加 ★★★
+        if (this.isPlayerTrulyInvincible) {
+            console.log("[PaddleBossContact] Damage avoided due to Player True Invincibility (Anila).");
+            // TODO: 無敵ヒットエフェクト (パドル側)
+            return;
+        }
+        // ★★★-------------------------★★★
 
         if (this.shouldPaddleTakeDamageFromBossContact(paddle, boss)) {
             console.log(`[PaddleBossContact] Paddle contacted boss (${boss.texture.key}) under damage conditions.`);
@@ -1805,7 +1830,7 @@ if (this.isMakiraActive && this.balls && this.familiars && this.familiars.countA
             // ★★★------------------------------------★★★
 
             // (オプション) パドルが点滅するなどの視覚フィードバック
-            // this.tweens.add({ targets: paddle, alpha: 0.5, duration: 100, yoyo: true, repeat: Math.floor(paddleInvulnerableDuration / 200) -1 });
+            this.tweens.add({ targets: paddle, alpha: 0.5, duration: 100, yoyo: true, repeat: Math.floor(paddleInvulnerableDuration / 200) -1 });
 
         } else {
             // console.log(`[PaddleBossContact] Paddle contacted boss but no damage condition or paddle invulnerable.`);
@@ -1855,7 +1880,7 @@ if (this.isMakiraActive && this.balls && this.familiars && this.familiars.countA
             if (ball.body) {
                 // ボス中心からボール中心へのベクトル
                 const repelAngle = Phaser.Math.Angle.Between(boss.x, boss.y, ball.x, ball.y);
-                const repelSpeed = NORMAL_BALL_SPEED * 0.8; // 通常より少し弱めに跳ね返すか、同じ強さで
+                const repelSpeed = NORMAL_BALL_SPEED * 1.5; // 通常より少し弱めに跳ね返すか、同じ強さで
                 // 角度から速度ベクトルを計算して設定
                 try {
                     this.physics.velocityFromAngle(Phaser.Math.RadToDeg(repelAngle), repelSpeed, ball.body.velocity);
@@ -1966,7 +1991,7 @@ if (this.isMakiraActive && this.balls && this.familiars && this.familiars.countA
             const shakeAmount = bossInstance.displayWidth * 0.03;
             this.tweens.add({ targets: bossInstance, x: `+=${shakeAmount}`, duration: 40, yoyo: true, ease: 'Sine.InOut', repeat: 1 });
             // 一定時間後にTint解除と無敵解除
-            this.time.delayedCall(250, () => {
+            this.time.delayedCall(350, () => {
                  if (bossInstance?.active) { // オブジェクトがまだ存在・アクティブか確認
                      bossInstance.clearTint();
                      bossInstance.setData('isInvulnerable', false);
@@ -2081,7 +2106,14 @@ if (this.isMakiraActive && this.balls && this.familiars && this.familiars.countA
     } 
     destroyAttackBrick(brick, triggerItemDropLogic = false) { if (!brick?.active) return; this.sound.play(AUDIO_KEYS.SE_DESTROY); this.createImpactParticles(brick.x,brick.y,[0,360],brick.tintTopLeft||0xaa88ff,10); brick.destroy(); this.increaseVajraGauge(); }
     dropSpecificPowerUp(x,y,type){if(!type||!this.powerUps)return;let tK=POWERUP_ICON_KEYS[type]||'whitePixel';const iS=this.gameWidth*POWERUP_SIZE_RATIO;let tC=(tK==='whitePixel'&&type===POWERUP_TYPES.BAISRAVA)?0xffd700:(tK==='whitePixel'?0xcccccc:null);const pU=this.powerUps.create(x,y,tK).setDisplaySize(iS,iS).setData('type',type);if(tC)pU.setTint(tC);if(pU.body){pU.setVelocity(0,POWERUP_SPEED_Y);pU.body.setCollideWorldBounds(false).setAllowGravity(false);}else if(pU)pU.destroy();}
-    handlePaddleHitByAttackBrick(paddle, attackBrick) { if (!paddle?.active || !attackBrick?.active) return; this.destroyAttackBrick(attackBrick, false); if (!this.isAnilaActive) this.loseLife(); else console.log("[Anila] Paddle hit blocked!"); }
+    handlePaddleHitByAttackBrick(paddle, attackBrick) { if (!paddle?.active || !attackBrick?.active) return; this.destroyAttackBrick(attackBrick, false); 
+        // ★★★ 完全無敵チェックを追加 ★★★
+        if (this.isPlayerTrulyInvincible) {
+            console.log("[PaddleAttackBrick] Damage avoided due to Player True Invincibility (Anila).");
+            // TODO: 無敵ヒットエフェクト (パドル側)
+            return;
+        }
+        if (!this.isAnilaActive) this.loseLife(); else console.log("[Anila] Paddle hit blocked!"); }
    
   hitFamiliarWithBall
     // --- ▼ ヘルパーメソッド (主要部分) ▼ ---
