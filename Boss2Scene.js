@@ -474,45 +474,55 @@ export default class Boss2Scene extends CommonBossScene {
           
         
 
-        // シェイク＆フェード (完了後にソワカ登場処理を呼ぶ)
-        // ★★★ 定数が正しく参照されているかログで確認 ★★★
+         // シェイク＆フェード (完了後にソワカ登場処理を呼ぶ)
         console.log(`[Transition Debug] Using constants - DEFEAT_SHAKE_DURATION: ${DEFEAT_SHAKE_DURATION}, DEFEAT_FADE_DURATION: ${DEFEAT_FADE_DURATION}`);
-
-          const shakeDuration = (DEFEAT_SHAKE_DURATION || 1200) / 1.5;
+        const shakeDuration = (DEFEAT_SHAKE_DURATION || 1200) / 1.5;
         const fadeDuration = (DEFEAT_FADE_DURATION || 1500) / 1.5;
         const fadeDelay = shakeDuration * 0.2;
-        console.log(`[Transition] Starting Shake (dur: ${shakeDuration.toFixed(0)}) and Fade (dur: ${fadeDuration.toFixed(0)}, delay: ${fadeDelay.toFixed(0)}) for Sankara.`);
         console.log(`[Transition] Starting Shake (calc dur: ${shakeDuration.toFixed(0)}) and Fade (calc dur: ${fadeDuration.toFixed(0)}, delay: ${fadeDelay.toFixed(0)}) for Sankara.`);
 
         if (sankaraBossObject.active) {
-            // シェイクTween
-            this.tweens.add({
-                targets: sankaraBossObject,
-                props: { x: { value: `+=${sankaraBossObject.displayWidth * 0.03}`, duration: 40, yoyo: true, ease: 'Sine.InOut' }, y: { value: `+=${sankaraBossObject.displayWidth * 0.015}`, duration: 50, yoyo: true, ease: 'Sine.InOut' } },
-                repeat: Math.max(0, Math.floor(shakeDuration / 50) -1)
-            });
-            // フェードアウトTween
-            this.tweens.add({
-                targets: sankaraBossObject,
-                alpha: 0,
-                duration: fadeDuration, // ★ 計算された duration を使用
-                delay: fadeDelay,       // ★ 計算された delay を使用
-                ease: 'Linear',
-                onComplete: () => {
-                    console.log("[Transition] Sankara fade out complete.");
-                    if (sankaraBossObject && sankaraBossObject.scene) {
-                        sankaraBossObject.destroy(); // ★ サンカラのゲームオブジェクトのみ破棄
-                        console.log("[Transition] Sankara GameObject destroyed.");
+            // ★★★ シェイクTweenを try...catch で囲む ★★★
+            try {
+                console.log("[Transition] Attempting to add Shake Tween for Sankara...");
+                this.tweens.add({
+                    targets: sankaraBossObject,
+                    props: { x: { value: `+=${sankaraBossObject.displayWidth * 0.03}`, duration: 40, yoyo: true, ease: 'Sine.InOut' }, y: { value: `+=${sankaraBossObject.displayWidth * 0.015}`, duration: 50, yoyo: true, ease: 'Sine.InOut' } },
+                    repeat: Math.max(0, Math.floor(shakeDuration / 50) -1)
+                });
+                console.log("[Transition] Shake Tween for Sankara ADDED.");
+            } catch (e) {
+                console.error("!!! ERROR creating Shake Tween for Sankara:", e);
+            }
+            // ★★★--------------------------------------★★★
+
+            // ★★★ フェードアウトTweenを try...catch で囲む ★★★
+            try {
+                console.log("[Transition] Attempting to add Fade Tween for Sankara...");
+                this.tweens.add({
+                    targets: sankaraBossObject,
+                    alpha: 0,
+                    duration: fadeDuration,
+                    delay: fadeDelay,
+                    ease: 'Linear',
+                    onComplete: () => {
+                        console.log("[Transition] Sankara fade out complete.");
+                        if (sankaraBossObject && sankaraBossObject.scene) {
+                            sankaraBossObject.destroy();
+                        }
+                        this.startSowakaAppearance();
                     }
-                    // this.boss = null; // CommonBossSceneのプロパティなので、ここで直接nullにしない方が良い場合も
-                    this.startSowakaAppearance(); // ソワカ登場処理へ
-                }
-            });
-           } else { this.startSowakaAppearance(); }
-    }
-}
-
-
+                });
+                console.log("[Transition] Fade Tween for Sankara ADDED.");
+            } catch (e) {
+                console.error("!!! ERROR creating Fade Tween for Sankara:", e);
+            }
+            // ★★★-----------------------------------------★★★
+        } else {
+             console.warn("[Transition] Sankara object was inactive before shake/fade could start.");
+             this.startSowakaAppearance(); // ボスがいなければ直接次へ
+        }
+        }}    
 
     // ★ 新しいメソッド：ソワカ登場処理を開始
     startSowakaAppearance() {
