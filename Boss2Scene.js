@@ -5,7 +5,8 @@ import {
     DEFEAT_FLASH_DURATION, DEFEAT_FLASH_INTERVAL, DEFEAT_FLASH_COUNT,
     DEFEAT_SHAKE_DURATION, DEFEAT_FADE_DURATION,CUTSCENE_DURATION, // CommonBossSceneから参照しているが、ここで直接使うなら
     // ★★★--------------------------------------------
-     
+      BALL_RADIUS_RATIO, // ★★★ BALL_RADIUS_RATIO をインポート ★★★
+    PADDLE_HEIGHT, PADDLE_Y_OFFSET_RATIO, // createAndAddBallで使う可能性のある他の定数も念のため
     AUDIO_KEYS,
     POWERUP_TYPES, // ソワカのフィールドギミックで使う可能性
     // サンカラ・ソワカ固有の攻撃パラメータなどを constants.js に定義する場合はここでインポート
