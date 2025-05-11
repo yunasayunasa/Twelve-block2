@@ -179,7 +179,7 @@ export default class Boss2Scene extends CommonBossScene {
             // ★ ソワカの放射攻撃タイマーをチェック (scheduleSowakaAttackで予約される) ★
             // (タイマーが完了したら spawnSowakaRadialAttack が呼ばれ、その中で次の予約をする)
             // ★ ソワカのフィールド効果の更新/再展開処理もここで行う ★
-            this.updateSowakaField(time, delta); // (このメソッドは後で実装)
+           // this.updateSowakaField(time, delta); // (このメソッドは後で実装)
         }
     }
 
