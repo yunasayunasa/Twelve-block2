@@ -471,14 +471,8 @@ export default class Boss2Scene extends CommonBossScene {
                 }, [], this);
             }
 
-             console.log("[Transition] Starting flash sequence...");
-        for (let i = 0; i < DEFEAT_FLASH_COUNT; i++) { // ★ 定数を使用
-            this.time.delayedCall(i * DEFEAT_FLASH_INTERVAL, () => { // ★ 定数を使用
-                if (!this.scene.isActive() || !this.bossDefeatedThisPhase) return;
-                this.cameras.main.flash(DEFEAT_FLASH_DURATION, 255, 255, 255); // ★ 定数を使用
-                console.log(`[Transition] Flash ${i + 1}`);
-            }, [], this);
-        }
+          
+        
 
         // シェイク＆フェード (完了後にソワカ登場処理を呼ぶ)
         // ★★★ 定数が正しく参照されているかログで確認 ★★★
@@ -507,13 +501,14 @@ export default class Boss2Scene extends CommonBossScene {
                 onComplete: () => {
                     console.log("[Transition] Sankara fade out complete.");
                     if (sankaraBossObject && sankaraBossObject.scene) {
-                        sankaraBossObject.destroy();
+                        sankaraBossObject.destroy(); // ★ サンカラのゲームオブジェクトのみ破棄
+                        console.log("[Transition] Sankara GameObject destroyed.");
                     }
                     // this.boss = null; // CommonBossSceneのプロパティなので、ここで直接nullにしない方が良い場合も
                     this.startSowakaAppearance(); // ソワカ登場処理へ
                 }
             });
-        } else { /* ... */ }
+           } else { this.startSowakaAppearance(); }
     }
 }
 
@@ -522,44 +517,35 @@ export default class Boss2Scene extends CommonBossScene {
     // ★ 新しいメソッド：ソワカ登場処理を開始
     startSowakaAppearance() {
         console.log("[Boss2Scene] startSowakaAppearance called.");
-        // TODO: (必要なら短い暗転や特殊エフェクト)
- this.bossDefeatedThisPhase = false; // ★ ソワカ戦開始時にリセット
-        // this.bossDefeated = false; // Commonのフラグもリセット（最終ボスでないため）
-        // ソワカカットイン表示
-        // CommonBossSceneのstartIntroCutsceneを参考に、テキストとボイスをソワカ用に
-        // ここでは簡略化して直接ソワカ登場演出へ
-        console.log("[Transition] Simulating Sowaka cutscene, then starting Sowaka fusion intro...");
+        this.bossDefeatedThisPhase = false; // ソワカ戦開始のためリセット
 
-        // 形態とデータをソワカ用に変更
+        console.log("[Transition] Setting phase to Sowaka and re-initializing bossData...");
         this.currentPhase = 'sowaka';
         this.initializeBossData(); // this.bossData がソワカ用に更新される
 
-        // 新しいボスオブジェクトを生成 (CommonのcreateSpecificBossを呼ぶ)
-        // CommonのcreateSpecificBossはthis.bossDataを参照するので、ソワカ用のものが使われる
-        this.createSpecificBoss();
+        console.log("[Transition] Creating Sowaka boss object using super.createSpecificBoss...");
+        super.createSpecificBoss(); // ★ Commonのメソッドで this.boss をソワカとして再生成/設定
+
         if (!this.boss) {
             console.error("!!! FAILED TO CREATE SOWAKA BOSS OBJECT !!!");
-            // エラーハンドリング: タイトルに戻るなど
-            this.scene.start('TitleScene');
-            return;
+            this.scene.start('TitleScene'); return;
         }
+        console.log("[Transition] Sowaka boss object created/updated:", this.boss);
 
-        // ソワカ登場演出 (Commonの左右合体演出を使用)
-        // startFusionIntro は this.bossData.voiceAppear を使うのでソワカボイスが流れるはず
-        this.startFusionIntro();
+        // ソワカ登場演出 (カットインは省略し、直接フュージョンへ)
+        console.log("[Transition] Starting Sowaka fusion intro...");
+        this.startFusionIntro(); // Commonの左右合体演出をソワカデータで実行
+
         // startGameplay は startFusionIntro の完了時に CommonBossScene によって呼ばれる
-        // startGameplay の中で startSpecificBossMovement (ソワカ用) も呼ばれる
+        // その中でソワカの動き (startSpecificBossMovement) も開始される
 
-        // ★ ソワカのフィールドを初回展開 (startGameplayが呼ばれた後が良いかもしれない)
+        // ★ ソワカのフィールドを初回展開 (startGameplayの後がより安全かもしれない)
         // this.time.delayedCall(GAMEPLAY_START_DELAY + 500, this.activateSowakaField, [], this);
-        // または、ソワカの updateSpecificBossBehavior で初回フィールド展開を管理する
+        // または、ソワカの updateSpecificBossBehavior で初回フィールド展開を管理
         console.log("[Transition] Sowaka appearance sequence initiated.");
 
-        // 時間の流れを再開 (物理エンジンなど) - 適切なタイミングで
-        // (startFusionIntro や startGameplay の中で playerControlEnabled=true になるので、
-        //  そこで physics.resume() も呼ぶのが良いかもしれない)
-        this.tweens.resumeAll(); // 止めたTweenを再開 (必要なら)
-        this.physics.resume();  // 物理演算再開
+        this.tweens.resumeAll();
+        this.physics.resume();
         console.log("[Transition] Physics and tweens resumed.");
     }
 
