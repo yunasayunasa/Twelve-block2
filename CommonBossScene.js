@@ -1000,7 +1000,7 @@ if (this.isMakiraActive && this.balls && this.familiars && this.familiars.countA
      * @param {Phaser.Physics.Arcade.Image} bossObject 対象のボスオブジェクト
      * @param {boolean} [showPopupAfter=false] 完了後にステージクリアポップアップを表示するかどうか
      */
-   /* startBossShakeAndFade(bossObject, showPopupAfter = false) {
+   startBossShakeAndFade(bossObject, showPopupAfter = false) {
         if (!bossObject || !bossObject.active) {
             console.warn("[Shake&Fade] Target boss is missing or inactive. Proceeding to next step.");
             if (showPopupAfter) {
@@ -1074,7 +1074,7 @@ if (this.isMakiraActive && this.balls && this.familiars && this.familiars.countA
             console.error("Error creating fade tween:", e);
         }
         console.log("[Shake&Fade] Shake and Fade tweens initiated.");
-    }*/
+    }
      // ★★★ 新しいメソッド：ステージクリアポップアップ表示 ★★★
   showStageClearPopup() {
         console.log("[StageClear] Showing Stage Clear Popup for Boss:", this.currentBossIndex);
