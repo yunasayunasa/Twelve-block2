@@ -1742,44 +1742,7 @@ if (this.isMakiraActive && this.balls && this.familiars && this.familiars.countA
    // CommonBossScene.js
 
    // CommonBossScene.js
-    setupAttackBrickAppearance(brick, textureKey, displayScale) {
-        if (!brick || !brick.scene) {
-            console.error("[SetupAttackBrick] Brick object or scene is invalid at start.");
-            return;
-        }
-        console.log(`[SetupAttackBrick] Starting for brick ('${textureKey}'). Target displayScale: ${displayScale.toFixed(3)}`);
-
-        try {
-            // 1. テクスチャと原点を設定
-            brick.setTexture(textureKey);
-            brick.setOrigin(0.5, 0.5); // ★★★ 原点を中心(0.5, 0.5)に設定 ★★★
-
-            // 2. スケールを設定 (テクスチャの元サイズに対する倍率)
-            brick.setScale(displayScale);
-
-            console.log(`  After visual setup - Texture: ${brick.texture?.key}, DisplaySize: ${brick.displayWidth?.toFixed(1)}x${brick.displayHeight?.toFixed(1)}, Origin: (${brick.originX.toFixed(1)}, ${brick.originY.toFixed(1)})`);
-            console.log(`  GameObject Position: x=${brick.x.toFixed(1)}, y=${brick.y.toFixed(1)}`);
-
-            if (brick.body) {
-                if (!brick.body.enable) {
-                    console.warn("[SetupAttackBrick] Brick body was disabled, re-enabling.");
-                    brick.body.enable = true;
-                }
-
-                // 3. ★★★ 物理ボディを GameObject の見た目に完全に合わせる ★★★
-                // これにより、サイズとオフセットが原点(0.5,0.5)を基準に自動調整される
-                brick.body.updateFromGameObject();
-                // ★★★-------------------------------------------------★★★
-
-                console.log(`[SetupAttackBrick] Body updated from GameObject. Final Body - Size: ${brick.body.width.toFixed(1)}x${brick.body.height.toFixed(1)}, Offset: ${brick.body.offset.x.toFixed(1)},${brick.body.offset.y.toFixed(1)}, Pos: ${brick.body.x.toFixed(1)},${brick.body.y.toFixed(1)}`);
-            } else {
-                console.error("[SetupAttackBrick] Brick body does NOT exist or is not enabled. Physics may not be enabled correctly on the group or object.");
-            }
-        } catch (e) {
-            console.error("Error in setupAttackBrickAppearance:", e);
-        }
-        console.log(`[SetupAttackBrick] Finished for brick. Final visible: ${brick.visible}, active: ${brick.active}, alpha: ${brick.alpha}`);
-    }
+ 
     
 
 

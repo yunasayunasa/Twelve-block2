@@ -311,6 +311,11 @@ export default class Boss2Scene extends CommonBossScene {
     /**
      * サンカラの攻撃ブロックを左右に1個ずつ放出する
      */
+  // Boss2Scene.js
+
+    /**
+     * サンカラの攻撃ブロックを左右に1個ずつ放出する (アートマンの生成方式を参考)
+     */
     spawnSankaraAttackBlock() {
         if (!this.attackBricks || !this.boss || !this.boss.active) {
             console.warn("[SpawnSankaraBlock] Conditions not met to spawn bricks.");
@@ -318,49 +323,46 @@ export default class Boss2Scene extends CommonBossScene {
         }
 
         const bossX = this.boss.x;
-        // ボスの表示高さの中心より少し下から出すなど、Y座標は微調整が必要な場合あり
-        const bossY = this.boss.y + this.boss.displayHeight / 4; // 例: ボスの下端に近い位置
-        const velocity = this.bossData.sankaraBrickVelocity || 200; // bossDataから取得
+        const bossY = this.boss.y + this.boss.displayHeight / 4; // 発射開始Y座標
+        const velocity = this.bossData.sankaraBrickVelocity || 200;
         const textureKey = 'attack_brick_common'; // ★ 新しい共通テクスチャキー
-        const displayScale = this.bossData.attackBrickScale || 0.2; // bossDataから取得
+        const displayScale = this.bossData.attackBrickScale || 0.2;
 
-        // 角度を bossData から取得し、ランダムに
         const angleMin = this.bossData.sankaraBrickAngleMin || 30;
         const angleMax = this.bossData.sankaraBrickAngleMax || 60;
 
-        console.log(`[SpawnSankaraBlock] Spawning. Boss at (${bossX.toFixed(0)}, ${this.boss.y.toFixed(0)}), Brick Y: ${bossY.toFixed(0)}`);
+        console.log(`[SpawnSankaraBlock - ArtmanStyle] Spawning. Texture: ${textureKey}, Scale: ${displayScale}`);
 
         // 左斜め下
-        const angleLeft = Phaser.Math.Between(180 - angleMax, 180 - angleMin); // 例: 120度～150度
+        const angleLeft = Phaser.Math.Between(180 - angleMax, 180 - angleMin);
         const velocityLeft = this.physics.velocityFromAngle(angleLeft, velocity);
-        // 一時キーで生成後、setupAttackBrickAppearance を呼ぶ
-        const brickLeft = this.attackBricks.create(bossX, bossY, '__TEMP__');
+        const brickLeft = this.attackBricks.create(bossX, bossY, textureKey); // ★ create時にテクスチャ指定
         if (brickLeft) {
-            // ★ 共通ヘルパーを呼び出して見た目と物理ボディを設定 ★
-            this.setupAttackBrickAppearance(brickLeft, textureKey, displayScale);
-            brickLeft.setVelocity(velocityLeft.x, velocityLeft.y);
+            brickLeft.setScale(displayScale); // スケール設定
+            brickLeft.setVelocity(velocityLeft.x, velocityLeft.y); // 速度設定
             if (brickLeft.body) {
                 brickLeft.body.setAllowGravity(false);
-                brickLeft.body.setCollideWorldBounds(false); // 画面外に出たら updateAttackBricks で消える
+                brickLeft.body.setCollideWorldBounds(false);
+                // ★ 物理ボディに関する他の明示的な設定は行わない ★
             }
-            console.log(`  Spawned Left Brick. Velocity: (${velocityLeft.x.toFixed(1)}, ${velocityLeft.y.toFixed(1)})`);
+            console.log(`  Spawned Left Brick. DisplaySize: ${brickLeft.displayWidth.toFixed(1)}x${brickLeft.displayHeight.toFixed(1)}`);
         } else {
             console.error("[SpawnSankaraBlock] Failed to create left brick.");
         }
 
         // 右斜め下
-        const angleRight = Phaser.Math.Between(angleMin, angleMax); // 例: 30度～60度
+        const angleRight = Phaser.Math.Between(angleMin, angleMax);
         const velocityRight = this.physics.velocityFromAngle(angleRight, velocity);
-        const brickRight = this.attackBricks.create(bossX, bossY, '__TEMP__');
+        const brickRight = this.attackBricks.create(bossX, bossY, textureKey); // ★ create時にテクスチャ指定
         if (brickRight) {
-            // ★ 共通ヘルパーを呼び出して見た目と物理ボディを設定 ★
-            this.setupAttackBrickAppearance(brickRight, textureKey, displayScale);
-            brickRight.setVelocity(velocityRight.x, velocityRight.y);
+            brickRight.setScale(displayScale); // スケール設定
+            brickRight.setVelocity(velocityRight.x, velocityRight.y); // 速度設定
             if (brickRight.body) {
                 brickRight.body.setAllowGravity(false);
                 brickRight.body.setCollideWorldBounds(false);
+                // ★ 物理ボディに関する他の明示的な設定は行わない ★
             }
-            console.log(`  Spawned Right Brick. Velocity: (${velocityRight.x.toFixed(1)}, ${velocityRight.y.toFixed(1)})`);
+            console.log(`  Spawned Right Brick. DisplaySize: ${brickRight.displayWidth.toFixed(1)}x${brickRight.displayHeight.toFixed(1)}`);
         } else {
             console.error("[SpawnSankaraBlock] Failed to create right brick.");
         }
