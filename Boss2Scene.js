@@ -355,7 +355,7 @@ export default class Boss2Scene extends CommonBossScene {
         const bossY = this.boss.y + this.boss.displayHeight / 4; // 発射開始Y座標
         const velocity = this.bossData.sankaraBrickVelocity || 200;
         const textureKey = 'attack_brick_common'; // ★ 新しい共通テクスチャキー
-        const displayScale = this.bossData.attackBrickScale || 0.2;
+        const displayScale = this.bossData.attackBrickScale || 0.1;
 
         const angleMin = this.bossData.sankaraBrickAngleMin || 30;
         const angleMax = this.bossData.sankaraBrickAngleMax || 60;
@@ -413,7 +413,7 @@ export default class Boss2Scene extends CommonBossScene {
         const bossY = this.boss.y + this.boss.displayHeight / 3;
         const velocity = this.bossData.sowakaProjectileVelocity || 220;
         const textureKey = 'attack_brick_common'; // ★ 共通テクスチャ
-        const displayScale = this.bossData.sowakaProjectileScale || 0.2;
+        const displayScale = this.bossData.sowakaProjectileScale || 0.1;
         const angles = this.bossData.sowakaProjectileAngles || [-105, -90, -75];
 
         angles.forEach(angleDeg => {
