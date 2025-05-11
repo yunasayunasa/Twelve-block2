@@ -106,7 +106,7 @@ export default class Boss2Scene extends CommonBossScene {
              sowakaAttackIntervalMin: 2500,  // 攻撃の最小間隔 (ms) - 要調整
             sowakaAttackIntervalMax: 4500,  // 攻撃の最大間隔 (ms) - 要調整
             sowakaProjectileCount: 3,       // 常に3個
-            sowakaProjectileAngles: [-15, 0, 15], // 放射角度 (度)
+            sowakaProjectileAngles: [75, 90, 105], // 放射角度 (度)
             sowakaProjectileVelocity: DEFAULT_ATTACK_BRICK_VELOCITY_Y + 60, // サンカラより少し速く
             sowakaProjectileScale: this.sankaraData.attackBrickScale || 0.2, // サンカラと同じスケールを使う例
             // ★★★--------------------------★★★
