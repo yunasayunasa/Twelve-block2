@@ -85,6 +85,7 @@ export default class CommonBossScene extends Phaser.Scene {
         this.isBallLaunched = false;
         this.paddleInvulnerableTimer = null; // ★ パドル無敵タイマー用
         this.isPaddleInvulnerable = false;   // ★ パドル無敵フラグ
+        this.wasAnilaJustDeactivatedByBallLoss = false; // ★ このフラグは不要にする
 
         // --- ボス関連 ---
         this.boss = null;
