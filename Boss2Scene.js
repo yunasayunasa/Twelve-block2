@@ -471,7 +471,7 @@ export default class Boss2Scene extends CommonBossScene {
                 }, [], this);
             }
 
-          
+          this.tweens.resumeAll()
         
 
          // シェイク＆フェード (完了後にソワカ登場処理を呼ぶ)
