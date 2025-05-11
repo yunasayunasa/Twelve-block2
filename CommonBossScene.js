@@ -926,7 +926,10 @@ if (this.isMakiraActive && this.balls && this.familiars && this.familiars.countA
     
    
 
-   
+    startGameplay() {
+        console.log("[Intro] Enabling player control. Boss fight start!"); this.playerControlEnabled = true;
+        if (this.boss?.body) this.boss.body.enable = true; this.startSpecificBossMovement(); this.startRandomVoiceTimer();
+    }
     // defeatBoss
     defeatBoss(bossObject) {
         if (this.bossDefeated) return;

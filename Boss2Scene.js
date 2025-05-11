@@ -26,7 +26,6 @@ export default class Boss2Scene extends CommonBossScene {
         this.isSankaraRushing = false; // 現在突進中かどうかのフラグ
         this.sowakaData = {};  // ソワカ形態用のデータを保持
          this.bossDefeatedThisPhase = false; // ★ constructor で初期化
-         this.sowakaCutsceneShown = false; // ★ ソワカカットイン表示済
       
 
         // ソワカのフィールド効果用
@@ -54,7 +53,6 @@ export default class Boss2Scene extends CommonBossScene {
             this.sowakaAttackTimer.remove();
             this.sowakaAttackTimer = null;
         }
-        this.sowakaCutsceneShown = false; // ★ リセット
     }
 
     // initializeBossData: 現在のフェーズに応じて適切なボスデータをロード
@@ -551,16 +549,7 @@ export default class Boss2Scene extends CommonBossScene {
                         if (sankaraBossObject && sankaraBossObject.scene) {
                             sankaraBossObject.destroy();
                         }
-                          // ★★★ 次にソワカのフュージョン登場を開始 ★★★
-                    console.log("[Transition] Preparing for Sowaka's appearance (fusion first).");
-                    this.currentPhase = 'sowaka';
-                    this.initializeBossData(); // ソワカ用データをロード
-                    super.createSpecificBoss(); // this.boss をソワカとして設定
-                    if (!this.boss) { /* エラー処理 */ this.scene.start('TitleScene'); return; }
-
-                    this.startFusionIntro(); // Commonの左右合体演出を開始
-                                            // この完了時に Common の startGameplay が呼ばれる
-                    // ★★★-----
+                        this.startSowakaAppearance();
                     }
                 });
                 console.log("[Transition] Fade Tween for Sankara ADDED.");
@@ -570,61 +559,108 @@ export default class Boss2Scene extends CommonBossScene {
             // ★★★-----------------------------------------★★★
         } else {
              console.warn("[Transition] Sankara object was inactive before shake/fade could start.");
-            // this.startSowakaAppearance(); // ボスがいなければ直接次へ
+             this.startSowakaAppearance(); // ボスがいなければ直接次へ
         }
         }}    
 
   // Boss2Scene.js の startSowakaAppearance メソッドを修正
 
-      // startSowakaAppearance (物理/Tween再開は startGameplay のコールバックへ移動)
-    startSowakaAppearance() {
+      startSowakaAppearance() {
         console.log("[Boss2Scene] startSowakaAppearance called.");
-        this.bossDefeatedThisPhase = false;
+        this.bossDefeatedThisPhase = false; // ソワカ戦開始のため、このフェーズの撃破フラグをリセット
+
+        // フェーズとボスデータをソワカ用に切り替え
+        console.log("[Transition] Setting phase to Sowaka and re-initializing bossData...");
         this.currentPhase = 'sowaka';
-        this.initializeBossData();
+        this.initializeBossData(); // this.bossData がソワカ用に更新される
 
-        console.log("[Transition] Creating Sowaka boss object using super.createSpecificBoss...");
-        super.createSpecificBoss();
-        if (!this.boss) { /* ...エラー処理... */ return; }
-
-        console.log("[Transition] Starting Sowaka fusion intro...");
-        this.startFusionIntro(); // この完了時にCommonのstartGameplayが呼ばれ、Boss2のオーバーライド版が実行される
-
-        // ★ 物理とTweenの再開は startGameplay のコールバックに移動したのでここでは不要 ★
-        // this.tweens.resumeAll();
-        // this.physics.resume();
-        console.log("[Transition] Sowaka appearance sequence initiated. Gameplay will start after fusion & cutscene.");
+        // ★★★ ソワカ専用のカットイン演出を開始 ★★★
+        this.triggerSowakaCutscene();
     }
 
-    // ソワカ専用カットイン演出メソッド (コールバックを受け取るように変更)
-    triggerSowakaCutscene(onCutsceneCompleteCallback) {
+    // ★★★ 新しいメソッド：ソワカ専用カットイン演出 ★★★
+    triggerSowakaCutscene() {
         console.log("[SowakaCutscene] Starting Sowaka's cutscene...");
-        this.playerControlEnabled = false; // カットイン中は操作不可
- // ★★★ カットイン開始前に物理・Tweenが止まっているか確認/停止 ★★★
-        if (!this.physics.world.isPaused) {
-            console.log("[SowakaCutscene] Physics was not paused, pausing now.");
-            this.physics.pause();
-        }
-        const cutsceneDurationToUse = CUTSCENE_DURATION || 1800;
-        const overlay = this.add.rectangle(0, 0, this.gameWidth, this.gameHeight, 0x100010, 0.8).setOrigin(0,0).setDepth(1900);
-        const sowakaImage = this.add.image(this.gameWidth / 2, this.gameHeight / 2, this.bossData.textureKey).setOrigin(0.5, 0.5).setDepth(1901);
-        // ... (画像サイズ調整、テキスト設定は前回と同様) ...
-        const textContent = this.bossData.cutsceneText || "VS ソワカ";
-        const fontSize = this.calculateDynamicFontSize(52);
-        const textStyle = { /* ... */ };
-        const vsText = this.add.text(this.gameWidth / 2, sowakaImage.getBounds().bottom + this.gameHeight * 0.04, textContent, textStyle).setOrigin(0.5, 0).setDepth(1902);
-        try { this.sound.play(AUDIO_KEYS.SE_CUTSCENE_START); } catch(e) {}
+        // CommonBossSceneのstartIntroCutsceneのロジックを参考に、ソワカ用に調整
+        const cutsceneDurationToUse = CUTSCENE_DURATION || 1800; // constants.jsからかデフォルト値
+        try { this.sound.play(AUDIO_KEYS.SE_CUTSCENE_START); } catch(e) {} // 必要ならカットインSE
 
+        const overlay = this.add.rectangle(0, 0, this.gameWidth, this.gameHeight, 0x100010, 0.8) // ソワカ用オーバーレイ色
+            .setOrigin(0,0).setDepth(1900);
 
+        // this.bossData は initializeBossData でソワカ用に更新済みのはず
+        const sowakaImage = this.add.image(this.gameWidth / 2, this.gameHeight / 2, this.bossData.textureKey)
+            .setOrigin(0.5, 0.5).setDepth(1901);
+        const targetImageWidth = this.gameWidth * 0.75;
+        sowakaImage.displayWidth = targetImageWidth;
+        sowakaImage.scaleY = sowakaImage.scaleX;
+
+        const textContent = this.bossData.cutsceneText; // ソワカ用のカットシーンテキスト
+        const fontSize = this.calculateDynamicFontSize(50); // ソワカ用フォントサイズ
+        const textStyle = { fontSize: `${fontSize}px`, fill: '#ffeecc', stroke: '#330011', strokeThickness: Math.max(4, fontSize*0.1), fontFamily: 'MyGameFont, sans-serif', align: 'center' };
+        const vsText = this.add.text(this.gameWidth / 2, sowakaImage.getBounds().bottom + this.gameHeight * 0.04, textContent, textStyle)
+            .setOrigin(0.5, 0).setDepth(1902);
+
+        console.log(`[SowakaCutscene] Displaying text: "${textContent}"`);
+
+        // 一定時間後に要素を破棄し、ソワカの登場演出（フュージョン）へ
         this.time.delayedCall(cutsceneDurationToUse, () => {
-            console.log("[SowakaCutscene] End. Calling onCutsceneCompleteCallback.");
+            console.log("[SowakaCutscene] End. Proceeding to Sowaka's boss object creation and fusion intro.");
             if (overlay.scene) overlay.destroy();
             if (sowakaImage.scene) sowakaImage.destroy();
             if (vsText.scene) vsText.destroy();
 
-            if (onCutsceneCompleteCallback) {
-                onCutsceneCompleteCallback(); // ★ 渡されたコールバックを実行
+            // 1. ソワカのボスオブジェクトを生成/設定 (Commonのメソッドを利用)
+            super.createSpecificBoss(); // this.bossData はソワカ用なので、これでソワカが設定される
+            if (!this.boss) {
+                console.error("!!! FAILED TO CREATE SOWAKA BOSS OBJECT before fusion intro !!!");
+                this.scene.start('TitleScene'); return;
             }
+            console.log("[SowakaCutscene] Sowaka boss object created/updated:", this.boss);
+            // UIにHPを反映 (createSpecificBoss内で既に呼ばれている可能性もあるが念のため)
+            this.events.emit('updateBossHp', this.boss.getData('health'), this.boss.getData('maxHealth'));
+            this.events.emit('updateBossNumber', this.currentBossIndex, this.totalBosses);
+
+
+            // 2. ソワカ登場演出 (Commonの左右合体演出を使用)
+            this.startFusionIntro(); // this.bossData.voiceAppear でソワカボイスが流れるはず
+                                    // このメソッドの完了時に CommonBossScene の startGameplay が呼ばれる
+
+            // 3. ★★★ ボールを再生成 (startGameplayが呼ばれる前が良いか後が良いか) ★★★
+            // startGameplay は playerControlEnabled = true にするので、その前にボールがないとおかしい。
+            // かつ、isBallLaunched = false にしたい。
+            // フュージョン演出が完了し、startGameplay が呼ばれる【直前】にボールを準備するのが自然。
+            // CommonBossSceneのstartFusionIntroのonCompleteでstartGameplayを呼んでいるので、
+            // その onComplete の中でボール生成を挟むか、あるいは startGameplay をオーバーライドする。
+
+            // 今回は、ソワカの startFusionIntro が完了し、startGameplay が呼び出される
+            // CommonBossScene の startGameplay の中で、現在のボスがソワカならボールを生成する、という形にするか、
+            // もっと単純に、このカットシーン完了時にボールを生成し、isBallLaunched = false にしておく。
+            console.log("[SowakaAppearance] Clearing any existing balls and creating a new one for Sowaka phase.");
+            if (this.balls) this.balls.clear(true, true);
+            else this.balls = this.physics.add.group({ bounceX: 1, bounceY: 1, collideWorldBounds: true });
+
+            if (this.paddle && this.paddle.active) {
+                 this.createAndAddBall(this.paddle.x, this.paddle.y - (this.paddle.displayHeight / 2) - (this.gameWidth * BALL_RADIUS_RATIO));
+            } else {
+                 this.createAndAddBall(this.gameWidth / 2, this.gameHeight * 0.7);
+            }
+            this.isBallLaunched = false; // ★ 新しいボールは未発射状態
+            console.log(`[SowakaAppearance] New ball created. isBallLaunched: ${this.isBallLaunched}`);
+            // ★★★-----------------------------------------------------------------★★★
+
+
+            // 4. 物理演算とTweenを再開
+            //    (CommonBossSceneのstartGameplayで playerControlEnabled=true になるタイミングで
+            //     this.physics.resume() も行う方が一貫性があるかもしれない)
+            console.log("[SowakaAppearance] Resuming physics and tweens for Sowaka phase.");
+            this.tweens.resumeAll();
+            this.physics.resume();
+
+            // 5. ソワカのフィールドを初回展開
+            //    (これも startGameplay の後や、ソワカの updateSpecificBossBehavior で管理する方が良いかも)
+            this.activateSowakaField(); // ← 新しいメソッド (後で中身を実装)
+
         }, [], this);
     }
 
@@ -659,69 +695,39 @@ export default class Boss2Scene extends CommonBossScene {
         // TODO: フィールド効果時間タイマーと再展開タイマーを設定
     }
 
-    // startGameplay メソッドをオーバーライドしてカットインを挟む
-    /**
-     * Boss2Scene の戦闘開始処理
-     * ソワカ登場時は、まずカットインを表示し、その後実際の戦闘を開始する
-     */
-     // startGameplay メソッドをオーバーライドしてカットインと戦闘開始を制御
+    // startGameplay をオーバーライドして、ソワカ登場時のボールとフィールド処理を確実にする
     startGameplay() {
-        if (this.currentPhase === 'sowaka' && !this.sowakaCutsceneShown) {
-            console.log("[Boss2 startGameplay] Sowaka phase. Triggering cutscene.");
-            this.sowakaCutsceneShown = true;
-            this.playerControlEnabled = false; // ★ カットイン中は操作不可を明示
-            // this.physics.pause(); // ★ カットイン開始前に物理を止める (Commonで止まっていれば不要かも)
-            // this.tweens.pauseAll(); // ★ カットイン開始前にTweenを止める (Commonで止まっていれば不要かも)
+        super.startGameplay(); // 親の処理 (playerControlEnabled=true, ボス移動開始, ランダムボイス)
 
-            this.triggerSowakaCutscene(() => { // カットイン完了時のコールバック
-                console.log("[Boss2 startGameplay] Sowaka cutscene finished. Starting actual gameplay for Sowaka.");
-
-                // ★★★ 戦闘開始処理をここに集約 ★★★
-                this.playerControlEnabled = true; // 操作可能に
-                if (this.boss?.body) {
-                    this.boss.body.enable = true; // ボディ有効化
-                    console.log(`[Boss2 startGameplay] Sowaka body enabled: ${this.boss.body.enable}`);
-                }
-                console.log("[Boss2 startGameplay] Calling startSpecificBossMovement for Sowaka.");
-                this.startSpecificBossMovement(); // ソワカの動き開始
-                console.log("[Boss2 startGameplay] Calling startRandomVoiceTimer for Sowaka.");
-                this.startRandomVoiceTimer();     // ソワカのランダムボイス開始
-
-                // ★ ボール再生成 (CommonのstartGameplayでは行われないので、ここで行う)
-                console.log("[Boss2 startGameplay] Creating ball for Sowaka.");
-                if (this.balls) this.balls.clear(true, true);
-                else this.balls = this.physics.add.group({ bounceX: 1, bounceY: 1, collideWorldBounds: true });
+        if (this.currentPhase === 'sowaka') {
+            console.log("[Boss2 startGameplay] Specific setup for Sowaka phase.");
+            // ボールがまだ生成されていなければここで生成 (startSowakaAppearanceで既に生成済みなら不要)
+            if (this.balls && this.balls.countActive(true) === 0) { // ボールがない場合のみ
+                console.log("[Boss2 startGameplay] No active balls, creating one for Sowaka.");
                 if (this.paddle && this.paddle.active) {
                     this.createAndAddBall(this.paddle.x, this.paddle.y - (this.paddle.displayHeight / 2) - (this.gameWidth * BALL_RADIUS_RATIO));
                 } else {
                     this.createAndAddBall(this.gameWidth / 2, this.gameHeight * 0.7);
                 }
-                this.isBallLaunched = false; // ボールは未発射
+                this.isBallLaunched = false;
+                  console.log(`[${this.scene.key} startGameplay for Sowaka] Calling setColliders. Boss active: ${this.boss?.active}, Boss body enabled: ${this.boss?.body?.enable}`);
+        this.setColliders(); // ★ ここで確実に呼ぶ
+            }
 
-                console.log("[Boss2 startGameplay] Calling setColliders for Sowaka phase.");
-                this.setColliders(); // コライダーも再設定
-
-                console.log("[Boss2 startGameplay] Activating Sowaka field.");
-                this.activateSowakaField(); // ソワカのフィールド展開
-
-                // ★★★ 物理演算とTweenをここで再開 ★★★
-                console.log("[Boss2 startGameplay] Resuming physics and tweens.");
-                this.physics.resume();
-                this.tweens.resumeAll(); // pauseAllしたならresumeAll
-                // ★★★---------------------------------★★★
-            });
-        } else if (this.currentPhase === 'sankara') { // サンカラ戦開始時
-            console.log(`[Boss2 startGameplay] Sankara phase. Calling super.startGameplay.`);
-            super.startGameplay(); // CommonBossSceneのstartGameplayを呼ぶ
-        } else if (this.currentPhase === 'sowaka' && this.sowakaCutsceneShown) {
-            // ソワカ戦が既に始まっている場合 (例: ポーズからの復帰など、通常は不要だが念のため)
-            console.log("[Boss2 startGameplay] Sowaka gameplay already in progress, ensuring physics/tweens are active.");
-            if (this.physics.world.isPaused) this.physics.resume();
-            // if (this.tweens.isPaused) this.tweens.resumeAll(); // isPaused があれば
-            super.startGameplay(); // プレイヤー操作有効化などを再度行う
+            // ソワカのフィールドを初回展開
+            // (startSowakaAppearanceで呼ぶか、ここで呼ぶか、updateSpecificBossBehaviorで管理するかは設計次第)
+            // ここで呼ぶ方が、戦闘開始と同時感が出る
+            // if (!this.sowakaFieldActive) { // まだ展開されていなければ
+            //    this.activateSowakaField();
+            // }
         }
-    }
+    
 
+
+        this.tweens.resumeAll();
+        this.physics.resume();
+        console.log("[Transition] Physics and tweens resumed.");
+    }
 
     // activateSowakaField() やソワカの攻撃メソッドはこれから実装
 
