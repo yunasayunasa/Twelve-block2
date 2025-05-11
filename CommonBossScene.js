@@ -1889,15 +1889,21 @@ if (this.isMakiraActive && this.balls && this.familiars && this.familiars.countA
 
 
         // --- 体力ゼロ判定と撃破処理 ---
-        console.log(`[Apply Damage - ${source}] Checking if health <= 0: (${currentHealth} <= 0) is ${currentHealth <= 0}`);
+       console.log(`[Apply Damage - ${source}] Checking if health <= 0: (${currentHealth} <= 0) is ${currentHealth <= 0}`);
         if (currentHealth <= 0) {
-            console.log(`[Apply Damage - ${source}] Health is zero or below. Calling defeatBoss...`);
+            console.log(`[Apply Damage - ${source}] Health is zero or below.`);
             if (bossInstance.active) {
-                this.defeatBoss(bossInstance);
+                // ★★★ ボスシーンに形態変化などの特別処理があるか確認 ★★★
+                if (typeof this.handleZeroHealth === 'function') {
+                    console.log(`[Apply Damage - ${source}] Calling scene specific handleZeroHealth...`);
+                    this.handleZeroHealth(bossInstance); // 各ボスシーンでオーバーライド可能なメソッドを呼ぶ
+                } else {
+                    // デフォルトの撃破処理
+                    console.log(`[Apply Damage - ${source}] Calling default defeatBoss...`);
+                    this.defeatBoss(bossInstance);
+                }
+                // ★★★-------------------------------------------------★★★
             } else {
-                console.warn(`[Apply Damage - ${source}] Boss became inactive BEFORE calling defeatBoss!`);
-            }
-        } else {
              console.log(`[Apply Damage - ${source}] Health > 0. Boss survives.`);
         }
     }hitAttackBrick(brick, ball) { if (!brick?.active || !ball?.active) return;
