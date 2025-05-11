@@ -1739,69 +1739,48 @@ if (this.isMakiraActive && this.balls && this.familiars && this.familiars.countA
         return false;
     }
 
-     /**
-     * 攻撃ブロックの見た目と物理ボディを設定するヘルパーメソッド
+   // CommonBossScene.js
+
+    /**
+     * 攻撃ブロックの基本的な見た目と物理プロパティを設定するヘルパーメソッド
+     * (アートマンの攻撃ブロックの挙動に合わせる形)
      * @param {Phaser.Physics.Arcade.Image} brick 対象の攻撃ブロック
      * @param {string} textureKey 使用するテクスチャキー
      * @param {number} displayScale 見た目のスケール (テクスチャの元サイズに対する倍率)
-     * @param {number} [hitboxScaleMultiplier=1.0] 当たり判定の見た目に対する倍率 (1.0で見た目通り)
      */
-   // CommonBossScene.js の setupAttackBrickAppearance メソッドを修正
-
-   // setupAttackBrickAppearance メソッドを修正
-  // CommonBossScene.js の setupAttackBrickAppearance メソッドを修正
-
-    // CommonBossScene.js の setupAttackBrickAppearance メソッドを修正
-
-   setupAttackBrickAppearance(brick, textureKey, displayScale) {
-        if (!brick || !brick.scene) { /* ... */ return; }
-        console.log(`[SetupAttackBrick] Starting for brick. Initial active: ${brick.active}, visible: ${brick.visible}`);
+    setupAttackBrickAppearance(brick, textureKey, displayScale) {
+        if (!brick || !brick.scene) {
+            console.error("[SetupAttackBrick] Brick object or scene is invalid.");
+            return;
+        }
+        console.log(`[SetupAttackBrick] Setting up for texture: ${textureKey}, scale: ${displayScale}`);
 
         try {
             brick.setTexture(textureKey);
-            console.log(`  After setTexture - Texture Key: ${brick.texture?.key}, Frame: ${brick.frame?.name}, Width: ${brick.width}, Height: ${brick.height}`);
-
             brick.setScale(displayScale);
-            console.log(`  After setScale - DisplayWidth: ${brick.displayWidth?.toFixed(1)}, DisplayHeight: ${brick.displayHeight?.toFixed(1)}`);
+            // ★ 原点はPhaserのデフォルト(0.5, 0.5)に任せるか、明示的に設定する ★
+            brick.setOrigin(0.5, 0.5); // デフォルトに合わせて中心に設定
 
-            brick.setOrigin(0.5, 0.5); // 原点を中心に
-            console.log(`  After setOrigin - OriginX: ${brick.originX.toFixed(1)}, OriginY: ${brick.originY.toFixed(1)}`);
+            console.log(`  Texture: ${brick.texture?.key}, DisplaySize: ${brick.displayWidth?.toFixed(1)}x${brick.displayHeight?.toFixed(1)}, Origin: (${brick.originX.toFixed(1)}, ${brick.originY.toFixed(1)})`);
 
             if (brick.body) {
-                if (!brick.body.enable) brick.body.enable = true;
-
-                // ★★★ updateFromGameObject() を使わずに、setSize と setOffset で直接設定 ★★★
-                // 表示サイズと同じ当たり判定にする
-                const hitboxWidth = brick.displayWidth;
-                const hitboxHeight = brick.displayHeight;
-
-                if (hitboxWidth > 1 && hitboxHeight > 1) { // 有効なサイズか確認
-                    try {
-                        brick.body.setSize(hitboxWidth, hitboxHeight);
-                        // 原点が(0.5, 0.5)なので、オフセットはボディの半分のマイナス値
-                        const offsetX = -hitboxWidth / 2;
-                        const offsetY = -hitboxHeight / 2;
-                        brick.body.setOffset(offsetX, offsetY);
-
-                        console.log(`[SetupAttackBrick - ManualSet] Set body size: ${hitboxWidth.toFixed(1)}x${hitboxHeight.toFixed(1)}, Offset: (${offsetX.toFixed(1)}, ${offsetY.toFixed(1)})`);
-                    } catch (e) {
-                        console.error("!!! ERROR setting body size/offset manually:", e);
-                    }
-                } else {
-                    console.warn(`!!! [SetupAttackBrick - ManualSet] displayWidth or displayHeight is too small (${brick.displayWidth}x${brick.displayHeight}). Cannot set body size correctly.`);
-                    // フォールバックとして非常に小さいがゼロではない値を設定
-                    brick.body.setSize(1,1).setOffset(-0.5, -0.5);
+                if (!brick.body.enable) { // ボディが無効なら有効化
+                    console.warn("[SetupAttackBrick] Brick body was disabled, re-enabling.");
+                    brick.body.enable = true;
                 }
-                // ★★★-----------------------------------------------------------------★★★
-
-                 console.log(`[SetupAttackBrick] Final Body - Size: ${brick.body.width.toFixed(1)}x${brick.body.height.toFixed(1)}, Offset: ${brick.body.offset.x.toFixed(1)},${brick.body.offset.y.toFixed(1)}`);
+                // ★★★ 物理ボディのサイズ/オフセットはPhaserの自動調整に任せる ★★★
+                // updateFromGameObject() もここでは呼ばないでおく
+                // (create時にテクスチャとスケールに基づいて自動的に設定されることを期待)
+                // もし、setScale後にボディサイズが追従しない場合は、
+                // ここで brick.refreshBody() または brick.body.updateFromGameObject() が必要になるかもしれない。
+                // まずはこれなしで試す。
+                console.log(`[SetupAttackBrick] Body exists. Size: ${brick.body.width.toFixed(1)}x${brick.body.height.toFixed(1)}, Offset: ${brick.body.offset.x.toFixed(1)},${brick.body.offset.y.toFixed(1)}`);
             } else {
-                console.error("[SetupAttackBrick] Brick body does not exist or is not enabled.");
+                console.error("[SetupAttackBrick] Brick body does NOT exist. Physics may not be enabled correctly on the group or object.");
             }
         } catch (e) {
-            console.error("Error setting up attack brick appearance:", e);
+            console.error("Error in setupAttackBrickAppearance:", e);
         }
-        console.log(`[SetupAttackBrick] Finished for brick. Final visible: ${brick.visible}, active: ${brick.active}, alpha: ${brick.alpha}`);
     }
 
 
