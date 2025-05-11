@@ -31,10 +31,12 @@ export default class Boss2Scene extends CommonBossScene {
         this.sowakaFieldDuration = 15000; // 例: フィールド効果15秒
         this.sowakaFieldCooldown = 10000; // 例: 再展開まで10秒
         this.sowakaLimitedItemType = null; // 限定されるアイテムタイプ
+        this.bossDefeatedThisPhase = false; // ★ 形態ごとの撃破フラグ
     }
 
     init(data) {
         super.init(data); // 親のinitを呼び出す
+        this.currentPhase = 'sankara'; // ★ シーン開始時は必ずサンカラから
         this.isSankaraRushing = false; // シーン初期化時にリセット
         if (this.sankaraRushTimer) {
             this.sankaraRushTimer.remove();
@@ -386,26 +388,32 @@ export default class Boss2Scene extends CommonBossScene {
     // --- ▲ ソワカ形態の攻撃とフィールドロジック ▲ ---
 
 
-     handleZeroHealth(bossInstance) {
+    handleZeroHealth(bossInstance) {
         if (this.currentPhase === 'sankara') {
             console.log("[Boss2Scene] Sankara's health is zero. Starting transition to Sowaka.");
-            this.triggerSankaraDefeatAndTransitionToSowaka(bossInstance); // ★ 新しいメソッドを呼び出す
+            if (!this.bossDefeatedThisPhase) { // ★ 重複実行防止
+                this.triggerSankaraDefeatAndTransitionToSowaka(bossInstance);
+            } else {
+                console.log("[Boss2Scene] Sankara defeat sequence already triggered.");
+            }
         } else if (this.currentPhase === 'sowaka') {
-            console.log("[Boss2Scene] Sowaka's health is zero. Calling default defeatBoss.");
-            super.handleZeroHealth(bossInstance); // CommonBossScene の defeatBoss を呼び出す
+            console.log("[Boss2Scene] Sowaka's health is zero. Calling Common defeatBoss.");
+            // ソワカが倒されたら CommonBossScene の通常の撃破処理を呼ぶ
+            // (Common の defeatBoss 内で this.bossDefeated = true; になる)
+            super.defeatBoss(bossInstance); // ★ super.handleZeroHealthではなく、直接super.defeatBossを呼ぶ
         } else {
-            // ありえないはずだが念のため
             console.error("[Boss2Scene] Unknown phase in handleZeroHealth:", this.currentPhase);
-            super.handleZeroHealth(bossInstance);
+            super.defeatBoss(bossInstance); // 想定外なら通常の撃破
         }
     }
 
     // ★ 新しいメソッド：サンカラ撃破とソワカへの移行処理を開始
     triggerSankaraDefeatAndTransitionToSowaka(sankaraBossObject) {
         console.log("[Boss2Scene] triggerSankaraDefeatAndTransitionToSowaka called.");
-        if (this.bossDefeated) return; // 既に処理中なら何もしない
-        this.bossDefeated = true; // サンカラは倒された扱い (ソワカ戦の準備)
+        // this.bossDefeated = true; // ← Commonのフラグはまだ立てない
+        this.bossDefeatedThisPhase = true; // ★ この形態は倒された
         this.playerControlEnabled = false;
+
 
         // 1. 全リセット (ボール、アイテム、攻撃ブロック、プレイヤーパワーアップ)
         console.log("[Transition] Clearing game objects and player power-ups...");
@@ -428,39 +436,79 @@ export default class Boss2Scene extends CommonBossScene {
         this.tweens.pauseAll(); // シーン全体のTweenを止める (必要なら)
         this.bossMoveTween?.pause(); // サンカラの動きを確実に止める
 
-        // 3. サンカラのデフィート演出 (CommonのdefeatBossとは少し違う流れ)
+         // 3. サンカラのデフィート演出
         console.log("[Transition] Starting Sankara's defeat visual sequence...");
         if (sankaraBossObject?.active) {
-            // ボイス再生
-            if (this.sankaraData.voiceDefeat) this.sound.play(this.sankaraData.voiceDefeat);
+            // ★★★ まず撃破ボイスを再生 ★★★
+            if (this.sankaraData.voiceDefeat) {
+                try {
+                    this.sound.play(this.sankaraData.voiceDefeat);
+                    console.log(`[Transition] Playing Sankara defeat voice: ${this.sankaraData.voiceDefeat}`);
+                } catch (e) { console.error("Error playing Sankara defeat voice:", e); }
+            }
+
+            // ★★★ 次に他の音を止める (BGM以外) ★★★
+            console.log("[Transition] Stopping active game sounds (except BGM and current defeat voice).");
+            this.randomVoiceTimer?.remove(); // 戦闘中ランダムボイス停止
+            this.attackBrickTimer?.remove(); // 攻撃ブロック生成タイマー停止 (サンカラの)
+            // 他にサンカラ戦特有のループ音などがあればここで停止
+            // this.sound.stopByKey('some_sankara_loop_se');
+
             // ネガ反転
             try { sankaraBossObject.setTexture(this.sankaraData.negativeKey); } catch(e) {}
-            // フラッシュ
+            // フラッシュ (DEFEAT_FLASH_COUNT は Boss2Scene で import されていること)
+            console.log("[Transition] Starting flash sequence...");
             for (let i = 0; i < DEFEAT_FLASH_COUNT; i++) {
                 this.time.delayedCall(i * DEFEAT_FLASH_INTERVAL, () => {
-                    if (!this.scene.isActive()) return;
+                    if (!this.scene.isActive() || !this.bossDefeatedThisPhase) return; // シーンが有効かつ処理が継続中か
                     this.cameras.main.flash(DEFEAT_FLASH_DURATION, 255, 255, 255);
+                    console.log(`[Transition] Flash ${i + 1}`);
                 }, [], this);
             }
+
             // シェイク＆フェード (完了後にソワカ登場処理を呼ぶ)
-            const shakeDuration = DEFEAT_SHAKE_DURATION / 2; // 少し短めに
-            const fadeDuration = DEFEAT_FADE_DURATION / 2;
-            this.tweens.add({ targets: sankaraBossObject, props: { x: { value: `+=${sankaraBossObject.displayWidth * 0.03}`, duration: 40, yoyo: true, ease: 'Sine.InOut' }, y: { value: `+=${sankaraBossObject.displayWidth * 0.015}`, duration: 50, yoyo: true, ease: 'Sine.InOut' } }, loop: Math.floor(shakeDuration / 50) });
-            this.tweens.add({
-                targets: sankaraBossObject, alpha: 0, duration: fadeDuration, delay: shakeDuration - fadeDuration > 0 ? shakeDuration - fadeDuration : 0, ease: 'Linear',
-                onComplete: () => {
-                    console.log("[Transition] Sankara fade out complete.");
-                    if (sankaraBossObject) sankaraBossObject.destroy(); // サンカラオブジェクトを破棄
-                    this.boss = null; // ボス参照を一旦クリア
-                    this.startSowakaAppearance(); // ソワカ登場処理へ
-                }
-            });
+            // フラッシュとほぼ同時に開始して良い
+            const shakeDuration = (DEFEAT_SHAKE_DURATION || 1200) / 1.5; // 少し短めに調整可能
+            const fadeDuration = (DEFEAT_FADE_DURATION || 1500) / 1.5;   // 少し短めに調整可能
+            const fadeDelay = shakeDuration * 0.2; // シェイクが始まってから少し遅れてフェード
+
+            console.log(`[Transition] Starting Shake (dur: ${shakeDuration.toFixed(0)}) and Fade (dur: ${fadeDuration.toFixed(0)}, delay: ${fadeDelay.toFixed(0)}) for Sankara.`);
+
+            // シェイクTween
+            if (sankaraBossObject.active) { // アクティブなオブジェクトにのみTween
+                this.tweens.add({
+                    targets: sankaraBossObject,
+                    props: { x: { value: `+=${sankaraBossObject.displayWidth * 0.03}`, duration: 40, yoyo: true, ease: 'Sine.InOut' }, y: { value: `+=${sankaraBossObject.displayWidth * 0.015}`, duration: 50, yoyo: true, ease: 'Sine.InOut' } },
+                    repeat: Math.max(0, Math.floor(shakeDuration / 50) -1) // 0未満にならないように
+                });
+                // フェードアウトTween
+                this.tweens.add({
+                    targets: sankaraBossObject,
+                    alpha: 0,
+                    duration: fadeDuration,
+                    delay: fadeDelay,
+                    ease: 'Linear',
+                    onComplete: () => {
+                        console.log("[Transition] Sankara fade out complete.");
+                        if (sankaraBossObject && sankaraBossObject.scene) { // まだ存在するか確認
+                            sankaraBossObject.destroy();
+                        }
+                        // this.boss は CommonBossScene のプロパティなので、
+                        // ここで null にするのはソワカ生成時に行うか、CommonのdefeatBossに任せる
+                        // this.boss = null;
+                        this.startSowakaAppearance(); // ソワカ登場処理へ
+                    }
+                });
+            } else { // もしサンカラが途中で消えていたら直接次へ
+                 console.warn("[Transition] Sankara object became inactive before shake/fade. Proceeding to Sowaka directly.");
+                 this.startSowakaAppearance();
+            }
         } else {
-            // サンカラオブジェクトが無効なら直接ソワカ登場へ
-            console.warn("[Transition] Sankara object was inactive, proceeding to Sowaka directly.");
+            console.warn("[Transition] Sankara object was inactive at start of visual sequence. Proceeding to Sowaka directly.");
             this.startSowakaAppearance();
         }
     }
+
 
     // ★ 新しいメソッド：ソワカ登場処理を開始
     startSowakaAppearance() {
