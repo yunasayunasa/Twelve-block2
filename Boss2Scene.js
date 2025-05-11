@@ -96,7 +96,7 @@ export default class Boss2Scene extends CommonBossScene {
 
         // ソワカ形態のデータを定義
         this.sowakaData = {
-            health: 10,
+            health: 20,
             textureKey: 'boss_sowaka_stand', // ★ アセット準備後に正しいキーに
             negativeKey: 'boss_sowaka_negative', // ★
             voiceAppear: AUDIO_KEYS.VOICE_SOWAKA_APPEAR,
