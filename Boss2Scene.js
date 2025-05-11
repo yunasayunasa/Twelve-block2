@@ -3,7 +3,7 @@ import CommonBossScene from './CommonBossScene.js';
 import {
   // ★★★ ボス撃破演出関連の定数をインポート (もしこのファイル内で直接使うなら) ★★★
     DEFEAT_FLASH_DURATION, DEFEAT_FLASH_INTERVAL, DEFEAT_FLASH_COUNT,
-    DEFEAT_SHAKE_DURATION, DEFEAT_FADE_DURATION,
+    DEFEAT_SHAKE_DURATION, DEFEAT_FADE_DURATION,CUTSCENE_DURATION, // CommonBossSceneから参照しているが、ここで直接使うなら
     // ★★★--------------------------------------------
      
     AUDIO_KEYS,
@@ -533,18 +533,67 @@ export default class Boss2Scene extends CommonBossScene {
         this.currentPhase = 'sowaka';
         this.initializeBossData(); // this.bossData がソワカ用に更新される
 
-        console.log("[Transition] Creating Sowaka boss object using super.createSpecificBoss...");
-        super.createSpecificBoss(); // ★ Commonのメソッドで this.boss をソワカとして再生成/設定
+        // ★★★ ソワカ専用のカットイン演出を開始 ★★★
+        this.triggerSowakaCutscene();
+        // ★★★---------------------------------★★★
 
-        if (!this.boss) {
-            console.error("!!! FAILED TO CREATE SOWAKA BOSS OBJECT !!!");
-            this.scene.start('TitleScene'); return;
-        }
-        console.log("[Transition] Sowaka boss object created/updated:", this.boss);
+        // createSpecificBoss や startFusionIntro はカットイン完了後に呼び出す
+    }
 
-        // ソワカ登場演出 (カットインは省略し、直接フュージョンへ)
-        console.log("[Transition] Starting Sowaka fusion intro...");
-        this.startFusionIntro(); // Commonの左右合体演出をソワカデータで実行
+    // ★★★ 新しいメソッド：ソワカ専用カットイン演出 ★★★
+    triggerSowakaCutscene() {
+        console.log("[SowakaCutscene] Starting Sowaka's cutscene...");
+
+        // (時間停止中のはずなので、必要ならここで this.tweens.resumeAll() や this.physics.resume() を一時的に行うか、
+        //  あるいはカットイン要素は時間停止の影響を受けない add.image などを使う)
+        //  Commonのカットインは時間停止の影響を受けないように作られているはず。
+
+        // CommonBossSceneのstartIntroCutsceneのロジックを参考に、ソワカ用に調整
+        const cutsceneDuration = CUTSCENE_DURATION || 1800; // constants.js からかデフォルト値
+        // try { this.sound.play(AUDIO_KEYS.SE_CUTSCENE_START); } catch(e) {} // カットイン開始SE
+
+        const overlay = this.add.rectangle(0, 0, this.gameWidth, this.gameHeight, 0x110022, 0.8) // 少し色味を変えるなど
+            .setOrigin(0,0).setDepth(1900); // 他のUIやポップアップより手前だが、ゲームクリアよりは奥
+
+        // ソワカの画像 (this.bossData.textureKey は initializeBossData でソワカ用に更新済みのはず)
+        const sowakaImage = this.add.image(this.gameWidth / 2, this.gameHeight / 2, this.bossData.textureKey)
+            .setOrigin(0.5, 0.5).setDepth(1901);
+        const targetImageWidth = this.gameWidth * 0.75;
+        sowakaImage.displayWidth = targetImageWidth;
+        sowakaImage.scaleY = sowakaImage.scaleX;
+
+        // VS ソワカ テキスト (this.bossData.cutsceneText もソワカ用に更新済みのはず)
+        const textContent = this.bossData.cutsceneText || "VS ソワカ";
+        const fontSize = this.calculateDynamicFontSize(52); // 少し大きめでも良いかも
+        const textStyle = { fontSize: `${fontSize}px`, fill: '#ffeecc', stroke: '#330011', strokeThickness: Math.max(4, fontSize*0.1), fontFamily: 'MyGameFont, sans-serif', align: 'center' };
+        const vsText = this.add.text(this.gameWidth / 2, sowakaImage.getBounds().bottom + this.gameHeight * 0.04, textContent, textStyle)
+            .setOrigin(0.5, 0).setDepth(1902);
+
+        console.log(`[SowakaCutscene] Displaying text: "${textContent}"`);
+
+        // 一定時間後に要素を破棄し、ソワカの登場演出（フュージョン）へ
+        this.time.delayedCall(cutsceneDuration, () => {
+            console.log("[SowakaCutscene] End. Proceeding to Sowaka's fusion intro.");
+            if (overlay.scene) overlay.destroy();
+            if (sowakaImage.scene) sowakaImage.destroy();
+            if (vsText.scene) vsText.destroy();
+
+            // ★★★ ソワカのボスオブジェクトを生成/設定し、フュージョン演出開始 ★★★
+            super.createSpecificBoss(); // this.bossData はソワカ用になっているので、これでソワカが設定される
+            if (!this.boss) {
+                console.error("!!! FAILED TO CREATE SOWAKA BOSS OBJECT before fusion intro !!!");
+                this.scene.start('TitleScene'); return;
+            }
+            console.log("[SowakaCutscene] Sowaka boss object created/updated:", this.boss);
+
+            this.startFusionIntro(); // Commonの左右合体演出 (this.bossData.voiceAppear でソワカボイス)
+            // startGameplay は startFusionIntro の完了時に呼ばれ、物理演算もそこで再開される想定
+            // ソワカのフィールド初回展開は startGameplay の後か、updateSpecificBossBehavior で行う
+            // this.activateSowakaField(); // ← タイミングを再検討
+
+        }, [], this);
+    
+    // ★★★------------------------------------------★★★
 
         // startGameplay は startFusionIntro の完了時に CommonBossScene によって呼ばれる
         // その中でソワカの動き (startSpecificBossMovement) も開始される
