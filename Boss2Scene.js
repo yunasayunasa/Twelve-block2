@@ -317,7 +317,7 @@ export default class Boss2Scene extends CommonBossScene {
             return true; // サンカラ突進中はダメージ
         }
         // ソワカ形態での接触ダメージ条件もここに追加できる
-        // if (this.currentPhase === 'sowaka' && this.isSowakaSomeAttackActive) return true;
+        if (this.currentPhase === 'sowaka' && this.isSowakaSomeAttackActive) return true;
         return false; // それ以外はダメージなし
     }
 
@@ -658,6 +658,28 @@ export default class Boss2Scene extends CommonBossScene {
             this.activateSowakaField(); // ← 新しいメソッド (後で中身を実装)
 
         }, [], this);
+    }
+
+     /**
+     * 次のソワカの放射攻撃をランダムな間隔で予約する
+     */
+    scheduleSowakaAttack() {
+        if (this.currentPhase !== 'sowaka' || !this.boss || !this.boss.active || this.bossDefeated || this.isGameOver) {
+            return; // ソワカでない、または戦闘終了時は予約しない
+        }
+        if (this.sowakaAttackTimer) this.sowakaAttackTimer.remove();
+
+        const minDelay = this.bossData.sowakaAttackIntervalMin || 2500;
+        const maxDelay = this.bossData.sowakaAttackIntervalMax || 4500;
+        const nextDelay = Phaser.Math.Between(minDelay, maxDelay);
+
+        console.log(`[Sowaka] Scheduling next radial attack in ${nextDelay}ms.`);
+        this.sowakaAttackTimer = this.time.addEvent({
+            delay: nextDelay,
+            callback: this.spawnSowakaRadialAttack,
+            callbackScope: this,
+            loop: false
+        });
     }
 
     // activateSowakaField メソッドの骨子 (後で実装)
