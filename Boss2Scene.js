@@ -29,6 +29,8 @@ export default class Boss2Scene extends CommonBossScene {
       
 
         // ソワカのフィールド効果用
+
+         this.sowakaAttackTimer = null; // ★ ソワカ攻撃タイマー用
         this.sowakaFieldActive = false;
         this.sowakaFieldTimer = null;
         this.sowakaFieldDuration = 15000; // 例: フィールド効果15秒
@@ -46,6 +48,10 @@ export default class Boss2Scene extends CommonBossScene {
         if (this.sankaraRushTimer) {
             this.sankaraRushTimer.remove();
             this.sankaraRushTimer = null;
+        }
+           if (this.sowakaAttackTimer) { // ★ ソワカ攻撃タイマーもリセット
+            this.sowakaAttackTimer.remove();
+            this.sowakaAttackTimer = null;
         }
     }
 
@@ -97,12 +103,13 @@ export default class Boss2Scene extends CommonBossScene {
             widthRatio: 0.23, // ソワカの見た目幅の割合 (要調整)
             moveRangeXRatio: 0.65,
             moveDuration: 3500,
-            // ソワカ固有の攻撃パラメータ
-            sowakaAttackIntervalMin: 3000,
-            sowakaAttackIntervalMax: 6000,
-            sowakaBrickCount: 5, // 放射状ブロックの数
-            sowakaBrickAngleSpread: 90, // 5個のブロックを90度の範囲に放射 (-45 to 45)
-            sowakaBrickVelocity: DEFAULT_ATTACK_BRICK_VELOCITY_Y + 50, // さらに速め
+             sowakaAttackIntervalMin: 2500,  // 攻撃の最小間隔 (ms) - 要調整
+            sowakaAttackIntervalMax: 4500,  // 攻撃の最大間隔 (ms) - 要調整
+            sowakaProjectileCount: 3,       // 常に3個
+            sowakaProjectileAngles: [-15, 0, 15], // 放射角度 (度)
+            sowakaProjectileVelocity: DEFAULT_ATTACK_BRICK_VELOCITY_Y + 60, // サンカラより少し速く
+            sowakaProjectileScale: this.sankaraData.attackBrickScale || 0.2, // サンカラと同じスケールを使う例
+            // ★★★--------------------------★★★
             // ソワカフィールド関連
             sowakaFieldItemCandidates: [ // 限定アイテムの候補
                 POWERUP_TYPES.ANCHIRA, POWERUP_TYPES.SINDARA, POWERUP_TYPES.INDARA,
@@ -143,37 +150,36 @@ export default class Boss2Scene extends CommonBossScene {
         }
     }
 
-    // startSpecificBossMovement: 各形態の動きを開始
+     // startSpecificBossMovement: 各形態の動きを開始
     startSpecificBossMovement() {
-        console.log(`--- Boss2Scene startSpecificBossMovement (Phase: ${this.currentPhase}) ---`);
-        if (!this.boss || !this.boss.active) {
-            console.warn("Cannot start movement, boss not ready.");
-            return;
-        }
-        // CommonBossScene の汎用左右往復移動を開始 (パラメータはthis.bossDataから読まれる)
-        super.startSpecificBossMovement();
-        console.log(`Boss2 (${this.currentPhase}) movement started.`);
-    // ★ 最初の突進攻撃を予約 ★
+        super.startSpecificBossMovement(); // Commonの左右移動を開始
+        console.log(`[Boss2Scene] Boss (${this.currentPhase}) movement started.`);
         if (this.currentPhase === 'sankara' && !this.isSankaraRushing) {
             this.scheduleSankaraRush();
+        } else if (this.currentPhase === 'sowaka') {
+            // ★ ソワカの最初の放射攻撃を予約 ★
+            console.log("[Boss2Scene] Scheduling first Sowaka radial attack.");
+            this.scheduleSowakaAttack();
+            // ★ ここでソワカのフィールド初回展開も呼び出すのが良い
+            if (!this.sowakaFieldActive) { // まだ展開されていなければ
+                 this.activateSowakaField(); // (このメソッドは後で実装)
+            }
         }
     }
 
-    // updateSpecificBossBehavior: 各形態の攻撃ロジックを呼び出す
+   // updateSpecificBossBehavior: 各形態の攻撃ロジックを呼び出す
     updateSpecificBossBehavior(time, delta) {
         if (!this.playerControlEnabled || !this.boss || !this.boss.active || this.bossDefeated || this.isGameOver) {
             return;
         }
 
-            if (this.currentPhase === 'sankara') {
-            // ★ 突進中でなければ、次の突進のスケジューリングを確認 ★
-            // (executeSankaraRushの最後に次のスケジュールを呼ぶので、ここでは不要になるかも)
-            // if (!this.isSankaraRushing && (!this.sankaraRushTimer || this.sankaraRushTimer.getProgress() === 1)) {
-            //     this.scheduleSankaraRush();
-            // }
-            // サンカラの他の攻撃パターンがあればここに追加
+        if (this.currentPhase === 'sankara') {
+            // サンカラの突進攻撃のスケジューリングは executeSankaraRush の onComplete で行う
         } else if (this.currentPhase === 'sowaka') {
-            this.updateSowakaAttacksAndField(time, delta);
+            // ★ ソワカの放射攻撃タイマーをチェック (scheduleSowakaAttackで予約される) ★
+            // (タイマーが完了したら spawnSowakaRadialAttack が呼ばれ、その中で次の予約をする)
+            // ★ ソワカのフィールド効果の更新/再展開処理もここで行う ★
+            this.updateSowakaField(time, delta); // (このメソッドは後で実装)
         }
     }
 
@@ -379,19 +385,47 @@ export default class Boss2Scene extends CommonBossScene {
             console.error("[SpawnSankaraBlock] Failed to create right brick.");
         }
     }
-    // --- ▼ ソワカ形態の攻撃とフィールドロジック (後で実装) ▼ ---
-    updateSowakaAttacksAndField(time, delta) {
-        // TODO: フィールド展開/解除/再展開のタイマー管理とロジック
-        // if (this.sowakaFieldActive) { ... } else if (!this.sowakaFieldTimer || ...) { this.tryActivateSowakaField(); }
 
-        // TODO: 放射状攻撃ブロックのタイマー管理と実行
-        // if (!this.sowakaAttackTimer || this.sowakaAttackTimer.getProgress() === 1) {
-        //     this.scheduleSowakaAttack();
-        // }
+     /**
+     * ソワカが放射状に3つの攻撃ブロックを放出する
+     */
+    spawnSowakaRadialAttack() {
+        if (!this.attackBricks || !this.boss || !this.boss.active || this.currentPhase !== 'sowaka') {
+            this.scheduleSowakaAttack(); // 攻撃できない状況でも次の予約は試みる
+            return;
+        }
+        console.log("--- Sowaka Spawning Radial Attack ---");
+
+        const bossX = this.boss.x;
+        const bossY = this.boss.y + this.boss.displayHeight / 3; // ボスの少し下から
+        const velocity = this.bossData.sowakaProjectileVelocity || 220;
+        const textureKey = 'attack_brick_common';
+        const displayScale = this.bossData.sowakaProjectileScale || 0.2;
+        const angles = this.bossData.sowakaProjectileAngles || [-15, 0, 15]; // [-15, 0, 15] 度
+
+        angles.forEach(angleDeg => {
+            // 角度をラジアンに変換 (Phaserの速度計算は角度を度で受け取る)
+            // const angleRad = Phaser.Math.DegToRad(angleDeg);
+            const projectileVelocity = this.physics.velocityFromAngle(angleDeg, velocity);
+
+            const attackBrick = this.attackBricks.create(bossX, bossY, '__TEMP__');
+            if (attackBrick) {
+                this.setupAttackBrickAppearance(attackBrick, textureKey, displayScale);
+                attackBrick.setVelocity(projectileVelocity.x, projectileVelocity.y);
+                if (attackBrick.body) {
+                    attackBrick.body.setAllowGravity(false);
+                    attackBrick.body.setCollideWorldBounds(false);
+                }
+                console.log(`  Spawned Sowaka brick at angle ${angleDeg} deg. Velocity: (${projectileVelocity.x.toFixed(1)}, ${projectileVelocity.y.toFixed(1)})`);
+            } else {
+                console.error("[Sowaka Attack] Failed to create an attack brick.");
+            }
+        });
+
+        // 次の攻撃を予約
+        this.scheduleSowakaAttack();
     }
-    // ... (ソワカのフィールド管理、攻撃メソッドなど) ...
-    // --- ▲ ソワカ形態の攻撃とフィールドロジック ▲ ---
-
+    
 
   handleZeroHealth(bossInstance) {
         console.log(`[Boss2Scene handleZeroHealth] Called for phase: ${this.currentPhase}. Boss defeated this phase: ${this.bossDefeatedThisPhase}`);
