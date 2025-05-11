@@ -1963,7 +1963,7 @@ if (this.isMakiraActive && this.balls && this.familiars && this.familiars.countA
                 if (bossInstance.active) {
                     // ★★★ ここで this.bossDefeated を true にしても良いかもしれない (形態変化がないボスの場合) ★★★
                     // ただし、形態変化がある場合は、最終形態が倒された時に true にする
-                    this.handleZeroHealth(bossInstance);
+                    //this.handleZeroHealth(bossInstance);
                 } else {
                     console.warn(`[Apply Damage - ${source}] Boss became inactive BEFORE calling handleZeroHealth!`);
                 }
