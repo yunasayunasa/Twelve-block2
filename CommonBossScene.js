@@ -1161,26 +1161,36 @@ if (this.isMakiraActive && this.balls && this.familiars && this.familiars.countA
     // --- ▼ ゲーム進行メソッド ▼ ---
         // CommonBossScene.js の loseLife メソッドを修正
      // loseLife メソッドに引数を追加
+     // CommonBossScene.js の loseLife メソッドを修正
     /**
      * ライフを処理し、ボールをリセットする
-     * @param {boolean} [preventLifeLoss=false] trueの場合、ライフを減らさずにボールリセットのみ行う
+     * @param {boolean} [preventLifeLoss=false] trueの場合、ライフを減らさずにボールリセットのみ行う (アニラ効果でボールロストした場合など)
      */
     loseLife(preventLifeLoss = false) {
-        // isPlayerTrulyInvincible はアニラ効果がまだ「有効」な場合。
-        // preventLifeLoss はアニラ効果が「今しがた切れた」場合。
+        // isPlayerTrulyInvincible はアニラ効果がまだ「有効」な場合に true
+        // preventLifeLoss はアニラ効果が「今しがた切れた」結果としてボールロストした場合に true になることを想定
         if (this.isPlayerTrulyInvincible) {
             console.log("[LoseLife] Called, but Player True Invincibility is ACTIVE. No life loss, no ball reset from here.");
             return;
         }
-        if (this.isGameOver || this.bossDefeated) return;
+        if (this.isGameOver || this.bossDefeated) {
+            console.log("[LoseLife] Called, but game is over or boss defeated. Skipping.");
+            return;
+        }
 
-        if (!preventLifeLoss) { // ★ ライフを減らさないフラグが false の場合のみライフを減らす
-            console.log(`Losing life. Current lives: ${this.lives}, Remaining after loss: ${this.lives - 1}`);
-            this.lives--;
-            this.events.emit('updateLives', this.lives);
+        // ★★★ ライフ減少処理はここだけ ★★★
+        if (!preventLifeLoss) {
+            if (this.lives > 0) { // ライフが0より大きい場合のみ実際に減らす
+                console.log(`Losing life. Current lives: ${this.lives}, Remaining after loss: ${this.lives - 1}`);
+                this.lives--;
+                this.events.emit('updateLives', this.lives);
+            } else {
+                console.log("[LoseLife] Attempted to lose life, but lives already at 0.");
+            }
         } else {
             console.log("[LoseLife] Life loss PREVENTED (e.g., by Anila effect ending on ball loss). Ball reset will still occur.");
         }
+        // ★★★-------------------------★★★
 
         // --- 持続系パワーアップ解除 (preventLifeLossに関わらず行う) ---
         console.log("[LoseLife] Deactivating persistent power-ups...");
@@ -1188,7 +1198,6 @@ if (this.isMakiraActive && this.balls && this.familiars && this.familiars.countA
         this.deactivateAnchira(true);
         this.deactivateSindara(null, true);
 
-        // ビカラ陰（貫通）効果の解除
         console.log("[LoseLife] Deactivating any active Bikara penetration effects.");
         Object.values(this.bikaraTimers).forEach(timer => timer?.remove());
         this.bikaraTimers = {};
@@ -1198,29 +1207,26 @@ if (this.isMakiraActive && this.balls && this.familiars && this.familiars.countA
              }
         });
 
-        // 他の汎用タイマー解除
         Object.values(this.powerUpTimers).forEach(timer => timer?.remove());
         this.powerUpTimers = {};
 
-        // ボールの状態もリセット (汎用的なパワーアップフラグやlastActivatedPowerなど)
         this.balls?.getChildren().forEach(ball => {
             if(ball?.active) this.resetBallState(ball);
         });
-        this.updateBallAndPaddleAppearance(); // ボールとパドルの見た目もリセット
+        this.updateBallAndPaddleAppearance();
 
-        // --- ライフ減少とボールのクリア ---
-        this.lives--;
-        this.events.emit('updateLives', this.lives);
+        // --- ボールのクリアと状態リセット ---
         this.isBallLaunched = false; // 新しいボールは未発射状態
-
         console.log("[LoseLife] Clearing existing balls...");
         this.balls?.clear(true, true); // 古いボールを全て破棄
 
         // --- 次の処理 ---
-        if (this.lives > 0 || preventLifeLoss) { // ★ ライフがあるか、ライフ減少が抑制されたならボール再生成
+        // ライフが0より大きいか、またはライフ減少が抑制された場合（＝アニラでボールロストし、ボールは再生成したい）
+        if (this.lives > 0 || preventLifeLoss) {
             console.log("[LoseLife] Scheduling resetForNewLife.");
             this.time.delayedCall(800, this.resetForNewLife, [], this);
         } else {
+            // ライフが0で、かつライフ減少も抑制されなかった場合（通常のゲームオーバー）
             console.log("[LoseLife] No lives remaining. Triggering Game Over.");
             this.sound.play(AUDIO_KEYS.SE_GAME_OVER);
             this.stopBgm();
