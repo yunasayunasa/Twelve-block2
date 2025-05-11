@@ -327,7 +327,7 @@ export default class Boss2Scene extends CommonBossScene {
         const angleLeft = Phaser.Math.Between(180 - angleMax, 180 - angleMin);
         const velocityLeft = this.physics.velocityFromAngle(angleLeft, velocity);
       const brickLeft = this.attackBricks.create(bossX, bossY, '__TEMP__')
-          //  .setOrigin(0, 0); // ★★★ 原点を左上に設定 ★★★
+            .setOrigin(1, 1); // ★★★ 原点を左上に設定 ★★★
         if (brickLeft) {
             this.setupAttackBrickAppearance(brickLeft, textureKey, displayScale);brickLeft.setVelocity(velocityLeft.x, velocityLeft.y);
             if (brickLeft.body) brickLeft.body.setAllowGravity(false).setCollideWorldBounds(false);
@@ -337,7 +337,7 @@ export default class Boss2Scene extends CommonBossScene {
         const angleRight = Phaser.Math.Between(angleMin, angleMax);
         const velocityRight = this.physics.velocityFromAngle(angleRight, velocity);
          const brickRight = this.attackBricks.create(bossX, bossY, '__TEMP__')
-          //  .setOrigin(0, 0); // ★★★ 原点を左上に設定 ★★★
+            .setOrigin(1, 1); // ★★★ 原点を左上に設定 ★★★
         if (brickRight) {
             this.setupAttackBrickAppearance(brickRight, textureKey, displayScale); brickRight.setVelocity(velocityRight.x, velocityRight.y);
             if (brickRight.body) brickRight.body.setAllowGravity(false).setCollideWorldBounds(false);
