@@ -500,7 +500,7 @@ export default class Boss2Scene extends CommonBossScene {
     }
 
     // activateSowakaField() やソワカの攻撃メソッドはこれから実装
-}
+
     // --- ▲ 形態変化処理 ▲ ---
 
     // ボス撃破後の共通処理 (最終ボスならゲームクリア、そうでなければ次のボスへ)

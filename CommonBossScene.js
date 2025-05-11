@@ -1903,10 +1903,11 @@ if (this.isMakiraActive && this.balls && this.familiars && this.familiars.countA
                     this.defeatBoss(bossInstance);
                 }
                 // ★★★-------------------------------------------------★★★
-            } else {
-             console.log(`[Apply Damage - ${source}] Health > 0. Boss survives.`);
-        }
-    }hitAttackBrick(brick, ball) { if (!brick?.active || !ball?.active) return;
+             } else { /* ボス非アクティブ警告 */ }
+        } else { /* ボス生存ログ */ }
+    }
+
+    hitAttackBrick(brick, ball) { if (!brick?.active || !ball?.active) return;
            // ★★★ ボールが未発射の場合の処理を追加 ★★★
     if (!this.isBallLaunched) {
         console.log("[HitAttackBrick] Hit by brick while ball was NOT launched. Launching ball now.");
