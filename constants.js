@@ -160,3 +160,25 @@ export const DEFAULT_ATTACK_BRICK_SPAWN_DELAY_MIN = 800;
 export const DEFAULT_ATTACK_BRICK_SPAWN_DELAY_MAX = 1600;
 export const DEFAULT_ATTACK_BRICK_ITEM_DROP_RATE = 0.3;
 export const DEFAULT_ATTACK_BRICK_SCALE_RATIO = 0.08;
+
+// constants.js
+// ... (他の定数) ...
+
+// --- 演出・サウンド関連定数 (CommonBossScene や各ボスシーンで使用) ---
+export const CUTSCENE_DURATION = 1800;
+export const CUTSCENE_FLASH_DURATION = 200;
+export const INTRO_FLASH_DURATION = 200;
+export const ZOOM_IN_DURATION = 800;
+export const ZOOM_WAIT_DURATION = 200;
+export const SHRINK_DURATION = 50;
+export const SHRINK_FLASH_DURATION = 150;
+export const VOICE_START_DELAY = 100;
+export const GAMEPLAY_START_DELAY = 600;
+export const BOSS_RANDOM_VOICE_MIN_DELAY = 8000;
+export const BOSS_RANDOM_VOICE_MAX_DELAY = 15000;
+export const BOSS_DAMAGE_VOICE_THROTTLE = 2000;
+export const DEFEAT_FLASH_DURATION = 150;
+export const DEFEAT_FLASH_INTERVAL = 700;
+export const DEFEAT_FLASH_COUNT = 3; // ★ export する
+export const DEFEAT_SHAKE_DURATION = 1200;
+export const DEFEAT_FADE_DURATION = 1500;
