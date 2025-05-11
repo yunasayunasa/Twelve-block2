@@ -1963,7 +1963,7 @@ if (this.isMakiraActive && this.balls && this.familiars && this.familiars.countA
                 if (bossInstance.active) {
                     // ★★★ ここで this.bossDefeated を true にしても良いかもしれない (形態変化がないボスの場合) ★★★
                     // ただし、形態変化がある場合は、最終形態が倒された時に true にする
-                    //this.handleZeroHealth(bossInstance);
+                    this.handleZeroHealth(bossInstance);
                 } else {
                     console.warn(`[Apply Damage - ${source}] Boss became inactive BEFORE calling handleZeroHealth!`);
                 }
@@ -1971,6 +1971,24 @@ if (this.isMakiraActive && this.balls && this.familiars && this.familiars.countA
                 console.log(`[Apply Damage - ${source}] Health is zero or below, BUT defeat sequence already initiated (bossDefeated: ${this.bossDefeated}, sceneSpecificDefeatFlag: ${sceneSpecificDefeatFlag}). Skipping duplicate call.`);
             }
         } else { /* ボス生存 */ }
+    }
+
+      /**
+     * ボスのHPが0になったときに呼び出される。
+     * 形態変化など、通常の defeatBoss とは異なる処理を行いたい場合に各ボスシーンでオーバーライドする。
+     * デフォルトでは defeatBoss を呼び出す。
+     * @param {Phaser.Physics.Arcade.Image} bossInstance HPが0になったボスオブジェクト
+     */
+    handleZeroHealth(bossInstance) {
+        console.log(`[CommonBossScene] handleZeroHealth called for scene: ${this.scene.key}. Boss:`, bossInstance?.name || bossInstance?.texture?.key);
+        // 既にこのボスインスタンスに対する撃破処理が開始されていないか、
+        // あるいはシーン全体のボス撃破フラグが立っていないかを確認
+        if (!this.bossDefeated && bossInstance && bossInstance.active) { // bossDefeated は CommonBossScene のフラグ
+            console.log(`[CommonBossScene] Proceeding with default defeatBoss for boss in ${this.scene.key}.`);
+            this.defeatBoss(bossInstance); // デフォルトの撃破処理
+        } else {
+            console.log(`[CommonBossScene] Defeat process for boss in ${this.scene.key} already initiated or boss invalid. Skipping duplicate defeatBoss call.`);
+        }
     }
 
     hitAttackBrick(brick, ball) { if (!brick?.active || !ball?.active) return;
