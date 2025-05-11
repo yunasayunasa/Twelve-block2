@@ -690,14 +690,14 @@ export default class CommonBossScene extends Phaser.Scene {
         moveToRight();
     }
 
-    updateSpecificBossBehavior(time, delta) {
+    /*updateSpecificBossBehavior(time, delta) {
         // 汎用的な攻撃ブロック生成タイマーの例
         if (!this.attackBrickTimer || this.attackBrickTimer.getProgress() === 1) {
             if (this.playerControlEnabled && this.boss && this.boss.active && !this.bossDefeated && !this.isGameOver) {
                 this.scheduleNextGenericAttackBrick();
             }
         }
-    }
+    }*/
 
     handleBossDefeatCompletion() {
         console.log(`--- ${this.scene.key} Boss Defeated Completion ---`);
