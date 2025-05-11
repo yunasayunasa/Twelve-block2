@@ -64,11 +64,6 @@ const GAMEPLAY_START_DELAY = 600;
 const BOSS_RANDOM_VOICE_MIN_DELAY = 8000;
 const BOSS_RANDOM_VOICE_MAX_DELAY = 15000;
 const BOSS_DAMAGE_VOICE_THROTTLE = 2000;
-//const DEFEAT_FLASH_DURATION = 150;
-//const DEFEAT_FLASH_INTERVAL = 700;
-//const DEFEAT_FLASH_COUNT = 3;
-//const DEFEAT_SHAKE_DURATION = 1200;
-//const DEFEAT_FADE_DURATION = 1500;
 
 const ATTACK_BRICK_VELOCITY_Y = 180;
 const ATTACK_BRICK_SPAWN_DELAY_MIN = 700;
@@ -998,27 +993,87 @@ if (this.isMakiraActive && this.balls && this.familiars && this.familiars.countA
         }
     }
 
-   // startBossShakeAndFade メソッドに完了後処理のフラグを追加
-    startBossShakeAndFade(bossObject, showPopupAfter = false) { // ★ 引数追加
+  // CommonBossScene.js
+
+    /**
+     * ボスのシェイク＆フェードアウト演出を開始する
+     * @param {Phaser.Physics.Arcade.Image} bossObject 対象のボスオブジェクト
+     * @param {boolean} [showPopupAfter=false] 完了後にステージクリアポップアップを表示するかどうか
+     */
+    startBossShakeAndFade(bossObject, showPopupAfter = false) {
         if (!bossObject || !bossObject.active) {
-            if (showPopupAfter) this.showStageClearPopup(); // ボスがいないなら即ポップアップ
-            else this.handleBossDefeatCompletion();
+            console.warn("[Shake&Fade] Target boss is missing or inactive. Proceeding to next step.");
+            if (showPopupAfter) {
+                this.showStageClearPopup();
+            } else {
+                this.handleBossDefeatCompletion();
+            }
             return;
         }
-        // ... (シェイクとフェードのTween設定) ...
-        this.tweens.add({ // フェードアウトTween
-            targets: bossObject, alpha: 0, duration: DEFEAT_FADE_DURATION, ease: 'Linear',
-            onComplete: () => {
-                bossObject.destroy();
-                if(this.boss === bossObject) this.boss = null;
-                // ★ 完了後の処理を分岐 ★
-                if (showPopupAfter) {
-                    this.showStageClearPopup();
-                } else {
-                    this.handleBossDefeatCompletion(); // 通常の次の処理へ
+        console.log(`[Shake&Fade] Starting for boss. ShowPopupAfter: ${showPopupAfter}`);
+
+        // --- シェイクTween ---
+        // DEFEAT_SHAKE_DURATION とシェイクの強さ(amplitude)は constants.js または bossData から取得
+        const shakeDuration = DEFEAT_SHAKE_DURATION || 1200; // デフォルト値
+        const shakeAmplitude = bossObject.displayWidth * 0.03; // 表示幅の3%程度揺らす (調整可能)
+
+        console.log(`[Shake&Fade] Shake params - Duration: ${shakeDuration}, Amplitude: ${shakeAmplitude.toFixed(1)}`);
+        try {
+            this.tweens.add({
+                targets: bossObject,
+                props: {
+                    x: { value: `+=${shakeAmplitude}`, duration: 50, yoyo: true, ease: 'Sine.easeInOut' },
+                    y: { value: `+=${shakeAmplitude * 0.5}`, duration: 60, yoyo: true, ease: 'Sine.easeInOut' } // Y揺れはXより少し小さく
+                },
+                // シェイクを指定時間繰り返す (loopDelay を使うとより自然な揺れになることも)
+                repeat: Math.floor(shakeDuration / (60 + 50)) -1, // (durationY + durationX) の近似値で割る
+                // loop: -1, // もしフェードと同時に開始し、フェードで消えるまで揺らし続けるなら
+            });
+        } catch (e) {
+            console.error("Error creating shake tween:", e);
+        }
+
+        // --- フェードアウトTween ---
+        // DEFEAT_FADE_DURATION は constants.js から取得
+        const fadeDuration = DEFEAT_FADE_DURATION || 1500; // デフォルト値
+        // シェイクが少し終わってからフェードを開始するか、ほぼ同時に開始するかは演出次第
+        // ここではシェイク開始から少し遅れてフェード開始する例
+        const fadeDelay = shakeDuration * 0.3; // シェイクが少し進んでからフェード開始 (調整可能)
+
+        console.log(`[Shake&Fade] Fade params - Duration: ${fadeDuration}, Delay: ${fadeDelay.toFixed(0)}`);
+        try {
+            this.tweens.add({
+                targets: bossObject,
+                alpha: 0,
+                duration: fadeDuration,
+                delay: fadeDelay,
+                ease: 'Linear',
+                onComplete: () => {
+                    console.log("[Shake&Fade] Fade tween completed.");
+                    // ボスオブジェクトを安全に破棄
+                    if (bossObject && bossObject.scene) { // まだシーンに存在するか確認
+                        bossObject.destroy();
+                        console.log("[Shake&Fade] Boss object destroyed.");
+                    }
+                    // this.boss の参照もクリア (もしbossObjectがthis.bossと同一なら)
+                    if (this.boss === bossObject) {
+                        this.boss = null;
+                    }
+
+                    // ★ 完了後の処理を分岐 ★
+                    if (showPopupAfter) {
+                        console.log("[Shake&Fade] Proceeding to showStageClearPopup.");
+                        this.showStageClearPopup();
+                    } else {
+                        console.log("[Shake&Fade] Proceeding to handleBossDefeatCompletion.");
+                        this.handleBossDefeatCompletion();
+                    }
                 }
-            }
-        });
+            });
+        } catch (e) {
+            console.error("Error creating fade tween:", e);
+        }
+        console.log("[Shake&Fade] Shake and Fade tweens initiated.");
     }
      // ★★★ 新しいメソッド：ステージクリアポップアップ表示 ★★★
   showStageClearPopup() {
