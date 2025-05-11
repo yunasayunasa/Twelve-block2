@@ -524,21 +524,71 @@ export default class Boss2Scene extends CommonBossScene {
         }
         }}    
 
-    // ★ 新しいメソッド：ソワカ登場処理を開始
+  // Boss2Scene.js の startSowakaAppearance メソッドを修正
+
     startSowakaAppearance() {
-        console.log("[Boss2Scene] startSowakaAppearance called.");
-        this.bossDefeatedThisPhase = false; // ソワカ戦開始のためリセット
+        // ... (フェーズ変更、データ初期化、ボスオブジェクト生成、フュージョンイントロ開始まで) ...
+        this.startFusionIntro(); // Commonの左右合体演出
 
-        console.log("[Transition] Setting phase to Sowaka and re-initializing bossData...");
-        this.currentPhase = 'sowaka';
-        this.initializeBossData(); // this.bossData がソワカ用に更新される
+        // startGameplay は startFusionIntro の完了時に CommonBossScene によって呼ばれる。
+        // startGameplay の中で startSpecificBossMovement (ソワカ用) も呼ばれる。
 
-        // ★★★ ソワカ専用のカットイン演出を開始 ★★★
-        this.triggerSowakaCutscene();
-        // ★★★---------------------------------★★★
+        // ★★★ ソワカ戦開始時にボールを再生成 ★★★
+        // startGameplay が呼ばれた後、またはその直前の適切なタイミングで。
+        // ここでは、フュージョン演出後に戦闘準備が整う startGameplay の中で行うのが良いかもしれない。
+        // CommonBossScene の startGameplay をオーバーライドしてボール生成を挟むか、
+        // あるいは、startFusionIntro の onComplete で startGameplay を呼ぶ前にボールを生成する。
 
-        // createSpecificBoss や startFusionIntro はカットイン完了後に呼び出す
+        // より簡単なのは、startGameplay が呼ばれた後にボールを生成することです。
+        // CommonBossScene の startGameplay の最後にボール生成をフックする、
+        // または Boss2Scene で startGameplay をオーバーライドする。
+
+        // 今回は、ソワカのフィールド展開などもあるので、
+        // ソワカの戦闘開始準備が全て整った後 (startGameplayが呼ばれた後) にボールを出すのが自然。
+        // CommonBossSceneのstartGameplayを呼び出す前にisBallLaunchedをfalseにしておき、
+        // 最初のタップでボールが発射されるようにする。
+
+        console.log("[Transition] Sowaka appearance sequence initiated.");
+
+        this.tweens.resumeAll();
+        this.physics.resume();
+        console.log("[Transition] Physics and tweens resumed.");
+
+        // ★★★ isBallLaunched を false に戻し、ボール再生成を促す ★★★
+        this.isBallLaunched = false; // これにより、次のタップで launchBall が呼ばれる
+        // ただし、ボールオブジェクトがまだ存在しない。
+
+        // ★★★ ボールオブジェクトをここで生成する ★★★
+        // (resetForNewLife と同様のロジックで)
+        console.log("[Sowaka Start] Creating initial ball for Sowaka phase.");
+        if (this.balls) this.balls.clear(true, true); // 念のため既存をクリア
+        else this.balls = this.physics.add.group({ bounceX: 1, bounceY: 1, collideWorldBounds: true }); // なければ作成
+
+        if (this.paddle && this.paddle.active) {
+             this.createAndAddBall(this.paddle.x, this.paddle.y - (this.paddle.displayHeight / 2) - (this.gameWidth * BALL_RADIUS_RATIO));
+        } else {
+             this.createAndAddBall(this.gameWidth / 2, this.gameHeight * 0.7);
+        }
+        // ★★★--------------------------------------★★★
+
+        // ソワカのフィールドを初回展開
+        this.activateSowakaField(); // ← 新しいメソッドを後で作成
     }
+
+    // (もし CommonBossScene の startGameplay をオーバーライドする場合)
+    // startGameplay() {
+    //     super.startGameplay(); // 親の処理を呼ぶ
+    //     // ★ ここでボールを生成 ★
+    //     if (this.currentPhase === 'sowaka') {
+    //         console.log("[Boss2 startGameplay] Creating ball for Sowaka.");
+    //         if (this.balls) this.balls.clear(true, true);
+    //         else this.balls = this.physics.add.group({ /* ... */ });
+    //         this.createAndAddBall(/* ... */);
+    //         this.isBallLaunched = false;
+    //         // フィールド展開
+    //         this.activateSowakaField();
+    //     }
+    // }
 
     // ★★★ 新しいメソッド：ソワカ専用カットイン演出 ★★★
     triggerSowakaCutscene() {
@@ -549,7 +599,7 @@ export default class Boss2Scene extends CommonBossScene {
         //  Commonのカットインは時間停止の影響を受けないように作られているはず。
 
         // CommonBossSceneのstartIntroCutsceneのロジックを参考に、ソワカ用に調整
-        const cutsceneDuration = CUTSCENE_DURATION || 1800; // constants.js からかデフォルト値
+        const cutsceneDuration = CUTSCENE_DURATION || 2500; // constants.js からかデフォルト値
         // try { this.sound.play(AUDIO_KEYS.SE_CUTSCENE_START); } catch(e) {} // カットイン開始SE
 
         const overlay = this.add.rectangle(0, 0, this.gameWidth, this.gameHeight, 0x110022, 0.8) // 少し色味を変えるなど
