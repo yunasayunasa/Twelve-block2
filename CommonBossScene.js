@@ -1159,75 +1159,104 @@ if (this.isMakiraActive && this.balls && this.familiars && this.familiars.countA
     // --- ▲ 登場・撃破演出メソッド群 ▲ ---
 
     // --- ▼ ゲーム進行メソッド ▼ ---
-        // CommonBossScene.js の loseLife メソッドを修正
-     // loseLife メソッドに引数を追加
-     // CommonBossScene.js の loseLife メソッドを修正
+  // CommonBossScene.js 内
+
     /**
-     * ライフを処理し、ボールをリセットする
-     * @param {boolean} [preventLifeLoss=false] trueの場合、ライフを減らさずにボールリセットのみ行う (アニラ効果でボールロストした場合など)
+     * ライフを処理し、ボールをリセットする。
+     * アニラ効果でボールが失われた場合はライフを減らさない。
      */
-    // CommonBossScene.js の loseLife メソッド (これが最終形)
     loseLife() {
         // isPlayerTrulyInvincible は、このメソッドが呼ばれる直前に
         // deactivateAnila によって false になっている「はず」(アニラ効果時間終了の場合)
         // または、updateBallFall でアニラ中にボールが落ちた場合も false になっている。
+        // この最初のチェックは、何らかの予期せぬタイミングで isPlayerTrulyInvincible が true のまま
+        // loseLife が呼ばれた場合の最終防衛ライン。
+        if (this.isPlayerTrulyInvincible) {
+            console.log("[LoseLife] Called, but Player True Invincibility is (unexpectedly) STILL ACTIVE. Preventing life loss and attempting to deactivate Anila.");
+            this.deactivateAnila(); // 強制的に解除を試みる
+            //ボール再生成は行うべきか検討。ここでは行わない。
+            return;
+        }
 
         if (this.isGameOver || this.bossDefeated) {
             console.log("[LoseLife] Called, but game is over or boss defeated. Skipping.");
             return;
         }
-        // 短時間に連続して呼ばれるのを防ぐ (もし必要なら isProcessingLifeLoss フラグを再導入)
+
+        // (オプション) 短時間に連続して呼ばれるのを防ぐためのフラグ
+        // if (this.isProcessingLifeLoss) return;
+        // this.isProcessingLifeLoss = true;
+
+        console.log(">>> loseLife called <<<");
 
         let actuallyReduceLife = true; // デフォルトではライフを減らす
 
-        // ★★★ アニラ効果が「たった今」ボールロストで解除されたかチェック ★★★
+        // アニラ効果が「たった今」ボールロストによって解除されたかチェック
         if (this.wasAnilaJustDeactivatedByBallLoss) {
             console.log("[LoseLife] Life loss PREVENTED because Anila was just deactivated by ball loss.");
             actuallyReduceLife = false;
             this.wasAnilaJustDeactivatedByBallLoss = false; // フラグを消費して戻す
-        } else if (this.isPlayerTrulyInvincible) {
-            // こちらは、アニラ効果がまだ有効なまま loseLife が呼ばれた場合 (通常は起こりにくいが念のため)
-            console.log("[LoseLife] Life loss PREVENTED because Player True Invincibility is (still) ACTIVE.");
-            actuallyReduceLife = false;
-            // この場合、deactivateAnilaを呼んで効果を切るべき
-            this.deactivateAnila();
         }
-        // ★★★-------------------------------------------------------★★★
-
 
         if (actuallyReduceLife) {
-            if (this.lives > 0) {
+            if (this.lives > 0) { // ライフが0より大きい場合のみ実際に減らす
                 console.log(`Losing life. Current lives: ${this.lives}, Remaining after loss: ${this.lives - 1}`);
                 this.lives--; // ★★★ ライフ減少はここ一箇所のみ ★★★
                 this.events.emit('updateLives', this.lives);
             } else {
-                console.log("[LoseLife] Attempted to lose life, but lives already at 0.");
+                console.log("[LoseLife] Attempted to lose life, but lives already at 0 or less.");
             }
         }
 
         // --- 持続系パワーアップ解除 ---
         console.log("[LoseLife] Deactivating persistent power-ups (if any remain).");
         // アニラは上で解除されているか、効果が切れているはずなので、
-        // deactivateAnila() をここで再度呼んでも良いが、重複実行防止があれば問題ない。
-        // this.deactivateAnila(); // 念のため呼んでも良い
+        // deactivateAnila() をここで再度呼んでも、重複実行防止があれば問題ない。
+        this.deactivateAnila(); // 念のため＆タイマーが残っている場合のため
         this.deactivateAnchira(true);
         this.deactivateSindara(null, true);
-        // ... (ビカラ陰解除など) ...
 
+        console.log("[LoseLife] Deactivating any active Bikara penetration effects.");
+        Object.values(this.bikaraTimers).forEach(timer => timer?.remove());
+        this.bikaraTimers = {};
+        this.balls?.getChildren().forEach(ball => {
+             if (ball?.active && ball.getData('isBikaraPenetrating')) {
+                 this.setBallPowerUpState(POWERUP_TYPES.BIKARA, false, ball);
+             }
+        });
 
-        this.isBallLaunched = false;
-        this.balls?.clear(true, true);
+        Object.values(this.powerUpTimers).forEach(timer => timer?.remove());
+        this.powerUpTimers = {};
+
+        // ボールの状態もリセット (汎用的なパワーアップフラグやlastActivatedPowerなど)
+        this.balls?.getChildren().forEach(ball => {
+            if(ball?.active) this.resetBallState(ball);
+        });
+        this.updateBallAndPaddleAppearance(); // ボールとパドルの見た目もリセット
+
+        // --- ボールのクリアと状態リセット ---
+        this.isBallLaunched = false; // 新しいボールは未発射状態
+        console.log("[LoseLife] Clearing existing balls...");
+        this.balls?.clear(true, true); // 古いボールを全て破棄
 
         // --- 次の処理 ---
-        if (this.lives > 0) { // 実際にライフが残っている場合のみボール再生成
+        // ライフが0より大きい場合のみボール再生成
+        // (アニラでライフが減らなかった場合も this.lives > 0 は true のまま)
+        if (this.lives > 0) {
             console.log("[LoseLife] Scheduling resetForNewLife.");
-            this.time.delayedCall(800, this.resetForNewLife, [], this);
+            this.time.delayedCall(800, () => {
+                // this.isProcessingLifeLoss = false; // もし使うならここで戻す
+                this.resetForNewLife();
+            }, [], this);
         } else {
+            // ライフが0の場合（実際に減った結果0になった場合）
             console.log("[LoseLife] No lives remaining. Triggering Game Over.");
+            // this.isProcessingLifeLoss = false; // もし使うならここで戻す
             this.sound.play(AUDIO_KEYS.SE_GAME_OVER);
             this.stopBgm();
             this.time.delayedCall(500, this.gameOver, [], this);
         }
+        console.log("<<< loseLife finished >>>");
     }
        // resetForNewLife メソッド (ボール再生成時にコライダーも更新)
     resetForNewLife() {
