@@ -389,43 +389,44 @@ export default class Boss2Scene extends CommonBossScene {
      /**
      * ソワカが放射状に3つの攻撃ブロックを放出する
      */
+   // Boss2Scene.js の spawnSowakaRadialAttack を修正
+
     spawnSowakaRadialAttack() {
         if (!this.attackBricks || !this.boss || !this.boss.active || this.currentPhase !== 'sowaka') {
-            this.scheduleSowakaAttack(); // 攻撃できない状況でも次の予約は試みる
+            this.scheduleSowakaAttack();
             return;
         }
-        console.log("--- Sowaka Spawning Radial Attack ---");
+        console.log("--- Sowaka Spawning Radial Attack (Minimal Body Setup) ---");
 
         const bossX = this.boss.x;
-        const bossY = this.boss.y + this.boss.displayHeight / 3; // ボスの少し下から
+        const bossY = this.boss.y + this.boss.displayHeight / 3;
         const velocity = this.bossData.sowakaProjectileVelocity || 220;
-        const textureKey = 'attack_brick_common';
+        const textureKey = 'attack_brick_common'; // ★ 共通テクスチャ
         const displayScale = this.bossData.sowakaProjectileScale || 0.2;
-        const angles = this.bossData.sowakaProjectileAngles || [-15, 0, 15]; // [-15, 0, 15] 度
+        const angles = this.bossData.sowakaProjectileAngles || [-105, -90, -75];
 
         angles.forEach(angleDeg => {
-            // 角度をラジアンに変換 (Phaserの速度計算は角度を度で受け取る)
-            // const angleRad = Phaser.Math.DegToRad(angleDeg);
-            const projectileVelocity = this.physics.velocityFromAngle(angleDeg, velocity);
-
-            const attackBrick = this.attackBricks.create(bossX, bossY, textureKey); // ★ テクスチャを直接指定
+            // ★★★ 攻撃ブロック生成と最小限の設定 ★★★
+            const attackBrick = this.attackBricks.create(bossX, bossY, textureKey);
             if (attackBrick) {
-                attackBrick.setOrigin(0.5, 0.5); // ★ 原点を中心に
-                attackBrick.setScale(displayScale); // スケール設定
+                attackBrick.setOrigin(0.5, 0.5); // 原点は中心に
+                attackBrick.setScale(displayScale);
+
+                const projectileVelocity = this.physics.velocityFromAngle(angleDeg, velocity);
                 attackBrick.setVelocity(projectileVelocity.x, projectileVelocity.y);
+
                 if (attackBrick.body) {
                     attackBrick.body.setAllowGravity(false);
-                    attackBrick.body.setCollideWorldBounds(false);
-                    // ★ 物理ボディのサイズ・オフセットはPhaserの自動設定に任せる ★
-                    // (updateFromGameObject もここでは呼ばない)
+                    attackBrick.body.setCollideWorldBounds(false); // 画面外で消える処理はCommonにある
+                    // setSize, setOffset, updateFromGameObject は呼び出さない
+                    // refreshBody も不要
                 }
-                console.log(`  Spawned Sowaka brick at angle ${angleDeg} deg. Velocity: (${projectileVelocity.x.toFixed(1)}, ${projectileVelocity.y.toFixed(1)})`);
+                console.log(`  Spawned Sowaka brick (Angle: ${angleDeg} deg). DisplaySize: ${attackBrick.displayWidth.toFixed(1)}x${attackBrick.displayHeight.toFixed(1)}`);
             } else {
                 console.error("[Sowaka Attack] Failed to create an attack brick.");
             }
+            // ★★★-----------------------------------★★★
         });
-
-        // 次の攻撃を予約
         this.scheduleSowakaAttack();
     }
     

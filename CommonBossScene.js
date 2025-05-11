@@ -829,7 +829,28 @@ export default class CommonBossScene extends Phaser.Scene {
     setColliders() {
         console.log(`[SetColliders] Starting for scene: ${this.scene.key}. Boss: ${this.boss?.texture?.key}, Active: ${this.boss?.active}, BodyEnabled: ${this.boss?.body?.enable}`);
   
-        this.safeDestroyCollider(this.ballPaddleCollider); this.safeDestroyCollider(this.ballBossCollider);
+        this.safeDestroyCollider(this.ballPaddleCollider); 
+         // ボール vs ボス
+        this.safeDestroyCollider(this.ballBossCollider);
+        this.ballBossCollider = null;
+        console.log(`[SetColliders] Checking conditions for Ball-Boss collider. Boss Texture: ${this.boss?.texture?.key}, Active: ${this.boss?.active}, BodyEnabled: ${this.boss?.body?.enable}`);
+        if (this.boss && this.boss.active && this.boss.body && this.boss.body.enable) {
+            this.ballBossCollider = this.physics.add.collider(
+                this.boss,
+                this.balls,
+                this.hitBoss, // ★ コールバックは hitBoss
+                (bossObj, ball) => { // ★ processCallback
+                    const invulnerable = bossObj.getData('isInvulnerable');
+                    // ★★★ このログで isInvulnerable の状態を確認 ★★★
+                    console.log(`[Ball-Boss ProcessCallback] Boss: ${bossObj.texture.key}, isInvulnerable: ${invulnerable}`);
+                    return !invulnerable; // 無敵でなければ衝突を処理 (trueを返す)
+                },
+                this
+            );
+            console.log("[SetColliders] Ball-Boss collider ADDED/UPDATED.");
+        } else {
+            console.log("[SetColliders] Ball-Boss collider SKIPPED due to conditions.");
+        }
         this.safeDestroyCollider(this.ballAttackBrickCollider); this.safeDestroyCollider(this.ballAttackBrickOverlap);
         this.safeDestroyCollider(this.paddlePowerUpOverlap); this.safeDestroyCollider(this.paddleAttackBrickCollider);
         this.safeDestroyCollider(this.makiraBeamBossOverlap);this.safeDestroyCollider(this.paddleBossOverlap, "paddleBossOverlap"); // ★ 新しい参照用
