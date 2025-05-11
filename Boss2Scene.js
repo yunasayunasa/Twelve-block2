@@ -573,7 +573,7 @@ export default class Boss2Scene extends CommonBossScene {
         // ★★★--------------------------------------★★★
 
         // ソワカのフィールドを初回展開
-        this.activateSowakaField(); // ← 新しいメソッドを後で作成
+        //this.activateSowakaField(); // ← 新しいメソッドを後で作成
     }
 
     // (もし CommonBossScene の startGameplay をオーバーライドする場合)
