@@ -35,6 +35,12 @@ import {
     MAKORA_COPYABLE_POWERS,
     // ANILA_DURATION, ANCHIRA_DURATION, BIKARA_DURATION は POWERUP_DURATION から取得するため個別インポート不要
 
+     // ★★★ ボス撃破演出関連の定数をインポート ★★★
+    DEFEAT_FLASH_DURATION, DEFEAT_FLASH_INTERVAL, DEFEAT_FLASH_COUNT,
+    DEFEAT_SHAKE_DURATION, DEFEAT_FADE_DURATION,
+    // ★★★----------------------------------★★★
+
+
     // --- 音声キー ---
     AUDIO_KEYS
 } from './constants.js';
