@@ -2450,6 +2450,55 @@ calculateDynamicFontSize(baseSizeMax) {
              console.log(">>> launchBall() called but conditions not met (isBallLaunched:", this.isBallLaunched, "playerControlEnabled:", this.playerControlEnabled, "Active Balls:", this.balls?.countActive(true), ")");
         }
     }
+
+
+ /**バグが出たらこのメソッドはすぐ消して、ボスごとに設定する
+     * 攻撃ブロックの見た目と物理ボディを設定するヘルパーメソッド
+     * @param {Phaser.Physics.Arcade.Image} brick 対象の攻撃ブロック
+     * @param {string} textureKey 使用するテクスチャキー
+     * @param {number} displayScale 見た目のスケール (テクスチャの元サイズに対する倍率)
+     */
+    setupAttackBrickAppearance(brick, textureKey, displayScale) {
+        if (!brick || !brick.scene) {
+            console.error("[SetupAttackBrick] Brick object or scene is invalid at start.");
+            return;
+        }
+        console.log(`[SetupAttackBrick] Starting for brick ('${textureKey}'). Target displayScale: ${displayScale.toFixed(3)}`);
+
+        try {
+            // 1. テクスチャと原点を設定
+            brick.setTexture(textureKey);
+            brick.setOrigin(0.5, 0.5); // ★★★ 原点を中心(0.5, 0.5)に設定 ★★★
+
+            // 2. スケールを設定 (テクスチャの元サイズに対する倍率)
+            brick.setScale(displayScale);
+
+            console.log(`  After visual setup - Texture: ${brick.texture?.key}, DisplaySize: ${brick.displayWidth?.toFixed(1)}x${brick.displayHeight?.toFixed(1)}, Origin: (${brick.originX.toFixed(1)}, ${brick.originY.toFixed(1)})`);
+            console.log(`  GameObject Position: x=${brick.x.toFixed(1)}, y=${brick.y.toFixed(1)}`);
+
+            if (brick.body) {
+                if (!brick.body.enable) {
+                    console.warn("[SetupAttackBrick] Brick body was disabled, re-enabling.");
+                    brick.body.enable = true;
+                }
+
+                // 3. ★★★ 物理ボディを GameObject の見た目に完全に合わせる ★★★
+                // これにより、サイズとオフセットが原点(0.5,0.5)を基準に自動調整される
+                brick.body.updateFromGameObject();
+                // ★★★-------------------------------------------------★★★
+
+                console.log(`[SetupAttackBrick] Body updated from GameObject. Final Body - Size: ${brick.body.width.toFixed(1)}x${brick.body.height.toFixed(1)}, Offset: ${brick.body.offset.x.toFixed(1)},${brick.body.offset.y.toFixed(1)}, Pos: ${brick.body.x.toFixed(1)},${brick.body.y.toFixed(1)}`);
+            } else {
+                console.error("[SetupAttackBrick] Brick body does NOT exist or is not enabled. Physics may not be enabled correctly on the group or object.");
+            }
+        } catch (e) {
+            console.error("Error in setupAttackBrickAppearance:", e);
+        }
+        console.log(`[SetupAttackBrick] Finished for brick. Final visible: ${brick.visible}, active: ${brick.active}, alpha: ${brick.alpha}`);
+    }
+
+
+
     updateBallFall(){if(!this.balls?.active)return;let aBC=0,sLLTF=false,dSB=null;this.balls.getChildren().forEach(b=>{if(b.active){aBC++;if(this.isBallLaunched&&b.y>this.gameHeight+b.displayHeight*2){if(this.isAnilaActive){this.deactivateAnila();b.y=this.paddle.y-this.paddle.displayHeight;b.setVelocityY(BALL_INITIAL_VELOCITY_Y*0.8);console.log("[Anila] Ball bounced!");}else{b.setActive(false).setVisible(false);if(b.body)b.body.enable=false;sLLTF=true;if(b.getData('isSindaraActive'))dSB=b;}}}});if(dSB){const rS=this.balls.getMatching('isSindaraActive',true);if(rS.length<=1)rS.forEach(b=>this.deactivateSindara(b,true));}if(sLLTF&&this.balls.countActive(true)===0&&this.lives>0&&!this.isGameOver&&!this.bossDefeated)this.loseLife();}
     handleWorldBounds(body,up,down,left,right){const gO=body.gameObject;if(!gO||!(gO instanceof Phaser.Physics.Arcade.Image)||!gO.active)return;if(this.balls.contains(gO)){if(up||left||right){this.sound.play(AUDIO_KEYS.SE_REFLECT,{volume:0.7});let iX=gO.x,iY=gO.y,aR=[0,0];if(up){iY=body.y;aR=[60,120];}else if(left){iX=body.x;aR=[-30,30];}else if(right){iX=body.x+body.width;aR=[150,210];}this.createImpactParticles(iX,iY,aR,0xffffff,5);}}}
     createImpactParticles(x,y,angleRange,tint,count=8){const p=this.add.particles(0,0,'whitePixel',{x:x,y:y,lifespan:{min:100,max:300},speed:{min:80,max:150},angle:{min:angleRange[0],max:angleRange[1]},gravityY:200,scale:{start:0.6,end:0},quantity:count,blendMode:'ADD',emitting:false});p.setParticleTint(tint);p.explode(count);this.time.delayedCall(400,()=>p.destroy());}
