@@ -1759,7 +1759,7 @@ if (this.isMakiraActive && this.balls && this.familiars && this.familiars.countA
             brick.setTexture(textureKey);
             brick.setScale(displayScale);
             // ★ 原点はPhaserのデフォルト(0.5, 0.5)に任せるか、明示的に設定する ★
-            brick.setOrigin(0.5, 0.5); // デフォルトに合わせて中心に設定
+          //  brick.setOrigin(0.5, 0.5); // デフォルトに合わせて中心に設定
 
             console.log(`  Texture: ${brick.texture?.key}, DisplaySize: ${brick.displayWidth?.toFixed(1)}x${brick.displayHeight?.toFixed(1)}, Origin: (${brick.originX.toFixed(1)}, ${brick.originY.toFixed(1)})`);
 
