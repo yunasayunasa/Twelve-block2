@@ -1741,47 +1741,66 @@ if (this.isMakiraActive && this.balls && this.familiars && this.familiars.countA
 
    // CommonBossScene.js
 
+   // Boss2Scene.js
+
     /**
-     * 攻撃ブロックの基本的な見た目と物理プロパティを設定するヘルパーメソッド
-     * (アートマンの攻撃ブロックの挙動に合わせる形)
-     * @param {Phaser.Physics.Arcade.Image} brick 対象の攻撃ブロック
-     * @param {string} textureKey 使用するテクスチャキー
-     * @param {number} displayScale 見た目のスケール (テクスチャの元サイズに対する倍率)
+     * サンカラの攻撃ブロックを左右に1個ずつ放出する
      */
-    setupAttackBrickAppearance(brick, textureKey, displayScale) {
-        if (!brick || !brick.scene) {
-            console.error("[SetupAttackBrick] Brick object or scene is invalid.");
+    spawnSankaraAttackBlock() {
+        if (!this.attackBricks || !this.boss || !this.boss.active) {
+            console.warn("[SpawnSankaraBlock] Conditions not met to spawn bricks.");
             return;
         }
-        console.log(`[SetupAttackBrick] Setting up for texture: ${textureKey}, scale: ${displayScale}`);
 
-        try {
-            brick.setTexture(textureKey);
-            brick.setScale(displayScale);
-            // ★ 原点はPhaserのデフォルト(0.5, 0.5)に任せるか、明示的に設定する ★
-          //  brick.setOrigin(0.5, 0.5); // デフォルトに合わせて中心に設定
+        const bossX = this.boss.x;
+        // ボスの表示高さの中心より少し下から出すなど、Y座標は微調整が必要な場合あり
+        const bossY = this.boss.y + this.boss.displayHeight / 4; // 例: ボスの下端に近い位置
+        const velocity = this.bossData.sankaraBrickVelocity || 200; // bossDataから取得
+        const textureKey = 'attack_brick_common'; // ★ 新しい共通テクスチャキー
+        const displayScale = this.bossData.attackBrickScale || 0.2; // bossDataから取得
 
-            console.log(`  Texture: ${brick.texture?.key}, DisplaySize: ${brick.displayWidth?.toFixed(1)}x${brick.displayHeight?.toFixed(1)}, Origin: (${brick.originX.toFixed(1)}, ${brick.originY.toFixed(1)})`);
+        // 角度を bossData から取得し、ランダムに
+        const angleMin = this.bossData.sankaraBrickAngleMin || 30;
+        const angleMax = this.bossData.sankaraBrickAngleMax || 60;
 
-            if (brick.body) {
-                if (!brick.body.enable) { // ボディが無効なら有効化
-                    console.warn("[SetupAttackBrick] Brick body was disabled, re-enabling.");
-                    brick.body.enable = true;
-                }
-                // ★★★ 物理ボディのサイズ/オフセットはPhaserの自動調整に任せる ★★★
-                // updateFromGameObject() もここでは呼ばないでおく
-                // (create時にテクスチャとスケールに基づいて自動的に設定されることを期待)
-                // もし、setScale後にボディサイズが追従しない場合は、
-                // ここで brick.refreshBody() または brick.body.updateFromGameObject() が必要になるかもしれない。
-                // まずはこれなしで試す。
-                console.log(`[SetupAttackBrick] Body exists. Size: ${brick.body.width.toFixed(1)}x${brick.body.height.toFixed(1)}, Offset: ${brick.body.offset.x.toFixed(1)},${brick.body.offset.y.toFixed(1)}`);
-            } else {
-                console.error("[SetupAttackBrick] Brick body does NOT exist. Physics may not be enabled correctly on the group or object.");
+        console.log(`[SpawnSankaraBlock] Spawning. Boss at (${bossX.toFixed(0)}, ${this.boss.y.toFixed(0)}), Brick Y: ${bossY.toFixed(0)}`);
+
+        // 左斜め下
+        const angleLeft = Phaser.Math.Between(180 - angleMax, 180 - angleMin); // 例: 120度～150度
+        const velocityLeft = this.physics.velocityFromAngle(angleLeft, velocity);
+        // 一時キーで生成後、setupAttackBrickAppearance を呼ぶ
+        const brickLeft = this.attackBricks.create(bossX, bossY, '__TEMP__');
+        if (brickLeft) {
+            // ★ 共通ヘルパーを呼び出して見た目と物理ボディを設定 ★
+            this.setupAttackBrickAppearance(brickLeft, textureKey, displayScale);
+            brickLeft.setVelocity(velocityLeft.x, velocityLeft.y);
+            if (brickLeft.body) {
+                brickLeft.body.setAllowGravity(false);
+                brickLeft.body.setCollideWorldBounds(false); // 画面外に出たら updateAttackBricks で消える
             }
-        } catch (e) {
-            console.error("Error in setupAttackBrickAppearance:", e);
+            console.log(`  Spawned Left Brick. Velocity: (${velocityLeft.x.toFixed(1)}, ${velocityLeft.y.toFixed(1)})`);
+        } else {
+            console.error("[SpawnSankaraBlock] Failed to create left brick.");
+        }
+
+        // 右斜め下
+        const angleRight = Phaser.Math.Between(angleMin, angleMax); // 例: 30度～60度
+        const velocityRight = this.physics.velocityFromAngle(angleRight, velocity);
+        const brickRight = this.attackBricks.create(bossX, bossY, '__TEMP__');
+        if (brickRight) {
+            // ★ 共通ヘルパーを呼び出して見た目と物理ボディを設定 ★
+            this.setupAttackBrickAppearance(brickRight, textureKey, displayScale);
+            brickRight.setVelocity(velocityRight.x, velocityRight.y);
+            if (brickRight.body) {
+                brickRight.body.setAllowGravity(false);
+                brickRight.body.setCollideWorldBounds(false);
+            }
+            console.log(`  Spawned Right Brick. Velocity: (${velocityRight.x.toFixed(1)}, ${velocityRight.y.toFixed(1)})`);
+        } else {
+            console.error("[SpawnSankaraBlock] Failed to create right brick.");
         }
     }
+    
 
 
 
