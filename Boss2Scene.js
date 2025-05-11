@@ -315,7 +315,7 @@ export default class Boss2Scene extends CommonBossScene {
         // ★★★ 汎用の攻撃ブロックテクスチャキーを使用 ★★★
         const textureKey = 'attack_brick_common'; // constants.jsに定義するか、直接文字列で
         // ★★★-------------------------------------★★★
-        const displayScale = this.bossData.attackBrickScale || 0.2; // 見た目のスケール
+        const displayScale = this.bossData.attackBrickScale || 1.5; // 見た目のスケール
         // ★★★ 当たり判定の拡大率 (見た目に対して何倍にするか) ★★★
       //  const hitboxMultiplier = 1.5; // 例: 見た目の1.5倍の当たり判定
         // ★★★---------------------------------------------★★★
