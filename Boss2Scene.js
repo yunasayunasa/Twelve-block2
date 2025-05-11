@@ -31,12 +31,12 @@ export default class Boss2Scene extends CommonBossScene {
         // ソワカのフィールド効果用
 
          this.sowakaAttackTimer = null; // ★ ソワカ攻撃タイマー用
-        this.sowakaFieldActive = false;
-        this.sowakaFieldTimer = null;
-        this.sowakaFieldDuration = 15000; // 例: フィールド効果15秒
-        this.sowakaFieldCooldown = 10000; // 例: 再展開まで10秒
-        this.sowakaLimitedItemType = null; // 限定されるアイテムタイプ
-        this.bossDefeatedThisPhase = false; // ★ 形態ごとの撃破フラグ
+         // --- ソワカフィールド用プロパティ ---
+        this.sowakaFieldActive = false;         // フィールドが現在有効か
+        this.sowakaFieldDurationTimer = null;   // フィールド効果の持続時間タイマー
+        this.sowakaFieldCooldownTimer = null;   // フィールド再展開までのクールダウンタイマー
+        this.sowakaLimitedItemType = null;      // 現在限定されているアイテムのタイプ
+        this.sowakaFieldVisual = null;          // ★ フィールドの見た目用オブジェクト (後で使う)
     }
 
     init(data) {
@@ -53,6 +53,13 @@ export default class Boss2Scene extends CommonBossScene {
             this.sowakaAttackTimer.remove();
             this.sowakaAttackTimer = null;
         }
+         // フィールド関連リセット
+        this.sowakaFieldActive = false;
+        this.sowakaFieldDurationTimer?.remove(); this.sowakaFieldDurationTimer = null;
+        this.sowakaFieldCooldownTimer?.remove(); this.sowakaFieldCooldownTimer = null;
+        this.sowakaLimitedItemType = null;
+        this.sowakaFieldVisual?.destroy(); this.sowakaFieldVisual = null; // ★ 見た目もクリア
+    
     }
 
     // initializeBossData: 現在のフェーズに応じて適切なボスデータをロード
@@ -111,7 +118,9 @@ export default class Boss2Scene extends CommonBossScene {
             sowakaProjectileScale: this.sankaraData.attackBrickScale || 0.2, // サンカラと同じスケールを使う例
             // ★★★--------------------------★★★
             // ソワカフィールド関連
-            sowakaFieldItemCandidates: [ // 限定アイテムの候補
+              sowakaFieldDuration: 15000, // フィールド効果時間 (ms)
+            sowakaFieldCooldown: 10000, // 再展開までのクールダウン (ms)
+            sowakaFieldItemCandidates: [
                 POWERUP_TYPES.ANCHIRA, POWERUP_TYPES.SINDARA, POWERUP_TYPES.INDARA,
                 POWERUP_TYPES.BIKARA, POWERUP_TYPES.BAISRAVA, POWERUP_TYPES.VAJRA,
                 POWERUP_TYPES.BADRA
@@ -663,6 +672,19 @@ export default class Boss2Scene extends CommonBossScene {
 
         }, [], this);
     }
+     // applyBossDamage (CommonBossSceneでオーバーライド)
+    // ボスダメージ時にフィールド解除をトリガー
+    applyBossDamage(bossInstance, damageAmount, source = "Unknown") {
+        const wasFieldActiveBeforeDamage = this.sowakaFieldActive; // ダメージ前のフィールド状態を記憶
+
+        super.applyBossDamage(bossInstance, damageAmount, source); // まず親のダメージ処理
+
+        // ダメージ処理の結果ボスが倒されていなければ、フィールド解除処理を行う
+        if (this.currentPhase === 'sowaka' && wasFieldActiveBeforeDamage && bossInstance === this.boss && damageAmount > 0 && !this.bossDefeated) {
+            console.log("[Sowaka] Boss damaged, deactivating field effect.");
+            this.deactivateSowakaField(false); // 時間切れではない解除
+        }
+    }
 
      /**
      * 次のソワカの放射攻撃をランダムな間隔で予約する
@@ -687,13 +709,83 @@ export default class Boss2Scene extends CommonBossScene {
     }
 
     // activateSowakaField メソッドの骨子 (後で実装)
+    /**
+     * ソワカのフィールド効果を展開する
+     */
     activateSowakaField() {
-        console.log("[Sowaka] Activating field effect (Not Implemented Yet)");
+        if (this.currentPhase !== 'sowaka' || this.sowakaFieldActive || this.bossDefeated || this.isGameOver) {
+            console.log(`[SowakaField Activate] Conditions not met or already active/ended. Phase: ${this.currentPhase}, FieldActive: ${this.sowakaFieldActive}, BossDefeated: ${this.bossDefeated}, GameOver: ${this.isGameOver}`);
+            return;
+        }
+        console.log("[SowakaField] Activating field...");
         this.sowakaFieldActive = true;
-        // TODO: 限定アイテムを選定し、this.bossDropPoolを更新
-        // TODO: UIにフィールド展開を通知 (もしあれば)
-        // TODO: フィールド効果時間タイマーと再展開タイマーを設定
+
+        // 1. 限定アイテムを選定
+        if (this.bossData.sowakaFieldItemCandidates && this.bossData.sowakaFieldItemCandidates.length > 0) {
+            this.sowakaLimitedItemType = Phaser.Utils.Array.GetRandom(this.bossData.sowakaFieldItemCandidates);
+            console.log(`[SowakaField] Limited item type set to: ${this.sowakaLimitedItemType}`);
+        } else {
+            this.sowakaLimitedItemType = null;
+            console.warn("[SowakaField] No item candidates defined!");
+        }
+
+        // 2. UIに通知 (後で実装)
+        this.events.emit('sowakaFieldUpdate', { active: true, itemType: this.sowakaLimitedItemType, duration: this.bossData.sowakaFieldDuration });
+        console.log("[SowakaField] Emitted sowakaFieldUpdate event (activated).");
+
+        // 3. 効果時間タイマーを開始
+        const duration = this.bossData.sowakaFieldDuration;
+        this.sowakaFieldDurationTimer?.remove();
+        this.sowakaFieldDurationTimer = this.time.delayedCall(duration, () => {
+            console.log("[SowakaField] Field duration ended by timer.");
+            this.deactivateSowakaField(true); // true は時間切れを示す
+        }, [], this);
+        console.log(`[SowakaField] Duration timer started for ${duration}ms.`);
+
+        // 4. ★ 展開モーション (後で実装) ★
+        // this.showSowakaFieldActivationAnimation();
+        console.log("[SowakaField] TODO: Implement field activation animation.");
+        // (仮の視覚フィードバックとして背景色を少し変えるなど)
+        // this.cameras.main.setBackgroundColor(0x330033);
     }
+
+    /**
+     * ソワカのフィールド効果を解除する
+     * @param {boolean} [triggeredByTimeout=false] 時間切れで解除された場合は true
+     */
+    deactivateSowakaField(triggeredByTimeout = false) {
+        if (!this.sowakaFieldActive) return;
+        console.log(`[SowakaField] Deactivating field... Triggered by timeout: ${triggeredByTimeout}`);
+        this.sowakaFieldActive = false;
+        this.sowakaLimitedItemType = null; // 限定アイテムを解除
+        this.sowakaFieldDurationTimer?.remove(); // 効果時間タイマーが残っていればクリア
+        this.sowakaFieldDurationTimer = null;
+
+        // UIに通知
+        this.events.emit('sowakaFieldUpdate', { active: false, itemType: null });
+        console.log("[SowakaField] Emitted sowakaFieldUpdate event (deactivated).");
+
+        // ★ 解除モーション (後で実装) ★
+        // this.showSowakaFieldDeactivationAnimation();
+        console.log("[SowakaField] TODO: Implement field deactivation animation.");
+        // (仮の視覚フィードバックとして背景色を戻すなど)
+        // this.cameras.main.setBackgroundColor(0x000000); // 元の背景色に戻す処理 (背景画像なら不要)
+
+        // クールダウンタイマーを開始して再展開を予約 (戦闘中のみ)
+        if (!this.bossDefeated && !this.isGameOver) {
+            const cooldown = this.bossData.sowakaFieldCooldown;
+            this.sowakaFieldCooldownTimer?.remove();
+            console.log(`[SowakaField] Starting cooldown timer for ${cooldown}ms.`);
+            this.sowakaFieldCooldownTimer = this.time.delayedCall(cooldown, () => {
+                console.log("[SowakaField] Cooldown ended. Attempting to reactivate field.");
+                this.sowakaFieldCooldownTimer = null;
+                this.activateSowakaField(); // 再展開
+            }, [], this);
+        } else {
+             console.log("[SowakaField] Boss defeated or game over, not scheduling field reactivation.");
+        }
+    }
+
 
     // startGameplay をオーバーライドして、ソワカ登場時のボールとフィールド処理を確実にする
     startGameplay() {
@@ -717,9 +809,9 @@ export default class Boss2Scene extends CommonBossScene {
             // ソワカのフィールドを初回展開
             // (startSowakaAppearanceで呼ぶか、ここで呼ぶか、updateSpecificBossBehaviorで管理するかは設計次第)
             // ここで呼ぶ方が、戦闘開始と同時感が出る
-            // if (!this.sowakaFieldActive) { // まだ展開されていなければ
-            //    this.activateSowakaField();
-            // }
+             if (!this.sowakaFieldActive) { // まだ展開されていなければ
+                this.activateSowakaField();
+         }
         }
     
 
@@ -727,6 +819,16 @@ export default class Boss2Scene extends CommonBossScene {
         this.tweens.resumeAll();
         this.physics.resume();
         console.log("[Transition] Physics and tweens resumed.");
+    }
+       // shutdownScene でタイマーとビジュアルをクリア
+    shutdownScene() {
+        super.shutdownScene(); // 親のシャットダウン処理を呼ぶ
+        this.sowakaFieldDurationTimer?.remove();
+        this.sowakaFieldCooldownTimer?.remove();
+        this.sowakaFieldVisual?.destroy(); // ★ フィールドビジュアルも破棄
+        this.sowakaFieldDurationTimer = null;
+        this.sowakaFieldCooldownTimer = null;
+        this.sowakaFieldVisual = null;
     }
 
     // activateSowakaField() やソワカの攻撃メソッドはこれから実装

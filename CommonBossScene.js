@@ -2189,35 +2189,37 @@ if (this.isMakiraActive && this.balls && this.familiars && this.familiars.countA
     }
     // ★★★------------------------------------★★★
         this.destroyAttackBrick(brick, false); }
+   // CommonBossScene.js
     destroyAttackBrickAndDropItem(brick) {
         const brickX = brick.x; const brickY = brick.y;
-        this.destroyAttackBrick(brick, true); // ヴァジラゲージ増加などはこの中で行われる
+        this.destroyAttackBrick(brick, true); // ヴァジラゲージ増加はこの中で
 
-        // --- アイテムドロップ判定 (修正後) ---
-        const dropRatePercent = this.chaosSettings.ratePercent; // 0-100のパーセント
-        const randomNumberForDrop = Phaser.Math.Between(1, 100);
+        const dropRatePercent = this.chaosSettings.ratePercent;
+        if (Phaser.Math.Between(1, 100) <= dropRatePercent) {
+            let itemToDrop = null;
+            let currentScene = this.scene.get(this.scene.key); // 現在のボスシーンインスタンスを取得
 
-        console.log(`[DropItem] Checking drop: Random=${randomNumberForDrop}, Rate=${dropRatePercent}%`);
+            // ★★★ 現在のシーンがBoss2Sceneで、ソワカのフィールドがアクティブか確認 ★★★
+            // (プロパティに直接アクセスするために currentScene を使う)
+            if (currentScene.sys.config === 'Boss2Scene' && currentScene.currentPhase === 'sowaka' && currentScene.sowakaFieldActive && currentScene.sowakaLimitedItemType) {
+                itemToDrop = currentScene.sowakaLimitedItemType;
+                console.log(`[DropItem - SowakaFieldActive] Dropping limited item: ${itemToDrop}`);
+            } else if (this.bossDropPool && this.bossDropPool.length > 0) {
+                itemToDrop = Phaser.Utils.Array.GetRandom(this.bossDropPool);
+                console.log(`[DropItem - Normal] Dropping item: ${itemToDrop}`);
+            }
+            // ★★★---------------------------------------------------------★★★
 
-        if (randomNumberForDrop <= dropRatePercent) {
-            if (this.bossDropPool && this.bossDropPool.length > 0) {
-                // ★ バイシュラヴァも含む完全なドロッププールから抽選 ★
-                const dropType = Phaser.Utils.Array.GetRandom(this.bossDropPool);
-                console.log(`[DropItem] Dropping item: ${dropType} (From pool: [${this.bossDropPool.join(',')}])`);
-                this.dropSpecificPowerUp(brickX, brickY, dropType);
+            if (itemToDrop) {
+                this.dropSpecificPowerUp(brickX, brickY, itemToDrop);
             } else {
-                 console.log("[DropItem] No items in boss drop pool.");
+                console.log("[DropItem] No item to drop (pool empty or limited item not set).");
             }
         } else {
              console.log("[DropItem] No item drop based on rate.");
         }
+    }
 
-        // ★★★ バイシュラヴァの特別ドロップのロジックは削除 ★★★
-        // if (Phaser.Math.FloatBetween(0, 1) < BAISRAVA_DROP_RATE) {
-        //     this.dropSpecificPowerUp(brickX, brickY, POWERUP_TYPES.BAISRAVA);
-        // }
-        // ★★★------------------------------------------★★★
-    } 
     destroyAttackBrick(brick, triggerItemDropLogic = false) { if (!brick?.active) return; this.sound.play(AUDIO_KEYS.SE_DESTROY); this.createImpactParticles(brick.x,brick.y,[0,360],brick.tintTopLeft||0xaa88ff,10); brick.destroy(); this.increaseVajraGauge(); }
     dropSpecificPowerUp(x,y,type){if(!type||!this.powerUps)return;let tK=POWERUP_ICON_KEYS[type]||'whitePixel';const iS=this.gameWidth*POWERUP_SIZE_RATIO;let tC=(tK==='whitePixel'&&type===POWERUP_TYPES.BAISRAVA)?0xffd700:(tK==='whitePixel'?0xcccccc:null);const pU=this.powerUps.create(x,y,tK).setDisplaySize(iS,iS).setData('type',type);if(tC)pU.setTint(tC);if(pU.body){pU.setVelocity(0,POWERUP_SPEED_Y);pU.body.setCollideWorldBounds(false).setAllowGravity(false);}else if(pU)pU.destroy();}
      handlePaddleHitByAttackBrick(paddle, attackBrick) {
