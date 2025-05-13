@@ -411,7 +411,7 @@ spawnTargetedAttack() {
     }, [], this);
     this.scheduleNextTargetedAttack();
 }
-    }
+    
     // --- ▲ 通常攻撃パターン ▲ ---
 
 
