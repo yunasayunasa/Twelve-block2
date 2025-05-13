@@ -1,6 +1,9 @@
 // Boss3Scene.js (キングゴールドスライム戦 - 骨子)
 import CommonBossScene from './CommonBossScene.js';
 import {
+     POWERUP_TYPES, // ★POWERUP_TYPES をインポート (BALL_SPEED_MODIFIERS で使うため)
+    NORMAL_BALL_SPEED, // ★NORMAL_BALL_SPEED をインポート
+    BALL_SPEED_MODIFIERS, // ★BALL_SPEED_MODIFIERS をインポート
     AUDIO_KEYS,
     // POWERUP_TYPES, // 現時点では未使用
     DEFAULT_ATTACK_BRICK_VELOCITY_Y, // 通常攻撃弾のデフォルト速度などに使う可能性
