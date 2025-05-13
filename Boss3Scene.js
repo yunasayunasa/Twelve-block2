@@ -202,7 +202,7 @@ export default class Boss3Scene extends CommonBossScene {
         // CommonのカットシーンSE再生
         try { this.sound.play(AUDIO_KEYS.SE_CUTSCENE_START); } catch(e) {}
 
-        const overlay = this.add.rectangle(0, 0, this.gameWidth, this.gameHeight, 0x000000, 0.7)
+        const overlay = this.add.rectangle(0, 0, this.gameWidth, this.gameHeight, 0x000000, 0.5)
             .setOrigin(0,0).setDepth(900);
 
         // VSテキスト (CommonBossSceneのものを参考に、フォントや色を調整しても良い)
@@ -217,7 +217,7 @@ export default class Boss3Scene extends CommonBossScene {
             align: 'center',
             shadow: { offsetX: 3, offsetY: 3, color: '#000000', blur: 5, stroke: true, fill: true }
         };
-        const vsText = this.add.text(this.gameWidth / 2, this.gameHeight * 0.5, textContent, textStyle)
+        const vsText = this.add.text(this.gameWidth / 2, this.gameHeight * 0.7, textContent, textStyle)
             .setOrigin(0.5).setDepth(902); // Y座標は中央に
 
         const cutsceneDisplayDuration = CUTSCENE_DURATION || 1800;
