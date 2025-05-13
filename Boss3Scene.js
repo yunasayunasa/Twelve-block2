@@ -161,37 +161,50 @@ export default class Boss3Scene extends CommonBossScene {
 
 
         // ボスを画面下外に配置し、透明にしておく
-        const bossTextureHeight = this.boss.height * this.boss.scaleY; // 表示スケール考慮
-        const startBossY = this.gameHeight + bossTextureHeight / 2;
-        this.boss.setPosition(this.gameWidth / 2, startBossY);
-        this.boss.setAlpha(0).setVisible(true); // 見えるようにしてからTween開始
+           const bossTextureHeight = this.boss.height * this.boss.scaleY;
+    const startBossY = this.gameHeight + bossTextureHeight / 2;
+    this.boss.setPosition(this.gameWidth / 2, startBossY);
+    this.boss.setAlpha(0).setVisible(true);
 
-        // 「ゴゴゴゴ...」SE再生
-        if (this.bossData.seKingSlimeRumble) {
-            try { this.sound.play(this.bossData.seKingSlimeRumble, {loop: true, volume: 0.7}); } catch(e) {console.error("Error playing rumble SE:", e);}
-        }
-
-        // ボスの最終Y座標 (initializeBossData/createSpecificBossで設定されたY座標)
-        const finalBossY = this.gameHeight * (this.bossData.heightRatio || 0.33) / 2;
-        const introDuration = 3000; // 3秒かけて競り上がる (要調整)
-
-        this.tweens.add({
-            targets: this.boss,
-            y: finalBossY,
-            alpha: 1,
-            duration: introDuration,
-            ease: 'Sine.easeOut', // ゆっくりと登場する感じ
-            onComplete: () => {
-                console.log("[Boss3Scene] King Gold Slime intro animation (競り上がり) complete.");
-                if (this.bossData.seKingSlimeRumble) { // 地響きSE停止
-                    try {this.sound.stopByKey(this.bossData.seKingSlimeRumble);}catch(e){}
-                }
-                this.isIntroAnimating = false;
-                this.showKingSlimeVSOverlay(); // VS表示へ
-            }
-        });
-        console.log("--- Boss3Scene startIntroCutscene (競り上がり) Initiated ---");
+    if (this.bossData.seKingSlimeRumble) {
+        try { this.sound.play(this.bossData.seKingSlimeRumble, {loop: true, volume: 0.7}); } catch(e) {}
     }
+
+    const finalBossY = this.gameHeight * (this.bossData.heightRatio || 0.33) / 2;
+    const introDuration = 3000;
+    const shakeAmountX = this.gameWidth * 0.01; // ★画面幅の1%程度の揺れ幅 (調整可能)
+    const shakeDuration = 100; // ★1回の揺れの期間 (ms)
+
+    this.tweens.add({
+        targets: this.boss,
+        props: {
+            y: { value: finalBossY, duration: introDuration, ease: 'Sine.easeOut' },
+            alpha: { value: 1, duration: introDuration * 0.8, ease: 'Sine.easeIn' }, // Yが上がりきる少し前に完全に表示
+            x: { // ★横揺れアニメーション
+                value: `+=${shakeAmountX}`, // 現在位置から少し右へ
+                duration: shakeDuration,
+                yoyo: true,          // 元の位置に戻る
+                repeat: Math.floor(introDuration / (shakeDuration * 2)) -1, // introDuration中に揺れを繰り返す回数
+                                                                        // (yoyoで往復するので期間はshakeDuration*2)
+                ease: 'Sine.easeInOut' // 滑らかな揺れ
+            }
+        },
+        // duration: introDuration, // props を使う場合、全体のdurationは各propで設定するか、このトップレベルdurationで統一
+        onComplete: () => {
+            console.log("[Boss3Scene] King Gold Slime intro animation (競り上がり+揺れ) complete.");
+            if (this.bossData.seKingSlimeRumble) {
+                try {this.sound.stopByKey(this.bossData.seKingSlimeRumble);}catch(e){}
+            }
+            // ★揺れ終わった後にX座標を中央に戻す（念のため）★
+            if (this.boss && this.boss.active) {
+                this.boss.setX(this.gameWidth / 2);
+            }
+            this.isIntroAnimating = false;
+            this.showKingSlimeVSOverlay();
+        }
+    });
+    console.log("--- Boss3Scene startIntroCutscene (競り上がり+揺れ) Initiated ---");
+}
 
   showKingSlimeVSOverlay() {
     console.log("[Boss3Scene] Showing VS Overlay for King Gold Slime (using existing this.boss)...");
