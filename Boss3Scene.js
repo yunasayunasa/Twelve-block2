@@ -82,7 +82,7 @@ export default class Boss3Scene extends CommonBossScene {
             targetedAttackProjectileSpeed: DEFAULT_ATTACK_BRICK_VELOCITY_Y + 40, // 少し速め
             targetedAttackProjectileTexture: 'attack_brick_slime_projectile',
             targetedAttackProjectileScale: 0.15,
-            targetedAttackMarkerTexture: 'target_marker_slime', // ★要アセット準備: ターゲットマーカー
+          //  targetedAttackMarkerTexture: 'target_marker_slime', // ★要アセット準備: ターゲットマーカー
 
             // --- HP半減後の強化・スライムビーム関連 ---
             後半_radialAttackIntervalMin: 2000, // 後半の放射攻撃間隔
@@ -375,36 +375,42 @@ export default class Boss3Scene extends CommonBossScene {
         this.targetedAttackTimer = this.time.delayedCall(Phaser.Math.Between(minInterval, maxInterval), this.spawnTargetedAttack, [], this);
     }
 
-    spawnTargetedAttack() {
-        if (!this.attackBricks || !this.boss || !this.boss.active || !this.paddle || this.isGameOver || this.bossDefeated) {
-            this.scheduleNextTargetedAttack(); return;
-        }
-        console.log("King Slime: Spawning Targeted Attack");
-        const targetX = this.paddle.x;
-        const spawnY = this.boss.y + this.boss.displayHeight / 2; // ボス下部から
-        const speed = this.bossData.targetedAttackProjectileSpeed;
-        const texture = this.bossData.targetedAttackProjectileTexture;
-        const scale = this.bossData.targetedAttackProjectileScale;
+    // Boss3Scene.js の spawnTargetedAttack メソッド内 (修正案)
+spawnTargetedAttack() {
+    if (!this.attackBricks || !this.boss || !this.boss.active || !this.paddle || this.isGameOver || this.bossDefeated) {
+        this.scheduleNextTargetedAttack(); return;
+    }
+    console.log("King Slime: Spawning Targeted Attack");
+    const targetX = this.paddle.x;
+    const spawnY = this.boss.y + this.boss.displayHeight / 2;
+    const speed = this.bossData.targetedAttackProjectileSpeed;
+    const texture = this.bossData.targetedAttackProjectileTexture;
+    const scale = this.bossData.targetedAttackProjectileScale;
 
-        // 予兆マーカー表示 (任意)
-        if (this.bossData.targetedAttackMarkerTexture) {
-            const marker = this.add.image(targetX, this.paddle.y - 30, this.bossData.targetedAttackMarkerTexture).setScale(0.5).setAlpha(0.7);
-            this.time.delayedCall(700, () => marker.destroy());
-        }
+    // --- ▼ 予兆マーカー表示 (プログラム描画) ▼ ---
+    const markerRadius = this.paddle.displayWidth * 0.6; // パドル幅の60%程度の円形マーカー
+    const markerY = this.paddle.y; // パドルのY座標あたりに表示
+    const marker = this.add.graphics();
+    marker.fillStyle(0xff0000, 0.25); // 薄い赤色 (alpha 0.25)
+    marker.fillCircle(targetX, markerY, markerRadius);
+    marker.setDepth(0); // 適切な深度に設定 (ボールやパドルより奥、背景より手前など)
 
-        this.time.delayedCall(500, () => { // 少し遅れて発射
-            if (!this.attackBricks || !this.boss || !this.boss.active || this.isGameOver || this.bossDefeated) return;
-            const projectile = this.attackBricks.create(this.boss.x, spawnY, texture);
-            if (projectile) {
-                projectile.setScale(scale);
-                // ターゲットへの角度を計算して速度設定
-                const angleToTarget = Phaser.Math.Angle.Between(this.boss.x, spawnY, targetX, this.gameHeight);
-                this.physics.velocityFromAngle(Phaser.Math.RadToDeg(angleToTarget), speed, projectile.body.velocity);
-                projectile.setData('blockType', 'projectile');
-                if (projectile.body) projectile.body.setAllowGravity(false).setCollideWorldBounds(true);
-            }
-        }, [], this);
-        this.scheduleNextTargetedAttack();
+    this.time.delayedCall(700, () => marker.destroy()); // 0.7秒で消滅
+    // --- ▲ 予兆マーカー表示 ▲ ---
+
+    this.time.delayedCall(500, () => { // 少し遅れて発射 (マーカー表示時間との兼ね合い)
+        if (!this.attackBricks || !this.boss || !this.boss.active || this.isGameOver || this.bossDefeated) return;
+        const projectile = this.attackBricks.create(this.boss.x, spawnY, texture);
+        if (projectile) {
+            projectile.setScale(scale);
+            const angleToTarget = Phaser.Math.Angle.Between(this.boss.x, spawnY, targetX, this.gameHeight);
+            this.physics.velocityFromAngle(Phaser.Math.RadToDeg(angleToTarget), speed, projectile.body.velocity);
+            projectile.setData('blockType', 'projectile');
+            if (projectile.body) projectile.body.setAllowGravity(false).setCollideWorldBounds(true);
+        }
+    }, [], this);
+    this.scheduleNextTargetedAttack();
+}
     }
     // --- ▲ 通常攻撃パターン ▲ ---
 
@@ -447,17 +453,26 @@ export default class Boss3Scene extends CommonBossScene {
             });
         }
 
-        // 予兆マーカー表示
-        const beamWidth = this.gameWidth * (this.bossData.slimeBeamWidthRatio || 0.33);
-        const beamX = this.gameWidth / 2;
-        // ボスの下から画面下端までの矩形
-        const beamMarkerY = this.boss.y + this.boss.displayHeight / 2;
-        const beamMarkerHeight = this.gameHeight - beamMarkerY;
+        // --- ▼ スライムビーム予兆マーカー表示 (プログラム描画) ▼ ---
+    const beamWidth = this.gameWidth * (this.bossData.slimeBeamWidthRatio || 0.33);
+    const beamX = this.gameWidth / 2;
+    const beamMarkerY = this.boss.y + this.boss.displayHeight / 2; // ボス下端から
+    const beamMarkerHeight = this.gameHeight - beamMarkerY;     // 画面下端まで
 
-        const beamMarker = this.add.rectangle(beamX, beamMarkerY + beamMarkerHeight / 2, beamWidth, beamMarkerHeight, 0x330000, 0.3)
-            .setOrigin(0.5, 0.5).setDepth(1); // ボスよりは手前、ボールより奥など
-        this.slimeBeamObject = beamMarker; // 一時的にマーカーをビームオブジェクトとして扱う
+    // 既存のビームオブジェクトがあれば破棄
+    this.slimeBeamObject?.destroy();
 
+    this.slimeBeamObject = this.add.rectangle(
+        beamX,
+        beamMarkerY + beamMarkerHeight / 2, // 矩形の中心Y
+        beamWidth,
+        beamMarkerHeight,
+        0xff0000, // 赤色
+        0.3       // 薄いアルファ値 (例: 0.3)
+    );
+    this.slimeBeamObject.setOrigin(0.5, 0.5).setDepth(1); // 適切な深度
+    console.log("Slime Beam charge marker (rectangle) displayed.");
+    // --- ▲ スライムビーム予兆マーカー表示 ▲ ---
         // チャージ時間後にビーム発射
         this.time.delayedCall(this.bossData.slimeBeamChargeTime || 3000, this.fireSlimeBeam, [], this);
     }
