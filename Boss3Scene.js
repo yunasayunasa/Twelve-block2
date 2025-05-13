@@ -1,31 +1,34 @@
-// Boss3Scene.js (キングゴールドスライム戦)
+// Boss3Scene.js (キングゴールドスライム戦 - 骨子)
 import CommonBossScene from './CommonBossScene.js';
 import {
     AUDIO_KEYS,
-    POWERUP_TYPES, // 必要に応じて
-    // キングゴールドスライム固有の定数があればここでインポート
-    // 例: KING_SLIME_WALL_SPEED, KING_SLIME_BEAM_DURATION など
-    DEFAULT_ATTACK_BRICK_VELOCITY_Y // 汎用的な値として
+    // POWERUP_TYPES, // 現時点では未使用
+    DEFAULT_ATTACK_BRICK_VELOCITY_Y, // 通常攻撃弾のデフォルト速度などに使う可能性
+    CUTSCENE_DURATION, // VSオーバーレイ表示時間などに使用
+    GAMEPLAY_START_DELAY // 戦闘開始までのディレイ
 } from './constants.js';
 
 export default class Boss3Scene extends CommonBossScene {
     constructor() {
-        super('Boss3Scene'); // シーンキーを Boss3Scene に
+        super('Boss3Scene');
 
         // キングゴールドスライム固有のプロパティを初期化
-        this.isHpBelowHalf = false; // HP半減フラグ
-        this.wallBlockSpawnTimers = { lineA: null, lineB: null }; // 流れる壁の生成タイマー
-        this.slimeBeamChargeTimer = null; // スライムビームのチャージタイマー
-        this.slimeBeamActive = false;   // スライムビームが現在アクティブか
-        this.slimeBeamObject = null;    // スライムビームのビジュアル/当たり判定オブジェクト
-        // その他、攻撃パターンの管理に必要なタイマーなど
+        this.isHpBelowHalf = false;
+        this.wallBlockSpawnTimers = { lineA: null, lineB: null };
+        this.slimeBeamChargeTimer = null;
+        this.slimeBeamActive = false;
+        this.slimeBeamObject = null; // スライムビームの予兆・本体オブジェクト用
         this.radialAttackTimer = null;
         this.targetedAttackTimer = null;
+
+        // ボス登場演出用フラグなど (必要に応じて)
+        this.isIntroAnimating = false;
     }
 
     init(data) {
-        super.init(data); // 親のinitを呼び出す
-        this.isHpBelowHalf = false; // シーン開始時にリセット
+        super.init(data);
+        this.isHpBelowHalf = false;
+        this.isIntroAnimating = false; // 登場演出中フラグもリセット
 
         // 各種タイマーのリセット
         this.wallBlockSpawnTimers.lineA?.remove(); this.wallBlockSpawnTimers.lineA = null;
@@ -36,6 +39,8 @@ export default class Boss3Scene extends CommonBossScene {
 
         this.slimeBeamActive = false;
         this.slimeBeamObject?.destroy(); this.slimeBeamObject = null;
+
+        console.log("--- Boss3Scene INIT Complete ---");
     }
 
     /**
@@ -45,478 +50,265 @@ export default class Boss3Scene extends CommonBossScene {
         console.log("--- Boss3Scene initializeBossData (King Gold Slime) ---");
         this.bossData = {
             // --- 基本情報 ---
-            health: 20, //仮のHP
-            textureKey: 'boss_king_slime_stand', // ★要アセット準備: キングスライムの立ち絵
-            negativeKey: 'boss_king_slime_negative', // ★要アセット準備: ネガ反転画像
-            voiceAppear: AUDIO_KEYS.VOICE_BOSS_APPEAR_GENERIC, // ★仮: 汎用登場ボイス (専用があれば差し替え)
-            voiceDamage: AUDIO_KEYS.VOICE_BOSS_DAMAGE_GENERIC, // ★仮: 汎用被ダメージボイス
-            voiceDefeat: AUDIO_KEYS.VOICE_BOSS_DEFEAT_GENERIC, // ★仮: 汎用撃破ボイス
-            voiceRandom: [
-                // AUDIO_KEYS.VOICE_KING_SLIME_RANDOM_1, // ★専用ランダムボイスがあれば
-            ],
-            bgmKey: AUDIO_KEYS.BGM_KING_SLIME, // ★仮: 専用BGMキー (なければ汎用)
-            cutsceneText: 'VS キングゴールドスライム', // 登場時のカットシーンテキスト
-            widthRatio: 0.8,  // 画面幅の80%を占める想定 (要調整)
-            heightRatio: 0.33, // 画面高さの1/3を占める想定 (表示位置と合わせて調整)
-            // キングスライムは動かないので moveRangeXRatio, moveDuration は不要か、特殊な意味を持たせる
+            health: 20, //仮
+            textureKey: 'boss_king_slime_stand',
+            negativeKey: 'boss_king_slime_negative',
+            voiceAppear: AUDIO_KEYS.VOICE_KING_SLIME_APPEAR || AUDIO_KEYS.VOICE_BOSS_APPEAR_GENERIC, // 専用がなければ汎用
+            voiceDamage: AUDIO_KEYS.VOICE_KING_SLIME_DAMAGE || AUDIO_KEYS.VOICE_BOSS_DAMAGE_GENERIC,
+            voiceDefeat: AUDIO_KEYS.VOICE_KING_SLIME_DEFEAT || AUDIO_KEYS.VOICE_BOSS_DEFEAT_GENERIC,
+            voiceRandom: AUDIO_KEYS.VOICE_KING_SLIME_RANDOM_1 ? [AUDIO_KEYS.VOICE_KING_SLIME_RANDOM_1] : [],
+            bgmKey: AUDIO_KEYS.BGM_KING_SLIME || AUDIO_KEYS.BGM1, // 専用がなければ汎用
+            cutsceneText: 'VS キングゴールドスライム',
+            widthRatio: 0.75,  // 画面幅の75% (テクスチャのアスペクト比で調整)
+            heightRatio: 0.33, // ボス本体が表示されるY軸方向の目安
 
             // --- 流れる壁ギミック関連 ---
-            wallLineAYOffsetRatio: 0.28, // ボス本体の上端から壁ラインA中心までのYオフセット(画面高さ比、ボスにめり込むように調整)
-            wallLineBYOffsetRatio: 0.32, // ボス本体の上端から壁ラインB中心までのYオフセット(画面高さ比、Aの下)
-            wallBlockSpeed: 150,         // 壁ブロックの水平移動速度 (px/s)
-            wallBlockSpawnInterval: 300, // 壁ブロックの生成間隔 (ms) - 各ラインごと
-            wallBlockTexture: 'attack_brick_gold', // ★要アセット準備: 壁用の金色のブロックテクスチャ
-            wallBlockScale: 0.1,         // 壁ブロックのスケール (テクスチャサイズによる)
+            wallLineAYOffsetRatio: 0.28, // ボス本体の画像の上端からの相対Y位置(画面高さ比)を想定
+            wallLineBYOffsetRatio: 0.32, // 壁Bは壁Aより少し下に
+            wallBlockSpeed: 120,
+            wallBlockSpawnInterval: 350,
+            wallBlockTexture: 'attack_brick_gold',
+            wallBlockScale: 0.12, // 壁ブロックのスケール (元画像のサイズによる)
 
-            // --- 通常攻撃（前半・後半共通だが、後半で頻度等変更） ---
-            radialAttackIntervalMin: 3000,
-            radialAttackIntervalMax: 5000,
-            radialAttackProjectileCount: 3, // 放射する弾の数
-            radialAttackAngles: [70, 90, 110], // 放射角度 (真下90度)
-            radialAttackProjectileSpeed: DEFAULT_ATTACK_BRICK_VELOCITY_Y + 20,
-            radialAttackProjectileTexture: 'attack_brick_slime_projectile', // ★要アセット準備: スライム弾テクスチャ
-            radialAttackProjectileScale: 0.12,
+            // --- 通常攻撃 ---
+            radialAttackIntervalMin: 3500,
+            radialAttackIntervalMax: 5500,
+            radialAttackProjectileCount: 3,
+            radialAttackAngles: [75, 90, 105],
+            radialAttackProjectileSpeed: DEFAULT_ATTACK_BRICK_VELOCITY_Y + 10,
+            radialAttackProjectileTexture: 'attack_brick_slime_projectile',
+            radialAttackProjectileScale: 0.1,
 
-            targetedAttackIntervalMin: 4000,
-            targetedAttackIntervalMax: 6000,
-            targetedAttackProjectileSpeed: DEFAULT_ATTACK_BRICK_VELOCITY_Y + 40, // 少し速め
+            targetedAttackIntervalMin: 4500,
+            targetedAttackIntervalMax: 6500,
+            targetedAttackProjectileSpeed: DEFAULT_ATTACK_BRICK_VELOCITY_Y + 30,
             targetedAttackProjectileTexture: 'attack_brick_slime_projectile',
-            targetedAttackProjectileScale: 0.15,
-          //  targetedAttackMarkerTexture: 'target_marker_slime', // ★要アセット準備: ターゲットマーカー
+            targetedAttackProjectileScale: 0.13,
+            targetedAttackChargeTime: 700, // ターゲットマーカー表示から発射までの時間
+            targetedAttackMarkerDuration: 700, //マーカー表示時間
 
             // --- HP半減後の強化・スライムビーム関連 ---
-            後半_radialAttackIntervalMin: 2000, // 後半の放射攻撃間隔
-            後半_radialAttackIntervalMax: 3500,
-            後半_targetedAttackIntervalMin: 2500, // 後半のターゲット攻撃間隔
-            後半_targetedAttackIntervalMax: 4000,
+            // (後半の攻撃間隔は、isHpBelowHalf フラグを見て動的に変更する)
+            slimeBeamChargeTime: 2500,
+            slimeBeamDuration: 1800,
+            slimeBeamWidthRatio: 0.33,
+            // slimeBeamTextureKey は不要 (プログラム描画のため)
+            slimeBeamFlashCount: 3,
+            slimeBeamInterval: 12000, // スライムビームの再使用間隔
 
-            slimeBeamChargeTime: 3000,  // スライムビームのチャージ時間 (ms)
-            slimeBeamDuration: 2000,    // スライムビームの持続時間 (ms)
-            slimeBeamWidthRatio: 0.33,  // ビームの横幅 (画面幅比)
-            slimeBeamTextureKey: 'slime_beam_particle', // ★要アセット準備: ビーム用のスライム画像/パーティクル
-            // (スライムビームの見た目に関する詳細パラメータもここに追加可能)
-            slimeBeamFlashCount: 3,     // チャージ中の画面明滅回数
-
-            // --- その他 ---
-            backgroundKey: 'gameBackground_Boss3', // ★要アセット準備: ボス3専用背景
+            backgroundKey: 'gameBackground_Boss3',
+            // 専用登場演出用SEキー (あれば)
+            seKingSlimeRumble: AUDIO_KEYS.SE_KING_SLIME_RUMBLE
         };
 
-        // CommonBossScene のプロパティも更新
         this.bossVoiceKeys = Array.isArray(this.bossData.voiceRandom) ? this.bossData.voiceRandom : [];
         console.log("King Gold Slime Specific Data Initialized:", this.bossData);
+        console.log("--- Boss3Scene initializeBossData Complete ---");
     }
 
-    // createSpecificBoss をオーバーライドして、ボスの表示位置やスケールを調整
+    // createSpecificBoss をオーバーライドして、ボスの表示位置などを調整
     createSpecificBoss() {
-        super.createSpecificBoss(); // Common の処理で this.boss が生成・初期化される
+        super.createSpecificBoss();
 
         if (this.boss) {
-            // キングスライムは動かないので Immovable は true のまま
-            // 表示位置を画面上部に固定 (Y座標は bossData.heightRatio などから計算)
-            const bossY = (this.gameHeight * (this.bossData.heightRatio || 0.33)) / 2; // 画像中心がY座標の半分
-            this.boss.setPosition(this.gameWidth / 2, bossY);
-            this.boss.setDepth(0); // 他のオブジェクトより奥か手前か
+            // キングスライムは画面上部に大きく表示
+            // Y座標は、画像の上端が画面の上の方に来るように調整
+            // heightRatio はボス画像の高さを画面高さの何割にするか、というよりは
+            // ボス画像中心のY座標の目安として使う
+            const bossCenterY = this.gameHeight * (this.bossData.heightRatio || 0.33) / 2;
+            this.boss.setPosition(this.gameWidth / 2, bossCenterY);
+            this.boss.setDepth(0); // 0か-1あたり (壁や弾より奥)
 
-            // スケールは updateBossSize で bossData.widthRatio に基づいて調整されるはず
-            // 必要ならここでさらに調整
+            // updateBossSize は CommonBossScene の createSpecificBoss 内で呼ばれる想定
+            // もし呼ばれていない、または追加調整が必要な場合はここで呼ぶ
             // this.updateBossSize(this.boss, this.bossData.textureKey, this.bossData.widthRatio);
 
-            console.log(`Boss3 (King Gold Slime) created at (${this.boss.x}, ${this.boss.y}).`);
+            console.log(`Boss3 (King Gold Slime) created. Position: (${this.boss.x.toFixed(0)}, ${this.boss.y.toFixed(0)}), DisplaySize: (${this.boss.displayWidth.toFixed(0)}, ${this.boss.displayHeight.toFixed(0)})`);
 
-            // UIへの初期HP反映
-            this.events.emit('updateBossHp', this.boss.getData('health'), this.boss.getData('maxHealth'));
-            this.events.emit('updateBossNumber', this.currentBossIndex, this.totalBosses);
-        } else {
-            console.error("Boss3 (King Gold Slime) could not be created!");
-        }
-    }
-
-    // --- ▼ 専用登場演出 (ゴゴゴ...) ▼ ---
-    startIntroCutscene() {
-        console.log("[Boss3Scene] Starting King Gold Slime's custom intro sequence...");
-        this.playerControlEnabled = false;
-        this.isBallLaunched = false;
-        this.sound.stopAll();
-        this.stopBgm(); // CommonのBGM再生を止める
-
-        // ボスオブジェクトはまだ表示しない (または透明にしておく)
-        if (this.boss) {
-            this.boss.setVisible(false).setAlpha(0);
-            if (this.boss.body) this.boss.disableBody(true, false);
-        }
-
-        // 1. 背景表示など (CommonBossSceneのcreateで行われるものも考慮)
-        // this.setupBackground(); // もしCommonのcreateで呼ばれていない場合
-
-        // 2. 「ゴゴゴゴ...」SE再生 (専用SEがあれば)
-        // try { this.sound.play(AUDIO_KEYS.SE_KING_SLIME_RUMBLE); } catch(e) {}
-
-        // 3. ボスのY座標とアルファをTweenでアニメーション
-        const finalBossY = (this.gameHeight * (this.bossData.heightRatio || 0.33)) / 2;
-        const startBossY = this.gameHeight + this.boss.displayHeight; // 画面下外から
-        if (this.boss) {
-            this.boss.setPosition(this.gameWidth / 2, startBossY);
-            this.boss.setVisible(true); // 見えるようにしてからTween開始
-
-            this.tweens.add({
-                targets: this.boss,
-                y: finalBossY,
-                alpha: 1,
-                duration: 2500, // 2.5秒かけて競り上がる (要調整)
-                ease: 'Power1', // ゆっくりと力強く
-                onComplete: () => {
-                    console.log("[Boss3Scene] King Gold Slime intro animation complete.");
-                    // CommonBossSceneのフュージョン演出はスキップし、直接戦闘開始処理へ
-                    // ただし、カットシーンテキスト表示などは行いたい
-                    this.showKingSlimeVSOverlay();
+            // UIへの初期HP反映 (CommonBossSceneのsetupUIが遅延実行するので、ここでも念のため発行)
+            this.time.delayedCall(100, () => { // UISceneの準備を少し待つ
+                if (this.uiScene && this.uiScene.scene.isActive()) {
+                    this.events.emit('updateBossHp', this.boss.getData('health'), this.boss.getData('maxHealth'));
+                    this.events.emit('updateBossNumber', this.currentBossIndex, this.totalBosses);
                 }
             });
         } else {
-            console.error("Boss object not available for intro animation!");
-            // エラー発生時は通常の戦闘開始処理へフォールバック
-            this.finalizeBossAppearanceAndStart();
+            console.error("Boss3 (King Gold Slime) could not be created!");
         }
+        console.log("--- Boss3Scene createSpecificBoss Complete ---");
+    }
+
+    // --- ▼ 専用登場演出 (ゴゴゴ...) ▼ ---
+    // CommonBossScene の create で startIntroCutscene が呼ばれるので、それをオーバーライド
+    startIntroCutscene() {
+        console.log("[Boss3Scene] Starting King Gold Slime's custom intro (競り上がり)...");
+        this.isIntroAnimating = true;
+        this.playerControlEnabled = false;
+        this.isBallLaunched = false;
+        // this.sound.stopAll(); // CommonBossSceneのcreateで既に呼ばれているはず
+        // this.stopBgm();       // 同上
+
+        if (!this.boss) {
+            console.error("Boss object not found for intro animation. Aborting intro.");
+            // 通常の戦闘開始フローにフォールバックするか、エラー処理
+            this.finalizeBossAppearanceAndStart();
+            return;
+        }
+
+        // ボスを画面下外に配置し、透明にしておく
+        const bossTextureHeight = this.boss.height * this.boss.scaleY; // 表示スケール考慮
+        const startBossY = this.gameHeight + bossTextureHeight / 2;
+        this.boss.setPosition(this.gameWidth / 2, startBossY);
+        this.boss.setAlpha(0).setVisible(true); // 見えるようにしてからTween開始
+
+        // 「ゴゴゴゴ...」SE再生
+        if (this.bossData.seKingSlimeRumble) {
+            try { this.sound.play(this.bossData.seKingSlimeRumble, {loop: true, volume: 0.7}); } catch(e) {console.error("Error playing rumble SE:", e);}
+        }
+
+        // ボスの最終Y座標 (initializeBossData/createSpecificBossで設定されたY座標)
+        const finalBossY = this.gameHeight * (this.bossData.heightRatio || 0.33) / 2;
+        const introDuration = 3000; // 3秒かけて競り上がる (要調整)
+
+        this.tweens.add({
+            targets: this.boss,
+            y: finalBossY,
+            alpha: 1,
+            duration: introDuration,
+            ease: 'Sine.easeOut', // ゆっくりと登場する感じ
+            onComplete: () => {
+                console.log("[Boss3Scene] King Gold Slime intro animation (競り上がり) complete.");
+                if (this.bossData.seKingSlimeRumble) { // 地響きSE停止
+                    try {this.sound.stopByKey(this.bossData.seKingSlimeRumble);}catch(e){}
+                }
+                this.isIntroAnimating = false;
+                this.showKingSlimeVSOverlay(); // VS表示へ
+            }
+        });
+        console.log("--- Boss3Scene startIntroCutscene (競り上がり) Initiated ---");
     }
 
     showKingSlimeVSOverlay() {
-        // CommonBossSceneのstartIntroCutsceneのロジックを参考にVS表示
-        try { this.sound.play(AUDIO_KEYS.SE_CUTSCENE_START); } catch(e) {}
+        console.log("[Boss3Scene] Showing VS Overlay for King Gold Slime...");
         // ボス登場ボイス再生
         if (this.bossData.voiceAppear) {
-             try { this.sound.play(this.bossData.voiceAppear); } catch(e) {}
+             try { this.sound.play(this.bossData.voiceAppear); } catch(e) {console.error("Error playing appear voice:",e);}
         }
+        // CommonのカットシーンSE再生
+        try { this.sound.play(AUDIO_KEYS.SE_CUTSCENE_START); } catch(e) {}
 
-
-        const overlay = this.add.rectangle(0, 0, this.gameWidth, this.gameHeight, 0x000000, 0.75)
+        const overlay = this.add.rectangle(0, 0, this.gameWidth, this.gameHeight, 0x000000, 0.7)
             .setOrigin(0,0).setDepth(900);
-        const bossImage = this.add.image(this.gameWidth / 2, this.gameHeight * 0.3, this.bossData.textureKey) // 少し上に表示
-            .setOrigin(0.5, 0.5).setDepth(901).setScale(0.6); // 少し小さめに表示
+
+        // VSテキスト (CommonBossSceneのものを参考に、フォントや色を調整しても良い)
         const textContent = this.bossData.cutsceneText;
-        const fontSize = this.calculateDynamicFontSize(70);
-        const textStyle = { fontSize: `${fontSize}px`, fill: '#FFD700', stroke: '#000000', strokeThickness: 6, fontFamily: 'MyGameFont, sans-serif', align: 'center' };
-        const vsText = this.add.text(this.gameWidth / 2, this.gameHeight * 0.6, textContent, textStyle)
-            .setOrigin(0.5, 0).setDepth(902);
+        const fontSize = this.calculateDynamicFontSize(60); // 少し大きめ
+        const textStyle = {
+            fontSize: `${fontSize}px`,
+            fill: '#F9A602', // ゴールドっぽい色
+            stroke: '#4A2E04', // 暗い茶色の縁取り
+            strokeThickness: Math.max(5, fontSize * 0.08),
+            fontFamily: 'MyGameFont, Impact, sans-serif', // インパクトのあるフォント
+            align: 'center',
+            shadow: { offsetX: 3, offsetY: 3, color: '#000000', blur: 5, stroke: true, fill: true }
+        };
+        const vsText = this.add.text(this.gameWidth / 2, this.gameHeight * 0.5, textContent, textStyle)
+            .setOrigin(0.5).setDepth(902); // Y座標は中央に
 
-        this.time.delayedCall(CUTSCENE_DURATION, () => {
-            overlay.destroy();
-            bossImage.destroy();
-            vsText.destroy();
-            // ボス本体の物理ボディ有効化と戦闘開始
-            this.finalizeBossAppearanceAndStart();
+        const cutsceneDisplayDuration = CUTSCENE_DURATION || 1800;
+        this.time.delayedCall(cutsceneDisplayDuration, () => {
+            if (overlay.scene) overlay.destroy(); // sceneプロパティで存在確認
+            if (vsText.scene) vsText.destroy();
+            console.log("[Boss3Scene] VS Overlay finished.");
+            this.finalizeBossAppearanceAndStart(); // 戦闘開始処理へ
         }, [], this);
+        console.log("--- Boss3Scene showKingSlimeVSOverlay Complete ---");
     }
 
-    // CommonBossSceneのfinalizeBossAppearanceAndStartをオーバーライドするか、
-    // この中で直接 this.startGameplay() を呼ぶ
-    finalizeBossAppearanceAndStart() {
-        if (!this.boss) return;
-        console.log("[Boss3Scene] Finalizing King Slime appearance and starting gameplay.");
-        this.boss.setAlpha(1).setVisible(true); // 最終状態を確定
-        if (this.boss.body) {
-            this.boss.enableBody(true, this.boss.x, this.boss.y, true, true);
-            this.boss.body.updateFromGameObject();
-        }
-        // ボス戦BGM再生
-        this.playBossBgm();
-        // 戦闘開始処理
-        this.time.delayedCall(GAMEPLAY_START_DELAY, this.startGameplay, [], this);
-    }
-    // --- ▲ 専用登場演出 ▲ ---
+    // CommonBossSceneのfinalizeBossAppearanceAndStartは、ボスを見えるようにして物理ボディを有効化し、
+    // startGameplayを遅延呼び出しする。キングスライムの場合、そのままで良いか、
+    // BGM再生タイミングなどを調整したければオーバーライド。
+    // 今回はCommonのものをそのまま使う想定。
+    // finalizeBossAppearanceAndStart() {
+    //     super.finalizeBossAppearanceAndStart();
+    //     console.log("[Boss3Scene] Custom finalize (if needed).");
+    // }
 
 
-    // startSpecificBossMovement: キングスライムは動かないので、このメソッドは空か、
-    // 流れる壁や通常攻撃の初期タイマー設定を行う場所にしても良い。
+    // キングスライムは動かないので、startSpecificBossMovement は攻撃関連の初期化に使う
     startSpecificBossMovement() {
-        console.log("--- Boss3Scene startSpecificBossMovement (King Slime is static) ---");
-        if (!this.boss || !this.boss.active) return;
+        console.log("--- Boss3Scene startSpecificBossMovement (King Slime is static, initializing attacks) ---");
+        if (!this.boss || !this.boss.active || this.isIntroAnimating) {
+            console.warn("Boss not ready or intro animating, delaying attack initialization.");
+            // イントロが終わってから再度呼ばれるようにするなど
+            return;
+        }
+        console.log("King Gold Slime is static. Initializing wall spawners and attack timers.");
 
-        // キングスライムは動かないので、CommonBossSceneの移動Tweenは不要。
-        // ここで流れる壁の生成を開始する
+        // 流れる壁の生成を開始
         this.startWallBlockSpawners();
 
         // 通常攻撃のタイマーを開始
         this.scheduleNextRadialAttack();
         this.scheduleNextTargetedAttack();
+
+        // (HP半減後のスライムビームは、applyBossDamageのオーバーライド等でトリガー)
+        console.log("--- Boss3Scene startSpecificBossMovement Complete ---");
     }
 
     // updateSpecificBossBehavior: 各種攻撃の実行管理、HP半減時の処理など
+    // (このメソッドは CommonBossScene の update から毎フレーム呼ばれる)
     updateSpecificBossBehavior(time, delta) {
-        if (!this.playerControlEnabled || !this.boss || !this.boss.active || this.bossDefeated || this.isGameOver) {
+        if (this.isIntroAnimating || !this.playerControlEnabled || !this.boss || !this.boss.active || this.bossDefeated || this.isGameOver) {
             return;
         }
 
-        // --- 流れる壁ブロックの画面外処理 ---
-        this.cleanupWallBlocks(this.attackBricks); // attackBricksグループを渡す
+        // 流れる壁ブロックの画面外処理
+        this.cleanupWallBlocks();
 
-        // --- HP半減チェック ---
-        if (!this.isHpBelowHalf && this.boss.getData('health') <= this.bossData.health / 2) {
-            this.isHpBelowHalf = true;
-            this.triggerHpHalfEffect();
+        // スライムビームの当たり判定更新 (もしビームがアクティブなら)
+        if (this.slimeBeamActive && this.slimeBeamObject) {
+            this.checkSlimeBeamCollisions();
         }
-
-        // --- スライムビーム関連の更新 (もしチャージ中や発動中なら) ---
-        if (this.slimeBeamActive) {
-            // this.updateSlimeBeamVisuals(); // ビームの見た目の更新など
-        }
-
-        // 通常攻撃のタイマーは startSpecificBossMovement や各攻撃メソッドの最後で再スケジュールされる
     }
 
-    // --- ▼ 流れる壁ギミック ▼ ---
+    // --- ▼ 流れる壁ギミック (骨子) ▼ ---
     startWallBlockSpawners() {
-        const spawnInterval = this.bossData.wallBlockSpawnInterval || 300;
-
-        // 壁ラインA (右から左)
-        this.wallBlockSpawnTimers.lineA?.remove();
-        this.wallBlockSpawnTimers.lineA = this.time.addEvent({
-            delay: spawnInterval,
-            callback: () => this.spawnWallBlock('A'),
-            callbackScope: this,
-            loop: true
-        });
-
-        // 壁ラインB (左から右)
-        this.wallBlockSpawnTimers.lineB?.remove();
-        this.wallBlockSpawnTimers.lineB = this.time.addEvent({
-            delay: spawnInterval,
-            callback: () => this.spawnWallBlock('B'),
-            callbackScope: this,
-            loop: true
-        });
-        console.log("Wall block spawners started.");
+        // (実装は次のステップ)
+        console.log("[Wall] TODO: Implement startWallBlockSpawners");
     }
-
-    spawnWallBlock(line) { // line は 'A' または 'B'
-        if (!this.attackBricks || !this.boss || !this.boss.active || this.isGameOver || this.bossDefeated) {
-            return;
-        }
-
-        const texture = this.bossData.wallBlockTexture || 'attackBrick';
-        const scale = this.bossData.wallBlockScale || 0.1;
-        const speed = this.bossData.wallBlockSpeed || 150;
-
-        let spawnX, velocityX, spawnY;
-
-        if (line === 'A') { // 右から左へ、上層
-            spawnX = this.gameWidth + 50; // 画面右外
-            velocityX = -speed;
-            // ボスY座標とテクスチャ高さを考慮してY座標を決定
-            const bossTopY = this.boss.y - (this.boss.displayHeight / 2);
-            spawnY = bossTopY + (this.gameHeight * (this.bossData.wallLineAYOffsetRatio || 0.28));
-        } else { // 左から右へ、下層
-            spawnX = -50; // 画面左外
-            velocityX = speed;
-            const bossTopY = this.boss.y - (this.boss.displayHeight / 2);
-            spawnY = bossTopY + (this.gameHeight * (this.bossData.wallLineBYOffsetRatio || 0.32));
-        }
-
-        const wallBlock = this.attackBricks.create(spawnX, spawnY, texture);
-        if (wallBlock) {
-            wallBlock.setScale(scale);
-            wallBlock.setVelocityX(velocityX);
-            wallBlock.setData('blockType', 'wall'); // 壁であるフラグ
-            wallBlock.setData('wallLine', line);    // どちらのラインか
-            if (wallBlock.body) {
-                wallBlock.body.setAllowGravity(false);
-                wallBlock.body.setCollideWorldBounds(false); // 画面端での反射は不要
-            }
-        }
+    spawnWallBlock(line) {
+        // (実装は次のステップ)
+        console.log(`[Wall] TODO: Implement spawnWallBlock for line ${line}`);
     }
-
-    cleanupWallBlocks(attackBricksGroup) {
-        if (!attackBricksGroup) return;
-        attackBricksGroup.getChildren().forEach(block => {
-            if (block.getData('blockType') === 'wall') {
-                if (block.x < -block.displayWidth || block.x > this.gameWidth + block.displayWidth) {
-                    block.destroy();
-                }
-            }
-            // 通常の攻撃ブロックの画面外処理は CommonBossScene の updateAttackBricks で行われる
-        });
+    cleanupWallBlocks() {
+        // (実装は次のステップ)
+        // console.log("[Wall] TODO: Implement cleanupWallBlocks");
     }
     // --- ▲ 流れる壁ギミック ▲ ---
 
 
-    // --- ▼ 通常攻撃パターン ▼ ---
+    // --- ▼ 通常攻撃パターン (骨子) ▼ ---
     scheduleNextRadialAttack() {
-        this.radialAttackTimer?.remove();
-        const minInterval = this.isHpBelowHalf ? this.bossData.後半_radialAttackIntervalMin : this.bossData.radialAttackIntervalMin;
-        const maxInterval = this.isHpBelowHalf ? this.bossData.後半_radialAttackIntervalMax : this.bossData.radialAttackIntervalMax;
-        this.radialAttackTimer = this.time.delayedCall(Phaser.Math.Between(minInterval, maxInterval), this.spawnRadialAttack, [], this);
+        // (実装は次のステップ)
+        console.log("[Attack] TODO: Implement scheduleNextRadialAttack");
     }
-
     spawnRadialAttack() {
-        if (!this.attackBricks || !this.boss || !this.boss.active || this.isGameOver || this.bossDefeated) {
-            this.scheduleNextRadialAttack(); return;
-        }
-        console.log("King Slime: Spawning Radial Attack");
-        const count = this.bossData.radialAttackProjectileCount;
-        const angles = this.bossData.radialAttackAngles; // 例: [70, 90, 110]
-        const speed = this.bossData.radialAttackProjectileSpeed;
-        const texture = this.bossData.radialAttackProjectileTexture;
-        const scale = this.bossData.radialAttackProjectileScale;
-
-        angles.forEach(angle => {
-            const projectile = this.attackBricks.create(this.boss.x, this.boss.y + this.boss.displayHeight / 3, texture);
-            if (projectile) {
-                projectile.setScale(scale);
-                this.physics.velocityFromAngle(angle, speed, projectile.body.velocity);
-                projectile.setData('blockType', 'projectile'); // 通常の攻撃弾フラグ
-                if (projectile.body) projectile.body.setAllowGravity(false).setCollideWorldBounds(true); // 画面端で跳ね返る
-            }
-        });
-        this.scheduleNextRadialAttack();
+        // (実装は次のステップ)
+        console.log("[Attack] TODO: Implement spawnRadialAttack");
     }
-
     scheduleNextTargetedAttack() {
-        this.targetedAttackTimer?.remove();
-        const minInterval = this.isHpBelowHalf ? this.bossData.後半_targetedAttackIntervalMin : this.bossData.targetedAttackIntervalMin;
-        const maxInterval = this.isHpBelowHalf ? this.bossData.後半_targetedAttackIntervalMax : this.bossData.targetedAttackIntervalMax;
-        this.targetedAttackTimer = this.time.delayedCall(Phaser.Math.Between(minInterval, maxInterval), this.spawnTargetedAttack, [], this);
+        // (実装は次のステップ)
+        console.log("[Attack] TODO: Implement scheduleNextTargetedAttack");
     }
-
-    // Boss3Scene.js の spawnTargetedAttack メソッド内 (修正案)
-spawnTargetedAttack() {
-    if (!this.attackBricks || !this.boss || !this.boss.active || !this.paddle || this.isGameOver || this.bossDefeated) {
-        this.scheduleNextTargetedAttack(); return;
+    spawnTargetedAttack() {
+        // (実装は次のステップ)
+        console.log("[Attack] TODO: Implement spawnTargetedAttack");
     }
-    console.log("King Slime: Spawning Targeted Attack");
-    const targetX = this.paddle.x;
-    const spawnY = this.boss.y + this.boss.displayHeight / 2;
-    const speed = this.bossData.targetedAttackProjectileSpeed;
-    const texture = this.bossData.targetedAttackProjectileTexture;
-    const scale = this.bossData.targetedAttackProjectileScale;
-
-    // --- ▼ 予兆マーカー表示 (プログラム描画) ▼ ---
-    const markerRadius = this.paddle.displayWidth * 0.6; // パドル幅の60%程度の円形マーカー
-    const markerY = this.paddle.y; // パドルのY座標あたりに表示
-    const marker = this.add.graphics();
-    marker.fillStyle(0xff0000, 0.25); // 薄い赤色 (alpha 0.25)
-    marker.fillCircle(targetX, markerY, markerRadius);
-    marker.setDepth(0); // 適切な深度に設定 (ボールやパドルより奥、背景より手前など)
-
-    this.time.delayedCall(700, () => marker.destroy()); // 0.7秒で消滅
-    // --- ▲ 予兆マーカー表示 ▲ ---
-
-    this.time.delayedCall(500, () => { // 少し遅れて発射 (マーカー表示時間との兼ね合い)
-        if (!this.attackBricks || !this.boss || !this.boss.active || this.isGameOver || this.bossDefeated) return;
-        const projectile = this.attackBricks.create(this.boss.x, spawnY, texture);
-        if (projectile) {
-            projectile.setScale(scale);
-            const angleToTarget = Phaser.Math.Angle.Between(this.boss.x, spawnY, targetX, this.gameHeight);
-            this.physics.velocityFromAngle(Phaser.Math.RadToDeg(angleToTarget), speed, projectile.body.velocity);
-            projectile.setData('blockType', 'projectile');
-            if (projectile.body) projectile.body.setAllowGravity(false).setCollideWorldBounds(true);
-        }
-    }, [], this);
-    this.scheduleNextTargetedAttack();
-}
-    
     // --- ▲ 通常攻撃パターン ▲ ---
 
 
-    // --- ▼ HP半減時処理＆スライムビーム ▼ ---
-    triggerHpHalfEffect() {
-        console.log("King Slime: HP below half! Activating phase 2 behaviors.");
-        // 画面フラッシュ
-        this.cameras.main.flash(300, 200, 200, 50); // 赤みがかったフラッシュ
-
-        // (通常攻撃の頻度変更は scheduleNext... メソッド内の isHpBelowHalf フラグで対応済み)
-
-        // スライムビーム攻撃を定期的に行うようにタイマー設定
-        this.scheduleSlimeBeam();
-    }
-
-    scheduleSlimeBeam() {
-        this.slimeBeamChargeTimer?.remove();
-        // スライムビームの間隔は固定でもランダムでも (ここでは仮に固定＋初回ディレイ)
-        const beamInterval = 10000; // 10秒ごと
-        const initialDelay = 3000; // 最初のビームまでの遅延
-        this.slimeBeamChargeTimer = this.time.delayedCall(this.isHpBelowHalf ? initialDelay : beamInterval, this.startSlimeBeamCharge, [], this);
-    }
-
-    startSlimeBeamCharge() {
-        if (!this.boss || !this.boss.active || this.isGameOver || this.bossDefeated) {
-            this.scheduleSlimeBeam(); return;
-        }
-        console.log("King Slime: Starting Slime Beam Charge!");
-        this.slimeBeamActive = true; // チャージ開始でフラグを立てる
-
-        // チャージ音SE
-        // try { this.sound.play(AUDIO_KEYS.SE_SLIME_BEAM_CHARGE); } catch(e) {}
-
-        // 画面赤明滅演出
-        for (let i = 0; i < (this.bossData.slimeBeamFlashCount || 3); i++) {
-            this.time.delayedCall(i * 800, () => { // 0.8秒ごとに明滅
-                 if (!this.slimeBeamActive) return; // チャージがキャンセルされた場合など
-                 this.cameras.main.flash(200, 255, 50, 50, false); // 赤くフラッシュ
-            });
-        }
-
-        // --- ▼ スライムビーム予兆マーカー表示 (プログラム描画) ▼ ---
-    const beamWidth = this.gameWidth * (this.bossData.slimeBeamWidthRatio || 0.33);
-    const beamX = this.gameWidth / 2;
-    const beamMarkerY = this.boss.y + this.boss.displayHeight / 2; // ボス下端から
-    const beamMarkerHeight = this.gameHeight - beamMarkerY;     // 画面下端まで
-
-    // 既存のビームオブジェクトがあれば破棄
-    this.slimeBeamObject?.destroy();
-
-    this.slimeBeamObject = this.add.rectangle(
-        beamX,
-        beamMarkerY + beamMarkerHeight / 2, // 矩形の中心Y
-        beamWidth,
-        beamMarkerHeight,
-        0xff0000, // 赤色
-        0.3       // 薄いアルファ値 (例: 0.3)
-    );
-    this.slimeBeamObject.setOrigin(0.5, 0.5).setDepth(1); // 適切な深度
-    console.log("Slime Beam charge marker (rectangle) displayed.");
-    // --- ▲ スライムビーム予兆マーカー表示 ▲ ---
-        // チャージ時間後にビーム発射
-        this.time.delayedCall(this.bossData.slimeBeamChargeTime || 3000, this.fireSlimeBeam, [], this);
-    }
-
-    fireSlimeBeam() {
-        if (!this.boss || !this.boss.active || !this.slimeBeamActive || this.isGameOver || this.bossDefeated) {
-            this.slimeBeamActive = false;
-            this.slimeBeamObject?.destroy(); this.slimeBeamObject = null;
-            if (!this.isGameOver && !this.bossDefeated) this.scheduleSlimeBeam();
-            return;
-        }
-        console.log("King Slime: Firing Slime Beam!");
-        // 予兆マーカーがあった場所に実際のビームエフェクトを生成
-        // (今回はマーカーをそのままビームとして扱うので、見た目を変えるなど)
-        if (this.slimeBeamObject) {
-            this.slimeBeamObject.setFillStyle(0x00ff00, 0.6); // 緑色のビームに変化
-            // ここでパーティクルや複数スプライトのTweenアニメーションを開始
-            // (例: Tiny PhaserやPhaserのパーティクルエミッターを使用)
-        }
-
-        // ビーム放出音SE
-        // try { this.sound.play(AUDIO_KEYS.SE_SLIME_BEAM_FIRE); } catch(e) {}
-
-        // 当たり判定は slimeBeamObject (Rectangle) を使う
-        // updateメソッドなどで、この slimeBeamObject とパドル・ボールの overlap をチェックする
-
-        // 持続時間後にビーム終了
-        this.time.delayedCall(this.bossData.slimeBeamDuration || 2000, this.endSlimeBeam, [], this);
-    }
-
-    endSlimeBeam() {
-        console.log("King Slime: Slime Beam Ended.");
-        this.slimeBeamActive = false;
-        this.slimeBeamObject?.destroy();
-        this.slimeBeamObject = null;
-
-        // 次のビームを予約 (戦闘中なら)
-        if (!this.isGameOver && !this.bossDefeated) {
-            this.scheduleSlimeBeam();
-        }
-    }
-    // --- ▲ HP半減時処理＆スライムビーム ▲ ---
-
-
+    // --- ▼ HP半減時処理＆スライムビーム (骨子) ▼ ---
     // applyBossDamage をオーバーライドしてHP半減を検知
     applyBossDamage(bossInstance, damageAmount, source = "Unknown") {
         const hpBefore = bossInstance.getData('health');
@@ -524,59 +316,78 @@ spawnTargetedAttack() {
         const hpAfter = bossInstance.getData('health');
 
         if (!this.isHpBelowHalf && hpAfter <= this.bossData.health / 2 && hpBefore > this.bossData.health / 2) {
-            // HPが初めて半分以下になった瞬間
-            this.isHpBelowHalf = true;
+            this.isHpBelowHalf = true; // フラグを立てる
+            console.log("[HP Half] Boss HP reached half or less. Triggering phase 2.");
             this.triggerHpHalfEffect();
         }
     }
 
-    // ボールと攻撃ブロックの衝突処理 (CommonBossSceneから呼ばれる)
-    // CommonBossSceneの hitAttackBrick や handleBallAttackBrickOverlap を確認し、
-    // blockType に応じた反射を実装する。
-    // (CommonBossScene側でこの分岐を実装する方が良いかもしれない)
+    triggerHpHalfEffect() {
+        console.log("[HP Half] Activating phase 2 effects (flash, beam schedule)...");
+        this.cameras.main.flash(400, 230, 200, 80, false); // 黄色っぽいフラッシュ
 
-    // 例: CommonBossSceneのhitAttackBrickをオーバーライドする場合
+        // スライムビーム攻撃をここから定期的に行うようにする
+        this.scheduleSlimeBeam();
+    }
+
+    scheduleSlimeBeam() {
+        // (実装は次のステップ)
+        console.log("[Beam] TODO: Implement scheduleSlimeBeam");
+    }
+    startSlimeBeamCharge() {
+        // (実装は次のステップ)
+        console.log("[Beam] TODO: Implement startSlimeBeamCharge");
+    }
+    fireSlimeBeam() {
+        // (実装は次のステップ)
+        console.log("[Beam] TODO: Implement fireSlimeBeam");
+    }
+    endSlimeBeam() {
+        // (実装は次のステップ)
+        console.log("[Beam] TODO: Implement endSlimeBeam");
+    }
+    checkSlimeBeamCollisions() {
+        // (実装は次のステップ)
+        // console.log("[Beam] TODO: Implement checkSlimeBeamCollisions");
+    }
+    // --- ▲ HP半減時処理＆スライムビーム ▲ ---
+
+
+    // ボールと壁ブロックの衝突処理のオーバーライド
+    // (CommonBossSceneのhitAttackBrickから呼ばれることを想定し、
+    //  CommonBossScene側でblockTypeによる分岐を実装するか、ここで完全に上書き)
     /*
     hitAttackBrick(brick, ball) {
         if (!brick?.active || !ball?.active) return;
-
         const blockType = brick.getData('blockType');
 
         if (blockType === 'wall') {
-            // 壁ブロックの場合：強制的に斜め下に反射
-            console.log("Ball hit WALL component. Forcing downward reflection.");
-            // Y速度を必ず正に、X速度は左右ランダムかボールのX速度を維持
-            let newVx = ball.body.velocity.x * 0.8; // 少し減速させるなど
-            let newVy = Math.abs(ball.body.velocity.y) * 0.5 + 100; // 必ず下向きで最低速度保証
-            if (Math.abs(newVx) < 50) newVx = Phaser.Math.Between(-100, 100); // Xが遅すぎたらランダムに
-
-            ball.setVelocity(newVx, newVy);
-            this.destroyAttackBrickAndDropItem(brick); // アイテムドロップありで破壊
+            console.log("Ball hit WALL component (King Slime). Forcing downward reflection.");
+            // ... 強制下向き反射ロジック ...
+            this.destroyAttackBrickAndDropItem(brick);
         } else if (blockType === 'projectile') {
-            // 通常の攻撃弾の場合：CommonBossSceneのデフォルトの反射ロジック
-            console.log("Ball hit PROJECTILE component. Using default reflection.");
-            super.hitAttackBrick(brick, ball); // 親のメソッドを呼ぶ
+            console.log("Ball hit PROJECTILE component (King Slime). Using default reflection.");
+            super.hitAttackBrick(brick, ball); // 親のメソッドを呼ぶ (アイテムドロップなども含む)
         } else {
-            // 未定義のタイプの場合はデフォルト処理
-            super.hitAttackBrick(brick, ball);
+            super.hitAttackBrick(brick, ball); // 不明なタイプは親に任せる
         }
     }
     */
 
     // shutdownScene でタイマーなどをクリア
     shutdownScene() {
-        super.shutdownScene(); // 親のシャットダウン処理を呼ぶ
+        super.shutdownScene();
+        // このシーン固有のタイマーやオブジェクトをクリア
         this.wallBlockSpawnTimers.lineA?.remove();
         this.wallBlockSpawnTimers.lineB?.remove();
         this.slimeBeamChargeTimer?.remove();
         this.radialAttackTimer?.remove();
         this.targetedAttackTimer?.remove();
         this.slimeBeamObject?.destroy();
-
-        this.wallBlockSpawnTimers = { lineA: null, lineB: null };
-        this.slimeBeamChargeTimer = null;
-        this.radialAttackTimer = null;
-        this.targetedAttackTimer = null;
-        this.slimeBeamObject = null;
+        // SEの停止などもここで念のため
+        if (this.bossData.seKingSlimeRumble) {
+            try {this.sound.stopByKey(this.bossData.seKingSlimeRumble);}catch(e){}
+        }
+        console.log("--- Boss3Scene SHUTDOWN Complete ---");
     }
 }
