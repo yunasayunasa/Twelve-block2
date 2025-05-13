@@ -32,8 +32,8 @@ const config = {
         }
     },
     // 使用するシーンのリスト (インポートしたクラスを指定)
-    scene: [BootScene, TitleScene, CommonBossScene, UIScene, Boss1Scene,Boss2Scene//★ シーンリストに追加
-        // Boss3Scene, // 今後追加
+    scene: [BootScene, TitleScene, CommonBossScene, UIScene, Boss1Scene,Boss2Scene,//★ シーンリストに追加
+         Boss3Scene, // 今後追加
         // Boss4Scene, // 今後追加
         // Boss5Scene  // 今後追加
         ],
