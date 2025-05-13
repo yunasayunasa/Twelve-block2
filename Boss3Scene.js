@@ -345,55 +345,55 @@ startWallBlockSpawners() {
     });
 }
 
+// spawnWallBlock メソッド (エラー箇所を修正する可能性のあるバージョン)
 spawnWallBlock(line) { // line は 'A' または 'B'
     if (!this.attackBricks || !this.boss || !this.boss.active || this.isGameOver || this.bossDefeated) {
-        // console.warn(`[Wall] Conditions not met to spawn wall block for line ${line}.`);
         return;
     }
 
-    const texture = this.bossData.wallBlockTexture || 'attack_brick_gold'; // デフォルトキー
+    const texture = this.bossData.wallBlockTexture || 'attack_brick_gold';
     const scale = this.bossData.wallBlockScale || 0.12;
     const speed = this.bossData.wallBlockSpeed || 120;
 
     let spawnX, velocityX, spawnY;
-    // ボス画像の表示上の上端Y座標を取得 (原点が中央なので注意)
-    const bossDisplayTopY = this.boss.y + (this.boss.displayHeight / 2);
 
-    let yOffsetValueA, yOffsetValueB;
-      if (line === 'A') { // 上層の壁 (右から左)
-        // wallLineAYOffsetFromBottom は、ボスの下端からどれだけ下に配置するかの「固定ピクセル値」または「画面高さ比」
-        // ここでは「画面高さ比」として、initializeBossData で設定する値を調整する
-        // 例えば、0.05 なら画面高さの5%分、ボスの下端より下に配置
-        yOffsetValueA = this.gameHeight * (this.bossData.wallLineAYOffsetFromBottom || 0.05); // ★新しいbossDataの項目
-        spawnY = bossDisplayBottomY + yOffsetValueA;
-        console.log(`[Wall A] OffsetFromBottomRatio: ${this.bossData.wallLineAYOffsetFromBottom || 0.05}, yOffsetValueA: ${yOffsetValueA.toFixed(1)}, SpawnY: ${spawnY.toFixed(1)}`);
-    } else { // line === 'B', 下層の壁 (左から右)
-        // wallLineBYOffsetFromBottom は、ラインAよりさらに下に配置するためのオフセット
-        // 例えば、0.1 なら画面高さの10%分、ボスの下端より下に配置
-        yOffsetValueB = this.gameHeight * (this.bossData.wallLineBYOffsetFromBottom || 0.1); // ★新しいbossDataの項目
-        spawnY = bossDisplayBottomY + yOffsetValueB;
-        console.log(`[Wall B] OffsetFromBottomRatio: ${this.bossData.wallLineBYOffsetFromBottom || 0.1}, yOffsetValueB: ${yOffsetValueB.toFixed(1)}, SpawnY: ${spawnY.toFixed(1)}`);
+    // ★★★ bossDisplayBottomY を if文の外、spawnYの計算の直前で定義 ★★★
+    const bossDisplayBottomY = this.boss.y + (this.boss.displayHeight / 2);
+    console.log(`[Wall Spawn] Boss Y: ${this.boss.y.toFixed(1)}, DisplayHeight: ${this.boss.displayHeight.toFixed(1)}, bossDisplayBottomY: ${bossDisplayBottomY.toFixed(1)}`);
+
+    let yOffsetValue; // yOffsetValue も if の外で宣言し、if の中で値を設定する
+
+    if (line === 'A') { // 右から左へ、上層
+        spawnX = this.gameWidth + (this.gameWidth * scale * 0.5) + 10;
+        velocityX = -speed;
+        yOffsetValue = this.gameHeight * (this.bossData.wallLineAYOffsetFromBottom || 0.05);
+        spawnY = bossDisplayBottomY + yOffsetValue; // ★ここで bossDisplayBottomY を使用
+        console.log(`[Wall A] OffsetFromBottomRatio: ${this.bossData.wallLineAYOffsetFromBottom || 0.05}, yOffsetValue: ${yOffsetValue.toFixed(1)}, SpawnY: ${spawnY.toFixed(1)}`);
+    } else { // line === 'B', 左から右へ、下層
+        spawnX = -(this.gameWidth * scale * 0.5) - 10;
+        velocityX = speed;
+        yOffsetValue = this.gameHeight * (this.bossData.wallLineBYOffsetFromBottom || 0.1);
+        spawnY = bossDisplayBottomY + yOffsetValue; // ★ここで bossDisplayBottomY を使用
+        console.log(`[Wall B] OffsetFromBottomRatio: ${this.bossData.wallLineBYOffsetFromBottom || 0.1}, yOffsetValue: ${yOffsetValue.toFixed(1)}, SpawnY: ${spawnY.toFixed(1)}`);
     }
 
+    // wallBlock の生成と設定 (ここは変更なし)
     const wallBlock = this.attackBricks.create(spawnX, spawnY, texture);
     if (wallBlock) {
-        wallBlock.setScale(scale); // スケールを先に設定
-        wallBlock.setOrigin(0.5, 0.5); // 原点を中央に (スケール設定後にサイズが確定するため)
+        wallBlock.setScale(scale);
+        wallBlock.setOrigin(0.5, 0.5);
 
-        // 物理ボディ設定
         if (wallBlock.body) {
             wallBlock.body.setAllowGravity(false);
-            wallBlock.body.setCollideWorldBounds(false); // 画面端での反射は不要
+            wallBlock.body.setCollideWorldBounds(false);
             wallBlock.body.setVelocityX(velocityX);
-        } else { // ボディがない場合は手動で動かす (あまりないはずだが念のため)
-            wallBlock.setData('velocityX', velocityX); // updateで手動移動させる場合の速度保持用
+        } else {
+            wallBlock.setData('velocityX', velocityX);
         }
 
         wallBlock.setData('blockType', 'wall');
         wallBlock.setData('wallLine', line);
-        wallBlock.setDepth(-1); // ボスよりは奥、背景よりは手前など (調整)
-
-        // console.log(`[Wall] Spawned wall block for line ${line} at X:${spawnX.toFixed(0)}, Y:${spawnY.toFixed(0)} with V_X:${velocityX}`);
+        wallBlock.setDepth(-1);
     } else {
         console.error(`[Wall] Failed to create wall block for line ${line}`);
     }
