@@ -123,7 +123,7 @@ console.log("Loading King Gold Slime (Boss3) assets...");
 this.load.image('boss_king_slime_stand', 'assets/boss_king_slime_stand.png');
 this.load.image('boss_king_slime_negative', 'assets/boss_king_slime_negative.png');
 this.load.image('attack_brick_gold', 'assets/attack_brick_common.png'); // 流れる壁用ブロック
-this.load.image('attack_brick_slime_projectile', 'assets/attack_brick_slime_common.png'); // 通常攻撃弾
+this.load.image('attack_brick_slime_projectile', 'assets/attack_brick_common.png'); // 通常攻撃弾
 //this.load.image('target_marker_slime', 'assets/target_marker_slime.png'); // ターゲット攻撃マーカー
 this.load.image('slime_beam_particle', 'assets/attack_brick_common.png'); // スライムビーム構成要素
 this.load.image('gameBackground_Boss3', 'assets/gameBackground_Boss3.jpg'); // 専用背景

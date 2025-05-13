@@ -300,7 +300,7 @@ showKingSlimeVSOverlay() {
 
     // 通常攻撃のタイマーを開始 (これは次のステップで)
      this.scheduleNextRadialAttack();
-     this.scheduleNextTargetedAttack();
+    // this.scheduleNextTargetedAttack();
 
     console.log("--- Boss3Scene startSpecificBossMovement Complete ---");
 }
