@@ -10,7 +10,7 @@ export default class TitleScene extends Phaser.Scene {
         this.domElements = []; // DOM要素管理用
         this.currentBgm = null; // BGM管理用
         // ▼▼▼ テスト用: 開始するボスシーン番号 (1から TOTAL_BOSSES まで) ▼▼▼
-        this.testStartBossIndex = 2; // ★ ここを変えるだけでテスト対象を変更
+        this.testStartBossIndex = 3; // ★ ここを変えるだけでテスト対象を変更
         // ▲▲▲ テスト用: 開始するボスシーン番号 ▲▲▲
      }
 
@@ -189,7 +189,7 @@ console.log(`[TitleScene] Item抽選数スライダーの最大値を ${totalPow
 
                 // テスト開始データ
                 const testData = {
-                    lives: 5, // ★ テスト用にライフ多め
+                    lives: 9, // ★ テスト用にライフ多め
                     chaosSettings: { count: this.selectedCount, ratePercent: this.selectedRate },
                     currentBossIndex: this.testStartBossIndex // ★ テスト対象ボス番号
                 };
