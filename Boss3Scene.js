@@ -299,8 +299,8 @@ showKingSlimeVSOverlay() {
     this.startWallBlockSpawners(); // ★今回の実装対象
 
     // 通常攻撃のタイマーを開始 (これは次のステップで)
-    // this.scheduleNextRadialAttack();
-    // this.scheduleNextTargetedAttack();
+     this.scheduleNextRadialAttack();
+     this.scheduleNextTargetedAttack();
 
     console.log("--- Boss3Scene startSpecificBossMovement Complete ---");
 }
@@ -428,24 +428,134 @@ cleanupWallBlocks() {
 
 
 
-    // --- ▼ 通常攻撃パターン (骨子) ▼ ---
-    scheduleNextRadialAttack() {
-        // (実装は次のステップ)
-        console.log("[Attack] TODO: Implement scheduleNextRadialAttack");
+    // --- ▼ 通常攻撃パターン ▼ ---
+scheduleNextRadialAttack() {
+    if (this.radialAttackTimer) this.radialAttackTimer.remove();
+    if (!this.boss || !this.boss.active || this.isGameOver || this.bossDefeated) return;
+
+    const minInterval = this.isHpBelowHalf ?
+        (this.bossData.後半_radialAttackIntervalMin || 2000) :
+        (this.bossData.radialAttackIntervalMin || 3500);
+    const maxInterval = this.isHpBelowHalf ?
+        (this.bossData.後半_radialAttackIntervalMax || 3500) :
+        (this.bossData.radialAttackIntervalMax || 5500);
+
+    const nextDelay = Phaser.Math.Between(minInterval, maxInterval);
+    console.log(`[Attack] Scheduling next Radial Attack in ${nextDelay}ms. HP Below Half: ${this.isHpBelowHalf}`);
+    this.radialAttackTimer = this.time.delayedCall(nextDelay, this.spawnRadialAttack, [], this);
+}
+
+spawnRadialAttack() {
+    if (!this.attackBricks || !this.boss || !this.boss.active || this.isGameOver || this.bossDefeated) {
+        if (!this.isGameOver && !this.bossDefeated) this.scheduleNextRadialAttack(); // 戦闘中なら再スケジュール
+        return;
     }
-    spawnRadialAttack() {
-        // (実装は次のステップ)
-        console.log("[Attack] TODO: Implement spawnRadialAttack");
+    console.log("King Slime: Spawning Radial Attack");
+    // this.sound.play(AUDIO_KEYS.SE_BOSS_ATTACK_1); // 攻撃SE
+
+    const count = this.bossData.radialAttackProjectileCount || 3;
+    const angles = this.bossData.radialAttackAngles || [75, 90, 105]; // 真下とその左右
+    const speed = this.bossData.radialAttackProjectileSpeed || DEFAULT_ATTACK_BRICK_VELOCITY_Y + 10;
+    const texture = this.bossData.radialAttackProjectileTexture || 'attack_brick_slime_projectile';
+    const scale = this.bossData.radialAttackProjectileScale || 0.1;
+    // ボス本体の下部中央あたりから発射
+    const spawnX = this.boss.x;
+    const spawnY = this.boss.y + (this.boss.displayHeight / 2) * 0.8; // ボス下端より少し内側から
+
+    angles.forEach(angleDeg => {
+        const projectile = this.attackBricks.create(spawnX, spawnY, texture);
+        if (projectile) {
+            projectile.setScale(scale).setOrigin(0.5, 0.5);
+            if (projectile.body) {
+                this.physics.velocityFromAngle(angleDeg, speed, projectile.body.velocity);
+                projectile.body.setAllowGravity(false);
+                projectile.body.setCollideWorldBounds(true); // ★画面端で反射させる
+                projectile.body.onWorldBounds = true; // ★ワールド境界イベント有効化
+            }
+            projectile.setData('blockType', 'projectile');
+            projectile.setDepth(1); // 壁より手前、ボールと同じくらいか
+        }
+    });
+    this.scheduleNextRadialAttack(); // 次の攻撃を予約
+}
+
+scheduleNextTargetedAttack() {
+    if (this.targetedAttackTimer) this.targetedAttackTimer.remove();
+    if (!this.boss || !this.boss.active || this.isGameOver || this.bossDefeated) return;
+
+    const minInterval = this.isHpBelowHalf ?
+        (this.bossData.後半_targetedAttackIntervalMin || 2500) :
+        (this.bossData.targetedAttackIntervalMin || 4500);
+    const maxInterval = this.isHpBelowHalf ?
+        (this.bossData.後半_targetedAttackIntervalMax || 4000) :
+        (this.bossData.targetedAttackIntervalMax || 6500);
+
+    const nextDelay = Phaser.Math.Between(minInterval, maxInterval);
+    console.log(`[Attack] Scheduling next Targeted Attack in ${nextDelay}ms. HP Below Half: ${this.isHpBelowHalf}`);
+    this.targetedAttackTimer = this.time.delayedCall(nextDelay, this.spawnTargetedAttack, [], this);
+}
+
+spawnTargetedAttack() {
+    if (!this.attackBricks || !this.boss || !this.boss.active || !this.paddle || !this.paddle.active || this.isGameOver || this.bossDefeated) {
+        if (!this.isGameOver && !this.bossDefeated) this.scheduleNextTargetedAttack();
+        return;
     }
-    scheduleNextTargetedAttack() {
-        // (実装は次のステップ)
-        console.log("[Attack] TODO: Implement scheduleNextTargetedAttack");
-    }
-    spawnTargetedAttack() {
-        // (実装は次のステップ)
-        console.log("[Attack] TODO: Implement spawnTargetedAttack");
-    }
-    // --- ▲ 通常攻撃パターン ▲ ---
+    console.log("King Slime: Spawning Targeted Attack");
+    // this.sound.play(AUDIO_KEYS.SE_BOSS_ATTACK_2); // 攻撃SE
+
+    const targetX = this.paddle.x; // 発射決定時のパドルX座標
+    const spawnFromBossY = this.boss.y + (this.boss.displayHeight / 2) * 0.8;
+    const speed = this.bossData.targetedAttackProjectileSpeed || DEFAULT_ATTACK_BRICK_VELOCITY_Y + 30;
+    const texture = this.bossData.targetedAttackProjectileTexture || 'attack_brick_slime_projectile';
+    const scale = this.bossData.targetedAttackProjectileScale || 0.13;
+    const chargeTime = this.bossData.targetedAttackChargeTime || 700; // 予兆表示時間
+    const markerDuration = this.bossData.targetedAttackMarkerDuration || 700;
+
+    // --- 予兆マーカー表示 (プログラム描画) ---
+    const markerRadius = this.paddle.displayWidth * 0.5; // パドル幅の半分くらいの円
+    const markerY = this.paddle.y - this.paddle.displayHeight; // パドルの少し上に表示
+    const marker = this.add.graphics({fillStyle: { color: 0xff0000, alpha: 0 }}); // 最初は透明
+    marker.fillCircle(targetX, markerY, markerRadius);
+    marker.setDepth(0);
+    // フェードイン・フェードアウトするマーカー
+    this.tweens.add({
+        targets: marker,
+        alpha: 0.3,
+        duration: markerDuration / 2,
+        yoyo: true, // alpha 0.3 -> 0 に戻る
+        onComplete: () => {
+            if (marker.scene) marker.destroy(); // Tween完了時に破棄
+        }
+    });
+    console.log(`[Targeted Attack] Marker displayed at X:${targetX.toFixed(0)}, Y:${markerY.toFixed(0)}`);
+
+    // 予兆表示時間後に発射
+    this.time.delayedCall(chargeTime, () => {
+        if (!this.attackBricks || !this.boss || !this.boss.active || this.isGameOver || this.bossDefeated) return;
+
+        const projectile = this.attackBricks.create(this.boss.x, spawnFromBossY, texture);
+        if (projectile) {
+            projectile.setScale(scale).setOrigin(0.5, 0.5);
+            if (projectile.body) {
+                // 発射決定時のターゲットXと、画面下端（またはパドルY座標の少し下）へ向かう角度
+                const angleToTarget = Phaser.Math.Angle.Between(
+                    this.boss.x, spawnFromBossY,
+                    targetX, this.gameHeight - 50 // 画面下端より少し手前を狙う
+                );
+                this.physics.velocityFromAngle(Phaser.Math.RadToDeg(angleToTarget), speed, projectile.body.velocity);
+                projectile.body.setAllowGravity(false);
+                projectile.body.setCollideWorldBounds(true); // ★画面端で反射させる
+                projectile.body.onWorldBounds = true; // ★ワールド境界イベント有効化
+            }
+            projectile.setData('blockType', 'projectile');
+            projectile.setDepth(1);
+            console.log(`[Targeted Attack] Projectile fired towards X:${targetX.toFixed(0)}`);
+        }
+    }, [], this);
+
+    this.scheduleNextTargetedAttack(); // 次の攻撃を予約
+}
+// --- ▲ 通常攻撃パターン ▲ ---
 
 
     // --- ▼ HP半減時処理＆スライムビーム (骨子) ▼ ---
