@@ -63,7 +63,7 @@ export default class Boss3Scene extends CommonBossScene {
             bgmKey: AUDIO_KEYS.BGM_KING_SLIME || AUDIO_KEYS.BGM1, // 専用がなければ汎用
             cutsceneText: 'VS キングゴールドスライム',
             widthRatio: 0.75,  // 画面幅の75% (テクスチャのアスペクト比で調整)
-            heightRatio: 0.33, // ボス本体が表示されるY軸方向の目安
+            heightRatio: 0.3, // ボス本体が表示されるY軸方向の目安
    // --- 流れる壁ギミック関連 ---
             // wallLineAYOffsetRatio と wallLineBYOffsetRatio は削除またはコメントアウト
             // wallLineAYOffsetRatio: 0.28, (古い)
@@ -99,6 +99,10 @@ export default class Boss3Scene extends CommonBossScene {
             // slimeBeamTextureKey は不要 (プログラム描画のため)
             slimeBeamFlashCount: 3,
             slimeBeamInterval: 12000, // スライムビームの再使用間隔
+
+             // ★このボス戦でドロッププールから除外するパワーアップのリスト★
+        excludedPowerUps: [POWERUP_TYPES.SINDARA, POWERUP_TYPES.ANCHIRA],
+
 
             backgroundKey: 'gameBackground_Boss3',
             // 専用登場演出用SEキー (あれば)
@@ -141,7 +145,45 @@ export default class Boss3Scene extends CommonBossScene {
         }
         console.log("--- Boss3Scene createSpecificBoss Complete ---");
     }
+// Boss3Scene.js クラス内に追加
 
+/**
+ * キングゴールドスライム戦専用のドロッププールを設定する。
+ * 特定のパワーアップを除外する。
+ */
+setupBossDropPool() {
+    console.log("[Boss3Scene] Setting up custom boss drop pool, excluding SINDARA and ANCHIRA.");
+
+    // 1. 除外対象を取得 (bossData から)
+    const excluded = this.bossData.excludedPowerUps || [];
+
+    // 2. 全てのパワーアップから除外対象を除いたリストを作成
+    //    CommonBossScene の ALL_POSSIBLE_POWERUPS を参照
+    let candidatePool = [];
+    if (this.ALL_POSSIBLE_POWERUPS && Array.isArray(this.ALL_POSSIBLE_POWERUPS)) {
+        candidatePool = this.ALL_POSSIBLE_POWERUPS.filter(type => !excluded.includes(type));
+    } else {
+        // フォールバック: CommonBossScene に ALL_POSSIBLE_POWERUPS がないか、不正な場合
+        // (通常は CommonBossScene の constructor で定義されているはず)
+        console.warn("[Boss3Scene setupBossDropPool] this.ALL_POSSIBLE_POWERUPS is not available. Using all types without exclusion.");
+        candidatePool = Object.values(POWERUP_TYPES).filter(type => !excluded.includes(type));
+    }
+
+    console.log(`[Boss3Scene] Candidate pool after exclusion: [${candidatePool.join(',')}]`);
+
+    // 3. 候補リストをシャッフル
+    const shuffledPool = Phaser.Utils.Array.Shuffle([...candidatePool]); // 配列をコピーしてからシャッフル
+
+    // 4. chaosSettings.count の数だけ取り出してボスドロッププールに設定
+    this.bossDropPool = shuffledPool.slice(0, this.chaosSettings.count);
+
+    console.log(`[Boss3Scene] Final Boss Drop Pool (Count: ${this.chaosSettings.count}): [${this.bossDropPool.join(',')}]`);
+
+    // 5. UIに更新を通知 (CommonBossSceneのsetupBossDropPoolにもあった処理)
+    if (this.uiScene && this.uiScene.scene.isActive()) {
+        this.events.emit('updateDropPoolUI', this.bossDropPool);
+    }
+}
     // --- ▼ 専用登場演出 (ゴゴゴ...) ▼ ---
     // CommonBossScene の create で startIntroCutscene が呼ばれるので、それをオーバーライド
    startIntroCutscene() {
