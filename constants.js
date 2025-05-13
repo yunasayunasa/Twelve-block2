@@ -154,7 +154,7 @@ VOICE_KING_SLIME_DAMAGE: 'voice_king_slime_damage',     // キングスライム
 VOICE_KING_SLIME_DEFEAT: 'voice_king_slime_defeat',     // キングスライム撃破ボイス
 VOICE_KING_SLIME_RANDOM_1: 'voice_king_slime_appear', // キングスライムランダムボイス1
 // VOICE_KING_SLIME_RANDOM_2: 'voice_king_slime_random_2', // 必要なら追加
-SE_KING_SLIME_RUMBLE: 'se_flash_impact_common',         // 登場時の地響き/競り上がりSE
+SE_KING_SLIME_RUMBLE: 'voice_king_slime_defeat',         // 登場時の地響き/競り上がりSE
 SE_SLIME_BEAM_CHARGE: 'se_cutscene_start',         // スライムビーム チャージSE
 SE_SLIME_BEAM_FIRE: 'se_shrink',           // スライムビーム 放出SE
 
