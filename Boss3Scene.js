@@ -361,11 +361,11 @@ spawnWallBlock(line) { // line は 'A' または 'B'
     if (line === 'A') { // 右から左へ、上層 (ボスにめり込む)
         spawnX = this.gameWidth + (this.gameWidth * scale * 0.5) + 10; // 画面右外 (ブロック幅半分+α)
         velocityX = -speed;
-        spawnY = bossDisplayTopY + (this.gameHeight * (this.bossData.wallLineAYOffsetRatio || 0.28));
+        spawnY = bossDisplayTopY + (this.gameHeight * (this.bossData.wallLineAYOffsetRatio || 0.5));
     } else { // line === 'B', 左から右へ、下層
         spawnX = -(this.gameWidth * scale * 0.5) - 10; // 画面左外
         velocityX = speed;
-        spawnY = bossDisplayTopY + (this.gameHeight * (this.bossData.wallLineBYOffsetRatio || 0.32));
+        spawnY = bossDisplayTopY + (this.gameHeight * (this.bossData.wallLineBYOffsetRatio || 0.55));
     }
 
     const wallBlock = this.attackBricks.create(spawnX, spawnY, texture);
