@@ -140,20 +140,25 @@ export default class Boss3Scene extends CommonBossScene {
 
     // --- ▼ 専用登場演出 (ゴゴゴ...) ▼ ---
     // CommonBossScene の create で startIntroCutscene が呼ばれるので、それをオーバーライド
-    startIntroCutscene() {
-        console.log("[Boss3Scene] Starting King Gold Slime's custom intro (競り上がり)...");
-        this.isIntroAnimating = true;
-        this.playerControlEnabled = false;
-        this.isBallLaunched = false;
-        // this.sound.stopAll(); // CommonBossSceneのcreateで既に呼ばれているはず
-        // this.stopBgm();       // 同上
+   startIntroCutscene() {
+    console.log("[Boss3Scene] Starting King Gold Slime's custom intro (競り上がり)...");
+    this.isIntroAnimating = true;
+    this.playerControlEnabled = false; // プレイヤー操作不可
+    this.isBallLaunched = false;     // ボール未発射
 
-        if (!this.boss) {
-            console.error("Boss object not found for intro animation. Aborting intro.");
-            // 通常の戦闘開始フローにフォールバックするか、エラー処理
-            this.finalizeBossAppearanceAndStart();
-            return;
-        }
+    if (!this.boss) {
+        console.error("Boss object not found for intro animation. Aborting intro.");
+        this.finalizeBossAppearanceAndStart(); // フォールバック
+        return;
+    }
+
+    // ★★★ ボス本体の物理ボディを明示的に無効化 ★★★
+    if (this.boss.body) {
+        this.boss.disableBody(true, false); // GameObjectは表示するが、ボディは無効
+        console.log("[Boss3 Intro] Boss body explicitly disabled for intro animation.");
+    }
+    // ★★★------------------------------------★★★
+
 
         // ボスを画面下外に配置し、透明にしておく
         const bossTextureHeight = this.boss.height * this.boss.scaleY; // 表示スケール考慮
