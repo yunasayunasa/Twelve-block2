@@ -61,15 +61,16 @@ export default class Boss3Scene extends CommonBossScene {
             cutsceneText: 'VS キングゴールドスライム',
             widthRatio: 0.75,  // 画面幅の75% (テクスチャのアスペクト比で調整)
             heightRatio: 0.33, // ボス本体が表示されるY軸方向の目安
-
-            // --- 流れる壁ギミック関連 ---
-            wallLineAYOffsetRatio: 0.28, // ボス本体の画像の上端からの相対Y位置(画面高さ比)を想定
-            wallLineBYOffsetRatio: 0.32, // 壁Bは壁Aより少し下に
+   // --- 流れる壁ギミック関連 ---
+            // wallLineAYOffsetRatio と wallLineBYOffsetRatio は削除またはコメントアウト
+            // wallLineAYOffsetRatio: 0.28, (古い)
+            // wallLineBYOffsetRatio: 0.32, (古い)
+            wallLineAYOffsetFromBottom: 0.03, // ボスの下端から画面高さの3%下に壁Aの中心 (めり込ませるならこの値を小さく、または負にする)
+            wallLineBYOffsetFromBottom: 0.08, // ボスの下端から画面高さの8%下に壁Bの中心 (壁Aより下)
             wallBlockSpeed: 120,
             wallBlockSpawnInterval: 350,
             wallBlockTexture: 'attack_brick_gold',
-            wallBlockScale: 0.12, // 壁ブロックのスケール (元画像のサイズによる)
-
+            wallBlockScale: 0.12,
             // --- 通常攻撃 ---
             radialAttackIntervalMin: 3500,
             radialAttackIntervalMax: 5500,
@@ -356,17 +357,24 @@ spawnWallBlock(line) { // line は 'A' または 'B'
 
     let spawnX, velocityX, spawnY;
     // ボス画像の表示上の上端Y座標を取得 (原点が中央なので注意)
-    const bossDisplayTopY = this.boss.y - (this.boss.displayHeight / 2);
+    const bossDisplayTopY = this.boss.y + (this.boss.displayHeight / 2);
 
-    if (line === 'A') { // 右から左へ、上層 (ボスにめり込む)
-        spawnX = this.gameWidth + (this.gameWidth * scale * 0.5) + 10; // 画面右外 (ブロック幅半分+α)
-        velocityX = -speed;
-        spawnY = bossDisplayTopY + (this.gameHeight * (this.bossData.wallLineAYOffsetRatio || 5.0));
-    } else { // line === 'B', 左から右へ、下層
-        spawnX = -(this.gameWidth * scale * 0.5) - 10; // 画面左外
-        velocityX = speed;
-        spawnY = bossDisplayTopY + (this.gameHeight * (this.bossData.wallLineBYOffsetRatio || 5.1));
+    let yOffsetValueA, yOffsetValueB;
+      if (line === 'A') { // 上層の壁 (右から左)
+        // wallLineAYOffsetFromBottom は、ボスの下端からどれだけ下に配置するかの「固定ピクセル値」または「画面高さ比」
+        // ここでは「画面高さ比」として、initializeBossData で設定する値を調整する
+        // 例えば、0.05 なら画面高さの5%分、ボスの下端より下に配置
+        yOffsetValueA = this.gameHeight * (this.bossData.wallLineAYOffsetFromBottom || 0.05); // ★新しいbossDataの項目
+        spawnY = bossDisplayBottomY + yOffsetValueA;
+        console.log(`[Wall A] OffsetFromBottomRatio: ${this.bossData.wallLineAYOffsetFromBottom || 0.05}, yOffsetValueA: ${yOffsetValueA.toFixed(1)}, SpawnY: ${spawnY.toFixed(1)}`);
+    } else { // line === 'B', 下層の壁 (左から右)
+        // wallLineBYOffsetFromBottom は、ラインAよりさらに下に配置するためのオフセット
+        // 例えば、0.1 なら画面高さの10%分、ボスの下端より下に配置
+        yOffsetValueB = this.gameHeight * (this.bossData.wallLineBYOffsetFromBottom || 0.1); // ★新しいbossDataの項目
+        spawnY = bossDisplayBottomY + yOffsetValueB;
+        console.log(`[Wall B] OffsetFromBottomRatio: ${this.bossData.wallLineBYOffsetFromBottom || 0.1}, yOffsetValueB: ${yOffsetValueB.toFixed(1)}, SpawnY: ${spawnY.toFixed(1)}`);
     }
+Use 
 
     const wallBlock = this.attackBricks.create(spawnX, spawnY, texture);
     if (wallBlock) {
