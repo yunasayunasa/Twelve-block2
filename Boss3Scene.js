@@ -282,56 +282,140 @@ showKingSlimeVSOverlay() {
 
 
     // キングスライムは動かないので、startSpecificBossMovement は攻撃関連の初期化に使う
-    startSpecificBossMovement() {
-        console.log("--- Boss3Scene startSpecificBossMovement (King Slime is static, initializing attacks) ---");
-        if (!this.boss || !this.boss.active || this.isIntroAnimating) {
-            console.warn("Boss not ready or intro animating, delaying attack initialization.");
-            // イントロが終わってから再度呼ばれるようにするなど
-            return;
-        }
-        console.log("King Gold Slime is static. Initializing wall spawners and attack timers.");
-
-        // 流れる壁の生成を開始
-        this.startWallBlockSpawners();
-
-        // 通常攻撃のタイマーを開始
-        this.scheduleNextRadialAttack();
-        this.scheduleNextTargetedAttack();
-
-        // (HP半減後のスライムビームは、applyBossDamageのオーバーライド等でトリガー)
-        console.log("--- Boss3Scene startSpecificBossMovement Complete ---");
+   startSpecificBossMovement() {
+    console.log("--- Boss3Scene startSpecificBossMovement (King Slime is static, initializing attacks) ---");
+    if (!this.boss || !this.boss.active || this.isIntroAnimating) {
+        console.warn("Boss not ready or intro animating, delaying attack initialization.");
+        this.time.delayedCall(200, this.startSpecificBossMovement, [], this); // 少し待って再試行
+        return;
     }
+    console.log("King Gold Slime is static. Initializing wall spawners and attack timers.");
+
+    // 流れる壁の生成を開始
+    this.startWallBlockSpawners(); // ★今回の実装対象
+
+    // 通常攻撃のタイマーを開始 (これは次のステップで)
+    // this.scheduleNextRadialAttack();
+    // this.scheduleNextTargetedAttack();
+
+    console.log("--- Boss3Scene startSpecificBossMovement Complete ---");
+}
+
 
     // updateSpecificBossBehavior: 各種攻撃の実行管理、HP半減時の処理など
     // (このメソッドは CommonBossScene の update から毎フレーム呼ばれる)
-    updateSpecificBossBehavior(time, delta) {
-        if (this.isIntroAnimating || !this.playerControlEnabled || !this.boss || !this.boss.active || this.bossDefeated || this.isGameOver) {
-            return;
+   updateSpecificBossBehavior(time, delta) {
+    if (this.isIntroAnimating || !this.playerControlEnabled || !this.boss || !this.boss.active || this.bossDefeated || this.isGameOver) {
+        return;
+    }
+
+    // 流れる壁ブロックの画面外処理
+    this.cleanupWallBlocks(); // ★今回の実装対象
+
+    // (スライムビーム関連の更新などは後で追加)
+}
+
+
+  // --- ▼ 流れる壁ギミック ▼ ---
+startWallBlockSpawners() {
+    const spawnInterval = this.bossData.wallBlockSpawnInterval || 300; // デフォルト300ms
+    const initialDelay = 100; // 最初のブロックが少し遅れて出始めるように (任意)
+
+    console.log(`[Wall] Starting wall block spawners. Interval: ${spawnInterval}ms`);
+
+    // 壁ラインA (右から左)
+    if (this.wallBlockSpawnTimers.lineA) this.wallBlockSpawnTimers.lineA.remove(); // 既存タイマー削除
+    this.wallBlockSpawnTimers.lineA = this.time.addEvent({
+        delay: spawnInterval,
+        callback: () => this.spawnWallBlock('A'),
+        callbackScope: this,
+        loop: true,
+        startAt: initialDelay // 最初の実行を少し遅らせる
+    });
+
+    // 壁ラインB (左から右)
+    if (this.wallBlockSpawnTimers.lineB) this.wallBlockSpawnTimers.lineB.remove(); // 既存タイマー削除
+    this.wallBlockSpawnTimers.lineB = this.time.addEvent({
+        delay: spawnInterval,
+        callback: () => this.spawnWallBlock('B'),
+        callbackScope: this,
+        loop: true,
+        startAt: initialDelay + spawnInterval / 2 // ラインBはAと少しタイミングをずらす (任意)
+    });
+}
+
+spawnWallBlock(line) { // line は 'A' または 'B'
+    if (!this.attackBricks || !this.boss || !this.boss.active || this.isGameOver || this.bossDefeated) {
+        // console.warn(`[Wall] Conditions not met to spawn wall block for line ${line}.`);
+        return;
+    }
+
+    const texture = this.bossData.wallBlockTexture || 'attack_brick_gold'; // デフォルトキー
+    const scale = this.bossData.wallBlockScale || 0.12;
+    const speed = this.bossData.wallBlockSpeed || 120;
+
+    let spawnX, velocityX, spawnY;
+    // ボス画像の表示上の上端Y座標を取得 (原点が中央なので注意)
+    const bossDisplayTopY = this.boss.y - (this.boss.displayHeight / 2);
+
+    if (line === 'A') { // 右から左へ、上層 (ボスにめり込む)
+        spawnX = this.gameWidth + (this.gameWidth * scale * 0.5) + 10; // 画面右外 (ブロック幅半分+α)
+        velocityX = -speed;
+        spawnY = bossDisplayTopY + (this.gameHeight * (this.bossData.wallLineAYOffsetRatio || 0.28));
+    } else { // line === 'B', 左から右へ、下層
+        spawnX = -(this.gameWidth * scale * 0.5) - 10; // 画面左外
+        velocityX = speed;
+        spawnY = bossDisplayTopY + (this.gameHeight * (this.bossData.wallLineBYOffsetRatio || 0.32));
+    }
+
+    const wallBlock = this.attackBricks.create(spawnX, spawnY, texture);
+    if (wallBlock) {
+        wallBlock.setScale(scale); // スケールを先に設定
+        wallBlock.setOrigin(0.5, 0.5); // 原点を中央に (スケール設定後にサイズが確定するため)
+
+        // 物理ボディ設定
+        if (wallBlock.body) {
+            wallBlock.body.setAllowGravity(false);
+            wallBlock.body.setCollideWorldBounds(false); // 画面端での反射は不要
+            wallBlock.body.setVelocityX(velocityX);
+        } else { // ボディがない場合は手動で動かす (あまりないはずだが念のため)
+            wallBlock.setData('velocityX', velocityX); // updateで手動移動させる場合の速度保持用
         }
 
-        // 流れる壁ブロックの画面外処理
-        this.cleanupWallBlocks();
+        wallBlock.setData('blockType', 'wall');
+        wallBlock.setData('wallLine', line);
+        wallBlock.setDepth(-1); // ボスよりは奥、背景よりは手前など (調整)
 
-        // スライムビームの当たり判定更新 (もしビームがアクティブなら)
-        if (this.slimeBeamActive && this.slimeBeamObject) {
-            this.checkSlimeBeamCollisions();
+        // console.log(`[Wall] Spawned wall block for line ${line} at X:${spawnX.toFixed(0)}, Y:${spawnY.toFixed(0)} with V_X:${velocityX}`);
+    } else {
+        console.error(`[Wall] Failed to create wall block for line ${line}`);
+    }
+}
+
+cleanupWallBlocks() {
+    if (!this.attackBricks) return;
+
+    this.attackBricks.getChildren().forEach(block => {
+        if (block.active && block.getData('blockType') === 'wall') {
+            // 画面の左右の端を完全に超えたものを破棄
+            // ブロックの表示幅の半分を考慮して、画面外判定を少し甘くする
+            const blockHalfWidth = block.displayWidth / 2;
+            if (block.body && block.body.velocity.x < 0 && block.x < -blockHalfWidth) { // 左へ移動中
+                // console.log(`[Wall] Destroying wall block (left out): ${block.getData('wallLine')}`);
+                block.destroy();
+            } else if (block.body && block.body.velocity.x > 0 && block.x > this.gameWidth + blockHalfWidth) { // 右へ移動中
+                // console.log(`[Wall] Destroying wall block (right out): ${block.getData('wallLine')}`);
+                block.destroy();
+            } else if (!block.body && block.getData('velocityX') < 0 && block.x < -blockHalfWidth) { // ボディなしで手動移動の場合
+                 block.destroy();
+            } else if (!block.body && block.getData('velocityX') > 0 && block.x > this.gameWidth + blockHalfWidth) { // ボディなしで手動移動の場合
+                 block.destroy();
+            }
         }
-    }
+    });
+}
+// --- ▲ 流れる壁ギミック ▲ ---
 
-    // --- ▼ 流れる壁ギミック (骨子) ▼ ---
-    startWallBlockSpawners() {
-        // (実装は次のステップ)
-        console.log("[Wall] TODO: Implement startWallBlockSpawners");
-    }
-    spawnWallBlock(line) {
-        // (実装は次のステップ)
-        console.log(`[Wall] TODO: Implement spawnWallBlock for line ${line}`);
-    }
-    cleanupWallBlocks() {
-        // (実装は次のステップ)
-        // console.log("[Wall] TODO: Implement cleanupWallBlocks");
-    }
-    // --- ▲ 流れる壁ギミック ▲ ---
 
 
     // --- ▼ 通常攻撃パターン (骨子) ▼ ---
