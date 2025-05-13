@@ -356,16 +356,23 @@ spawnWallBlock(line) { // line は 'A' または 'B'
 
     let spawnX, velocityX, spawnY;
     // ボス画像の表示上の上端Y座標を取得 (原点が中央なので注意)
-    const bossDisplayTopY = this.boss.y - (this.boss.displayHeight / 2);
+     const bossDisplayTopY = this.boss.y - (this.boss.displayHeight / 2);
+    const bossHeight = this.boss.displayHeight; // ボスの表示高さを基準にする
 
-    if (line === 'A') { // 右から左へ、上層 (ボスにめり込む)
-        spawnX = this.gameWidth + (this.gameWidth * scale * 0.5) + 10; // 画面右外 (ブロック幅半分+α)
-        velocityX = -speed;
-        spawnY = bossDisplayTopY + (this.gameHeight * (this.bossData.wallLineAYOffsetRatio || 0.05));
-    } else { // line === 'B', 左から右へ、下層
-        spawnX = -(this.gameWidth * scale * 0.5) - 10; // 画面左外
-        velocityX = speed;
-        spawnY = bossDisplayTopY + (this.gameHeight * (this.bossData.wallLineBYOffsetRatio || 0.04));
+    console.log(`[Wall Spawn Debug] bossY: ${this.boss.y.toFixed(1)}, bossDisplayHeight: ${bossHeight.toFixed(1)}, bossDisplayTopY: ${bossDisplayTopY.toFixed(1)}`);
+
+    if (line === 'A') {
+        // wallLineAYOffsetRatio は、ボスの上端からどれだけ下か (ボス高さに対する割合)
+        // 例: 0.1 ならボス高さの10%分下。めり込ませたいならマイナス値も考慮。
+        // ただし、ボス上端基準なので、0.1でも既にめり込んでいることになる。
+        // もし「ボスの中央からどれだけ上/下」としたいなら基準を変える。
+        // ここでは「ボス上端から、ボス高さのX%分『下』の位置」とする。
+        // 「めり込ませる」を「ボスの上端よりY座標が大きい（下にある）」と解釈。
+        spawnY = bossDisplayTopY + (bossHeight * (this.bossData.wallLineAYOffsetRatio || 0.1)); // 例: ボス高さの10%下
+        console.log(`[Wall A] OffsetRatio: ${this.bossData.wallLineAYOffsetRatio || 0.1}, OffsetValue: ${(bossHeight * (this.bossData.wallLineAYOffsetRatio || 0.1)).toFixed(1)}, SpawnY: ${spawnY.toFixed(1)}`);
+    } else {
+        spawnY = bossDisplayTopY + (bossHeight * (this.bossData.wallLineBYOffsetRatio || 0.3)); // 例: ボス高さの30%下
+        console.log(`[Wall B] OffsetRatio: ${this.bossData.wallLineBYOffsetRatio || 0.3}, OffsetValue: ${(bossHeight * (this.bossData.wallLineBYOffsetRatio || 0.3)).toFixed(1)}, SpawnY: ${spawnY.toFixed(1)}`);
     }
 
     const wallBlock = this.attackBricks.create(spawnX, spawnY, texture);
