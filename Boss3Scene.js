@@ -205,31 +205,30 @@ export default class Boss3Scene extends CommonBossScene {
     });
     console.log("--- Boss3Scene startIntroCutscene (競り上がり+揺れ) Initiated ---");
 }
-
-  showKingSlimeVSOverlay() {
-    console.log("[Boss3Scene] Showing VS Overlay for King Gold Slime (using existing this.boss)...");
+// Boss3Scene.js
+showKingSlimeVSOverlay() {
+    console.log("[Boss3Scene] Showing VS Overlay for King Gold Slime (using add.image)...");
     if (this.bossData.voiceAppear) {
          try { this.sound.play(this.bossData.voiceAppear); } catch(e) {console.error("Error playing appear voice:",e);}
     }
     try { this.sound.play(AUDIO_KEYS.SE_CUTSCENE_START); } catch(e) {}
 
-    if (!this.boss || !this.boss.active) {
-        console.error("[VS Overlay] this.boss is not available or not active! Cannot show cutscene properly.");
-        // フォールバック処理: 即座に戦闘開始など
-        this.finalizeBossAppearanceAndStart();
-        return;
-    }
-
     // --- オーバーレイ表示 ---
     const overlay = this.add.rectangle(0, 0, this.gameWidth, this.gameHeight, 0x000000, 0.7)
         .setOrigin(0,0)
-        .setDepth(900); // オーバーレイはボスより奥、テキストより奥
+        .setDepth(900); // 奥
 
-    // --- ★既存の this.boss をカットインに使用 ★ ---
-    const originalBossDepth = this.boss.depth; // 元の深度を保持
-    this.boss.setDepth(901); // ★オーバーレイより手前、テキストより奥に設定
-    // ボス本体の表示位置やスケールは、競り上がり演出完了時の状態をそのまま利用。
-    // もしカットイン用に一時的にスケールや位置を変えたい場合はここでTweenなどを使う。
+    // --- ボス画像の表示 (新規生成) ---
+    // このカットシーン専用のボス画像。this.boss (スライム本体) とは別オブジェクト。
+    const bossImageScale = 0.7; // カットイン用の表示スケール (調整してください)
+    const bossImage = this.add.image(
+        this.gameWidth / 2,
+        this.gameHeight * 0.4, // Y座標: 画面中央より少し上 (調整してください)
+        this.bossData.textureKey   // スライム本体と同じテクスチャキーを使用
+    )
+        .setOrigin(0.5, 0.5)
+        .setScale(bossImageScale)
+        .setDepth(901); // オーバーレイより手前、テキストより奥
 
     // --- VSテキストの表示 ---
     const textContent = this.bossData.cutsceneText;
@@ -244,36 +243,32 @@ export default class Boss3Scene extends CommonBossScene {
         shadow: { offsetX: 3, offsetY: 3, color: '#000000', blur: 5, stroke: true, fill: true }
     };
 
-    // テキストのY座標は、画面中央か、ボスが見えるように少し下寄りに調整
-    const vsTextY = this.gameHeight * 0.65; // 例: 画面高さの65%の位置 (要調整)
+    // テキストのY座標を、表示したカットシーン用ボス画像の下にする
+    const bossImageBottom = bossImage.getBounds().bottom;
+    const textMarginTop = this.gameHeight * 0.05;
 
     const vsText = this.add.text(
         this.gameWidth / 2,
-        vsTextY,
+        bossImageBottom + textMarginTop,
         textContent,
         textStyle
     )
-        .setOrigin(0.5, 0.5) // 原点: テキストの中央
-        .setDepth(902);     // 最前面に表示
+        .setOrigin(0.5, 0) // 上端中央基準
+        .setDepth(902);    // 最前面
 
-    console.log(`[VS Overlay] Using this.boss (Depth: ${this.boss.depth}). Text Y: ${vsText.y.toFixed(0)}`);
+    console.log(`[VS Overlay] Created new bossImage for cutscene. Depth: ${bossImage.depth}. Text Y: ${vsText.y.toFixed(0)}`);
 
     const cutsceneDisplayDuration = CUTSCENE_DURATION || 1800;
     this.time.delayedCall(cutsceneDisplayDuration, () => {
-        if (overlay.scene) overlay.destroy();
-        // bossImage.destroy(); // ★これは不要、this.boss は破棄しない
-        if (vsText.scene) vsText.destroy();
-
-        // ★ ボスの深度を元に戻す (または戦闘時の深度に設定) ★
-        if (this.boss && this.boss.active) {
-            this.boss.setDepth(originalBossDepth); // 元の深度に戻す
-            // あるいは、戦闘時の決まった深度があるならそれに設定: this.boss.setDepth(0); など
-        }
+        if (overlay && overlay.scene) overlay.destroy();
+        if (bossImage && bossImage.scene) bossImage.destroy(); // ★カットシーン用画像を破棄
+        if (vsText && vsText.scene) vsText.destroy();
 
         console.log("[Boss3Scene] VS Overlay finished.");
+        // この後、this.boss (スライム本体) の物理ボディを有効化し戦闘開始
         this.finalizeBossAppearanceAndStart();
     }, [], this);
-    console.log("--- Boss3Scene showKingSlimeVSOverlay Complete (using this.boss) ---");
+    console.log("--- Boss3Scene showKingSlimeVSOverlay Complete (using add.image) ---");
 }
 
     // CommonBossSceneのfinalizeBossAppearanceAndStartは、ボスを見えるようにして物理ボディを有効化し、
