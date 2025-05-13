@@ -489,7 +489,77 @@ cleanupWallBlocks() {
     }
     // --- ▲ HP半減時処理＆スライムビーム ▲ ---
 
+// Boss3Scene.js
 
+// ... (既存のメソッドはそのまま) ...
+
+    /**
+     * ボールが攻撃ブロックに衝突した際の処理 (CommonBossSceneからオーバーライド)
+     * 壁ブロックの場合は特殊な下向き反射を行う。
+     * @param {Phaser.Physics.Arcade.Image} brick 衝突した攻撃ブロック
+     * @param {Phaser.Physics.Arcade.Image} ball 衝突したボール
+     */
+    hitAttackBrick(brick, ball) {
+        if (!brick?.active || !ball?.active || !ball.body) {
+            console.warn("[Boss3 hitAttackBrick] Invalid brick or ball state.");
+            return;
+        }
+
+        const blockType = brick.getData('blockType');
+
+        if (blockType === 'wall') {
+            console.log(`[Boss3 hitAttackBrick] Ball hit WALL component (Line: ${brick.getData('wallLine')}). Forcing downward reflection.`);
+
+            // --- 特殊な下向き反射ロジック ---
+            let newVx = ball.body.velocity.x; // 現在のX速度をベースにする
+            let newVy = Math.abs(ball.body.velocity.y); // 現在のY速度の絶対値（上向きでも下向きでも正の値に）
+
+            // Y速度を必ず下向きにし、最低速度を保証
+            const minBounceSpeedY = NORMAL_BALL_SPEED * 0.5; // 仮: 通常ボール速度の50%
+            newVy = Math.max(newVy, minBounceSpeedY);
+
+            // X速度の調整 (任意)
+            // 例: あまりにも真横に近い角度で壁に当たった場合、X速度を少し抑える
+            if (Math.abs(newVy) < Math.abs(newVx) * 0.3) { // YがXの30%未満なら
+                newVx *= 0.8; // X速度を20%減らす
+            }
+            // 例: 左右の壁の端の方で当たった場合、少し中央に戻るようにX速度を調整する (高度)
+
+            // パワーアップによる速度補正を考慮
+            let speedMultiplier = 1.0;
+            if (ball.getData('isFast') === true) {
+                speedMultiplier = BALL_SPEED_MODIFIERS[POWERUP_TYPES.SHATORA];
+            } else if (ball.getData('isSlow') === true) {
+                speedMultiplier = BALL_SPEED_MODIFIERS[POWERUP_TYPES.HAILA];
+            }
+            const targetSpeed = NORMAL_BALL_SPEED * speedMultiplier;
+
+            // 最終的な速度ベクトルを計算・正規化・適用
+            const finalVel = new Phaser.Math.Vector2(newVx, newVy); // newVyは既に正
+            if (finalVel.lengthSq() === 0) { // ゼロベクトル回避
+                finalVel.set(Phaser.Math.Between(-50, 50), targetSpeed * 0.7); // とりあえずランダムなXと下向きY
+            }
+            finalVel.normalize().scale(targetSpeed);
+
+            ball.setVelocity(finalVel.x, finalVel.y);
+            console.log(`[Wall Hit] Ball new velocity: (${finalVel.x.toFixed(1)}, ${finalVel.y.toFixed(1)})`);
+
+            // --- ブロック破壊とアイテムドロップ ---
+            // CommonBossScene のメソッドを呼び出す
+            this.destroyAttackBrickAndDropItem(brick);
+
+        } else if (blockType === 'projectile') {
+            // 通常の攻撃弾の場合は、CommonBossSceneの処理に任せる
+            console.log("[Boss3 hitAttackBrick] Ball hit PROJECTILE component. Calling super.hitAttackBrick.");
+            super.hitAttackBrick(brick, ball);
+        } else {
+            // 未定義のタイプの場合は、とりあえずCommonBossSceneの処理に任せる
+            console.warn(`[Boss3 hitAttackBrick] Ball hit UNKNOWN blockType: ${blockType}. Calling super.hitAttackBrick.`);
+            super.hitAttackBrick(brick, ball);
+        }
+    }
+
+// ... (他のメソッド) ...
     // ボールと壁ブロックの衝突処理のオーバーライド
     // (CommonBossSceneのhitAttackBrickから呼ばれることを想定し、
     //  CommonBossScene側でblockTypeによる分岐を実装するか、ここで完全に上書き)
