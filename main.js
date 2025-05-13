@@ -30,8 +30,7 @@ const config = {
             debug: true, // 物理ボディのデバッグ表示 (trueで見えるfalseでみえない)
             fps: 120, // デフォルトは通常ゲームのFPS (60が多い)
         // gravity: { y: 0 }
-    }
-},
+    
             gravity: { y: 0 } // 重力は使用しない
         }
     },
