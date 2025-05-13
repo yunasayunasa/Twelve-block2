@@ -299,8 +299,8 @@ showKingSlimeVSOverlay() {
     this.startWallBlockSpawners(); // ★今回の実装対象
 
     // 通常攻撃のタイマーを開始 (これは次のステップで)
-     this.scheduleNextRadialAttack();
-    // this.scheduleNextTargetedAttack();
+    // this.scheduleNextRadialAttack();
+     this.scheduleNextTargetedAttack();
 
     console.log("--- Boss3Scene startSpecificBossMovement Complete ---");
 }
