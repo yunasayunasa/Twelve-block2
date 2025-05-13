@@ -374,7 +374,6 @@ spawnWallBlock(line) { // line は 'A' または 'B'
         spawnY = bossDisplayBottomY + yOffsetValueB;
         console.log(`[Wall B] OffsetFromBottomRatio: ${this.bossData.wallLineBYOffsetFromBottom || 0.1}, yOffsetValueB: ${yOffsetValueB.toFixed(1)}, SpawnY: ${spawnY.toFixed(1)}`);
     }
-Use 
 
     const wallBlock = this.attackBricks.create(spawnX, spawnY, texture);
     if (wallBlock) {
