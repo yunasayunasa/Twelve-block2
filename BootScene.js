@@ -115,6 +115,50 @@ this.load.image('attack_brick_common', 'assets/attack_brick_common.png'); // フ
         this.load.audio(AUDIO_KEYS.VOICE_SOWAKA_RANDOM_1, 'assets/voice_sowaka_random_1.mp3');
         this.load.audio(AUDIO_KEYS.VOICE_SOWAKA_RANDOM_2, `assets/${AUDIO_KEYS.VOICE_SOWAKA_RANDOM_2}.mp3`);
         // --- ▲▲▲ ボス戦用サウンド読み込み ▲▲▲ ---
+
+        // --- キングゴールドスライム (Boss3) 関連アセット ---
+console.log("Loading King Gold Slime (Boss3) assets...");
+
+// 画像 (テクスチャ)
+this.load.image('boss_king_slime_stand', 'assets/boss_king_slime_stand.png');
+this.load.image('boss_king_slime_negative', 'assets/boss_king_slime_negative.png');
+this.load.image('attack_brick_gold', 'assets/attack_brick_gold.png'); // 流れる壁用ブロック
+this.load.image('attack_brick_slime_projectile', 'assets/attack_brick_slime_projectile.png'); // 通常攻撃弾
+this.load.image('target_marker_slime', 'assets/target_marker_slime.png'); // ターゲット攻撃マーカー
+this.load.image('slime_beam_particle', 'assets/slime_beam_particle.png'); // スライムビーム構成要素
+this.load.image('gameBackground_Boss3', 'assets/gameBackground_Boss3.jpg'); // 専用背景
+
+// 音声 (上記 constants.js で定義したキーを使用)
+if (AUDIO_KEYS.BGM_KING_SLIME) { // キーが存在するか一応確認
+    this.load.audio(AUDIO_KEYS.BGM_KING_SLIME, 'assets/bgm_king_slime.mp3');
+}
+if (AUDIO_KEYS.VOICE_KING_SLIME_APPEAR) {
+    this.load.audio(AUDIO_KEYS.VOICE_KING_SLIME_APPEAR, 'assets/voice_king_slime_appear.mp3');
+}
+if (AUDIO_KEYS.VOICE_KING_SLIME_DAMAGE) {
+    this.load.audio(AUDIO_KEYS.VOICE_KING_SLIME_DAMAGE, 'assets/voice_king_slime_damage.mp3');
+}
+if (AUDIO_KEYS.VOICE_KING_SLIME_DEFEAT) {
+    this.load.audio(AUDIO_KEYS.VOICE_KING_SLIME_DEFEAT, 'assets/voice_king_slime_defeat.mp3');
+}
+if (AUDIO_KEYS.VOICE_KING_SLIME_RANDOM_1) {
+    this.load.audio(AUDIO_KEYS.VOICE_KING_SLIME_RANDOM_1, 'assets/voice_king_slime_random_1.mp3');
+}
+// if (AUDIO_KEYS.VOICE_KING_SLIME_RANDOM_2) { // 必要なら
+//     this.load.audio(AUDIO_KEYS.VOICE_KING_SLIME_RANDOM_2, 'assets/voice_king_slime_random_2.mp3');
+// }
+if (AUDIO_KEYS.SE_KING_SLIME_RUMBLE) {
+    this.load.audio(AUDIO_KEYS.SE_KING_SLIME_RUMBLE, 'assets/se_king_slime_rumble.mp3');
+}
+if (AUDIO_KEYS.SE_SLIME_BEAM_CHARGE) {
+    this.load.audio(AUDIO_KEYS.SE_SLIME_BEAM_CHARGE, 'assets/se_slime_beam_charge.mp3');
+}
+if (AUDIO_KEYS.SE_SLIME_BEAM_FIRE) {
+    this.load.audio(AUDIO_KEYS.SE_SLIME_BEAM_FIRE, 'assets/se_slime_beam_fire.mp3');
+}
+// --- キングゴールドスライム (Boss3) 関連アセット読み込み終了 ---
+
+        
         console.log("Finished loading audio files setup.");
     }
 

@@ -93,6 +93,8 @@ export const POWERUP_ICON_KEYS = {
     [POWERUP_TYPES.MAKIRA]: 'icon_makira', [POWERUP_TYPES.MAKORA]: 'icon_makora',
     [POWERUP_TYPES.BIKARA_YANG]: 'icon_bikara_yang',
     [POWERUP_TYPES.BADRA]: 'icon_badra',
+
+    
 };
 
 // --- 音声キー ---
@@ -145,6 +147,21 @@ export const AUDIO_KEYS = {
     VOICE_SOWAKA_RANDOM_1: 'voice_sowaka_random_1',   // (要新規ファイル or 汎用)
     VOICE_SOWAKA_RANDOM_2: 'voice_sowaka_random_2',   // ★追加
 
+
+      // --- キングゴールドスライム (Boss3) 専用ボイス・SE ---
+VOICE_KING_SLIME_APPEAR: 'voice_king_slime_appear',     // キングスライム登場ボイス
+VOICE_KING_SLIME_DAMAGE: 'voice_king_slime_damage',     // キングスライム被ダメージボイス
+VOICE_KING_SLIME_DEFEAT: 'voice_king_slime_defeat',     // キングスライム撃破ボイス
+VOICE_KING_SLIME_RANDOM_1: 'voice_king_slime_random_1', // キングスライムランダムボイス1
+// VOICE_KING_SLIME_RANDOM_2: 'voice_king_slime_random_2', // 必要なら追加
+SE_KING_SLIME_RUMBLE: 'se_king_slime_rumble',         // 登場時の地響き/競り上がりSE
+SE_SLIME_BEAM_CHARGE: 'se_slime_beam_charge',         // スライムビーム チャージSE
+SE_SLIME_BEAM_FIRE: 'se_slime_beam_fire',           // スライムビーム 放出SE
+
+// --- キングゴールドスライム (Boss3) 専用BGM ---
+BGM_KING_SLIME: 'bgm_king_slime',                   // キングスライム戦BGM
+    
+    
     // (他のボスも同様に専用ボイスキーを追加していく)
 };
 
