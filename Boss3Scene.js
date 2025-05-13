@@ -193,42 +193,75 @@ export default class Boss3Scene extends CommonBossScene {
         console.log("--- Boss3Scene startIntroCutscene (競り上がり) Initiated ---");
     }
 
-    showKingSlimeVSOverlay() {
-        console.log("[Boss3Scene] Showing VS Overlay for King Gold Slime...");
-        // ボス登場ボイス再生
-        if (this.bossData.voiceAppear) {
-             try { this.sound.play(this.bossData.voiceAppear); } catch(e) {console.error("Error playing appear voice:",e);}
-        }
-        // CommonのカットシーンSE再生
-        try { this.sound.play(AUDIO_KEYS.SE_CUTSCENE_START); } catch(e) {}
-
-        const overlay = this.add.rectangle(0, 0, this.gameWidth, this.gameHeight, 0x000000, 0.5)
-            .setOrigin(0,0).setDepth(900);
-
-        // VSテキスト (CommonBossSceneのものを参考に、フォントや色を調整しても良い)
-        const textContent = this.bossData.cutsceneText;
-        const fontSize = this.calculateDynamicFontSize(60); // 少し大きめ
-        const textStyle = {
-            fontSize: `${fontSize}px`,
-            fill: '#F9A602', // ゴールドっぽい色
-            stroke: '#4A2E04', // 暗い茶色の縁取り
-            strokeThickness: Math.max(5, fontSize * 0.08),
-            fontFamily: 'MyGameFont, Impact, sans-serif', // インパクトのあるフォント
-            align: 'center',
-            shadow: { offsetX: 3, offsetY: 3, color: '#000000', blur: 5, stroke: true, fill: true }
-        };
-        const vsText = this.add.text(this.gameWidth / 2, this.gameHeight * 0.7, textContent, textStyle)
-            .setOrigin(0.5).setDepth(902); // Y座標は中央に
-
-        const cutsceneDisplayDuration = CUTSCENE_DURATION || 1800;
-        this.time.delayedCall(cutsceneDisplayDuration, () => {
-            if (overlay.scene) overlay.destroy(); // sceneプロパティで存在確認
-            if (vsText.scene) vsText.destroy();
-            console.log("[Boss3Scene] VS Overlay finished.");
-            this.finalizeBossAppearanceAndStart(); // 戦闘開始処理へ
-        }, [], this);
-        console.log("--- Boss3Scene showKingSlimeVSOverlay Complete ---");
+  showKingSlimeVSOverlay() {
+    console.log("[Boss3Scene] Showing VS Overlay for King Gold Slime (using existing this.boss)...");
+    if (this.bossData.voiceAppear) {
+         try { this.sound.play(this.bossData.voiceAppear); } catch(e) {console.error("Error playing appear voice:",e);}
     }
+    try { this.sound.play(AUDIO_KEYS.SE_CUTSCENE_START); } catch(e) {}
+
+    if (!this.boss || !this.boss.active) {
+        console.error("[VS Overlay] this.boss is not available or not active! Cannot show cutscene properly.");
+        // フォールバック処理: 即座に戦闘開始など
+        this.finalizeBossAppearanceAndStart();
+        return;
+    }
+
+    // --- オーバーレイ表示 ---
+    const overlay = this.add.rectangle(0, 0, this.gameWidth, this.gameHeight, 0x000000, 0.7)
+        .setOrigin(0,0)
+        .setDepth(900); // オーバーレイはボスより奥、テキストより奥
+
+    // --- ★既存の this.boss をカットインに使用 ★ ---
+    const originalBossDepth = this.boss.depth; // 元の深度を保持
+    this.boss.setDepth(901); // ★オーバーレイより手前、テキストより奥に設定
+    // ボス本体の表示位置やスケールは、競り上がり演出完了時の状態をそのまま利用。
+    // もしカットイン用に一時的にスケールや位置を変えたい場合はここでTweenなどを使う。
+
+    // --- VSテキストの表示 ---
+    const textContent = this.bossData.cutsceneText;
+    const fontSize = this.calculateDynamicFontSize(70);
+    const textStyle = {
+        fontSize: `${fontSize}px`,
+        fill: '#F9A602',
+        stroke: '#4A2E04',
+        strokeThickness: Math.max(5, fontSize * 0.08),
+        fontFamily: 'MyGameFont, Impact, sans-serif',
+        align: 'center',
+        shadow: { offsetX: 3, offsetY: 3, color: '#000000', blur: 5, stroke: true, fill: true }
+    };
+
+    // テキストのY座標は、画面中央か、ボスが見えるように少し下寄りに調整
+    const vsTextY = this.gameHeight * 0.65; // 例: 画面高さの65%の位置 (要調整)
+
+    const vsText = this.add.text(
+        this.gameWidth / 2,
+        vsTextY,
+        textContent,
+        textStyle
+    )
+        .setOrigin(0.5, 0.5) // 原点: テキストの中央
+        .setDepth(902);     // 最前面に表示
+
+    console.log(`[VS Overlay] Using this.boss (Depth: ${this.boss.depth}). Text Y: ${vsText.y.toFixed(0)}`);
+
+    const cutsceneDisplayDuration = CUTSCENE_DURATION || 1800;
+    this.time.delayedCall(cutsceneDisplayDuration, () => {
+        if (overlay.scene) overlay.destroy();
+        // bossImage.destroy(); // ★これは不要、this.boss は破棄しない
+        if (vsText.scene) vsText.destroy();
+
+        // ★ ボスの深度を元に戻す (または戦闘時の深度に設定) ★
+        if (this.boss && this.boss.active) {
+            this.boss.setDepth(originalBossDepth); // 元の深度に戻す
+            // あるいは、戦闘時の決まった深度があるならそれに設定: this.boss.setDepth(0); など
+        }
+
+        console.log("[Boss3Scene] VS Overlay finished.");
+        this.finalizeBossAppearanceAndStart();
+    }, [], this);
+    console.log("--- Boss3Scene showKingSlimeVSOverlay Complete (using this.boss) ---");
+}
 
     // CommonBossSceneのfinalizeBossAppearanceAndStartは、ボスを見えるようにして物理ボディを有効化し、
     // startGameplayを遅延呼び出しする。キングスライムの場合、そのままで良いか、
