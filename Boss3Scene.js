@@ -356,20 +356,16 @@ spawnWallBlock(line) { // line は 'A' または 'B'
 
     let spawnX, velocityX, spawnY;
     // ボス画像の表示上の上端Y座標を取得 (原点が中央なので注意)
-   const bossCenterY = this.boss.y;
-    const bossHalfHeight = this.boss.displayHeight / 2;
+    const bossDisplayTopY = this.boss.y - (this.boss.displayHeight / 2);
 
-    console.log(`[Wall Spawn Debug] bossCenterY: ${bossCenterY.toFixed(1)}, bossHalfHeight: ${bossHalfHeight.toFixed(1)}`);
-
-    if (line === 'A') {
-        // wallLineAYOffsetRatio: 0 ならボス中央。-0.5 ならボス上端。0.5 ならボス下端。
-        // めり込ませる (上層) なら、例えば -0.2 (中央より少し上) くらいを想定。
-        spawnY = bossCenterY + (bossHalfHeight * (this.bossData.wallLineAYOffsetRatio || -0.2));
-        console.log(`[Wall A] OffsetRatio: ${this.bossData.wallLineAYOffsetRatio || -0.2}, OffsetValue: ${(bossHalfHeight * (this.bossData.wallLineAYOffsetRatio || -0.2)).toFixed(1)}, SpawnY: ${spawnY.toFixed(1)}`);
-    } else {
-        // 下層は、例えば 0.2 (中央より少し下) くらいを想定。
-        spawnY = bossCenterY + (bossHalfHeight * (this.bossData.wallLineBYOffsetRatio || 0.2));
-        console.log(`[Wall B] OffsetRatio: ${this.bossData.wallLineBYOffsetRatio || 0.2}, OffsetValue: ${(bossHalfHeight * (this.bossData.wallLineBYOffsetRatio || 0.2)).toFixed(1)}, SpawnY: ${spawnY.toFixed(1)}`);
+    if (line === 'A') { // 右から左へ、上層 (ボスにめり込む)
+        spawnX = this.gameWidth + (this.gameWidth * scale * 0.5) + 10; // 画面右外 (ブロック幅半分+α)
+        velocityX = -speed;
+        spawnY = bossDisplayTopY + (this.gameHeight * (this.bossData.wallLineAYOffsetRatio || 0.05));
+    } else { // line === 'B', 左から右へ、下層
+        spawnX = -(this.gameWidth * scale * 0.5) - 10; // 画面左外
+        velocityX = speed;
+        spawnY = bossDisplayTopY + (this.gameHeight * (this.bossData.wallLineBYOffsetRatio || 0.04));
     }
 
     const wallBlock = this.attackBricks.create(spawnX, spawnY, texture);
