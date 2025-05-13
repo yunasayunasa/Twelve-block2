@@ -350,16 +350,16 @@ showKingSlimeVSOverlay() {
 
     // updateSpecificBossBehavior: 各種攻撃の実行管理、HP半減時の処理など
     // (このメソッドは CommonBossScene の update から毎フレーム呼ばれる)
-   updateSpecificBossBehavior(time, delta) {
+  updateSpecificBossBehavior(time, delta) {
     if (this.isIntroAnimating || !this.playerControlEnabled || !this.boss || !this.boss.active || this.bossDefeated || this.isGameOver) {
         return;
     }
+    this.cleanupWallBlocks();
 
-    // 流れる壁ブロックの画面外処理
-    this.cleanupWallBlocks(); // ★今回の実装対象
-
-    // (スライムビーム関連の更新などは後で追加)
-}
+    // ★スライムビームの当たり判定更新★
+    if (this.slimeBeamActive && this.slimeBeamObject) {
+        this.checkSlimeBeamCollisions();
+    }}
 
 
   // --- ▼ 流れる壁ギミック ▼ ---
@@ -600,49 +600,207 @@ spawnTargetedAttack() {
 // --- ▲ 通常攻撃パターン ▲ ---
 
 
-    // --- ▼ HP半減時処理＆スライムビーム (骨子) ▼ ---
-    // applyBossDamage をオーバーライドしてHP半減を検知
-    applyBossDamage(bossInstance, damageAmount, source = "Unknown") {
-        const hpBefore = bossInstance.getData('health');
-        super.applyBossDamage(bossInstance, damageAmount, source); // 親のダメージ処理
-        const hpAfter = bossInstance.getData('health');
+   // --- ▼ HP半減時処理＆スライムビーム ▼ ---
+applyBossDamage(bossInstance, damageAmount, source = "Unknown") {
+    if (!bossInstance || !bossInstance.active) return; // ボスが存在しないか非アクティブなら何もしない
 
-        if (!this.isHpBelowHalf && hpAfter <= this.bossData.health / 2 && hpBefore > this.bossData.health / 2) {
-            this.isHpBelowHalf = true; // フラグを立てる
-            console.log("[HP Half] Boss HP reached half or less. Triggering phase 2.");
-            this.triggerHpHalfEffect();
+    const hpBefore = bossInstance.getData('health');
+    super.applyBossDamage(bossInstance, damageAmount, source); // 親のダメージ処理
+    const hpAfter = bossInstance.getData('health');
+
+    // HPが初めて半分以下になったかをチェック (かつ、まだHP半減処理が実行されていなければ)
+    if (!this.isHpBelowHalf && hpAfter <= this.bossData.health / 2 && hpBefore > this.bossData.health / 2) {
+        this.isHpBelowHalf = true; // フラグを立てる
+        console.log("[HP Half] Boss HP reached half or less. Triggering phase 2 effects.");
+        this.triggerHpHalfEffect();
+    }
+}
+
+triggerHpHalfEffect() {
+    console.log("[HP Half] Activating phase 2: Screen flash and scheduling Slime Beam.");
+    // 画面フラッシュ (黄色っぽく、少し強めに)
+    this.cameras.main.flash(400, 255, 230, 100, false); // duration, r, g, b, force
+
+    // 通常攻撃の頻度変更は、各scheduleNext...Attackメソッドが isHpBelowHalf を見ることで対応
+
+    // スライムビーム攻撃をここから定期的に行うようにする
+    // 最初のビームは少し間を置いてから
+    const initialBeamDelay = Phaser.Math.Between(2000, 4000); // 例: 2-4秒後
+    console.log(`[HP Half] Initial Slime Beam scheduled in ${initialBeamDelay}ms.`);
+    this.slimeBeamChargeTimer?.remove(); // 既存のタイマーがあればクリア
+    this.slimeBeamChargeTimer = this.time.delayedCall(initialBeamDelay, this.startSlimeBeamCharge, [], this);
+}
+
+scheduleSlimeBeam() {
+    this.slimeBeamChargeTimer?.remove();
+    if (!this.boss || !this.boss.active || this.isGameOver || this.bossDefeated || !this.isHpBelowHalf) {
+        // 戦闘終了後やHP半減前はスケジュールしない
+        return;
+    }
+
+    const beamInterval = this.bossData.slimeBeamInterval || 12000; // デフォルト12秒
+    console.log(`[Beam] Scheduling next Slime Beam in ${beamInterval}ms.`);
+    this.slimeBeamChargeTimer = this.time.delayedCall(beamInterval, this.startSlimeBeamCharge, [], this);
+}
+
+startSlimeBeamCharge() {
+    if (!this.boss || !this.boss.active || this.isGameOver || this.bossDefeated || this.slimeBeamActive) {
+        // 条件を満たさない、または既にチャージ中/発動中なら何もしない
+        if (!this.isGameOver && !this.bossDefeated && this.isHpBelowHalf && !this.slimeBeamActive) {
+            this.scheduleSlimeBeam(); // 次を予約だけしておく
+        }
+        return;
+    }
+    console.log("King Slime: Starting Slime Beam Charge!");
+    this.slimeBeamActive = true; // チャージ開始でフラグON
+
+    // チャージ音SE
+    if (this.bossData.seSlimeBeamCharge) {
+        try { this.sound.play(this.bossData.seSlimeBeamCharge); } catch(e) {}
+    }
+
+    // 画面赤明滅演出
+    const flashCount = this.bossData.slimeBeamFlashCount || 3;
+    const flashInterval = (this.bossData.slimeBeamChargeTime || 2500) / (flashCount + 1);
+    for (let i = 0; i < flashCount; i++) {
+        this.time.delayedCall(i * flashInterval, () => {
+            if (!this.slimeBeamActive || !this.boss?.active) return; // チャージキャンセルなどを考慮
+            this.cameras.main.flash(150, 255, 80, 80, false); // 赤みがかったフラッシュ
+        });
+    }
+
+    // 予兆マーカー表示 (半透明の赤い矩形)
+    const beamWidth = this.gameWidth * (this.bossData.slimeBeamWidthRatio || 0.33);
+    const beamX = this.gameWidth / 2; // 中央固定
+    const beamMarkerY = this.boss.y + this.boss.displayHeight / 2; // ボス下端から
+    const beamMarkerHeight = this.gameHeight - beamMarkerY;     // 画面下端まで
+
+    if (this.slimeBeamObject) this.slimeBeamObject.destroy(); // 既存があれば破棄
+    this.slimeBeamObject = this.add.rectangle(
+        beamX,
+        beamMarkerY + beamMarkerHeight / 2,
+        beamWidth,
+        beamMarkerHeight,
+        0xff0000, // 赤色
+        0    // ★最初は透明
+    ).setOrigin(0.5, 0.5).setDepth(1); // 深度は壁より手前、ボールと同じか少し奥
+
+    // 予兆マーカーをフェードインさせる
+    this.tweens.add({
+        targets: this.slimeBeamObject,
+        alpha: 0.35, // 最終的な半透明度
+        duration: (this.bossData.slimeBeamChargeTime || 2500) * 0.5, // チャージ時間の中盤くらいで完全に表示
+        ease: 'Linear'
+    });
+    console.log(`[Beam Charge] Marker displayed (Rectangle). Target Alpha: 0.35`);
+
+    // チャージ時間後にビーム発射
+    this.time.delayedCall(this.bossData.slimeBeamChargeTime || 2500, this.fireSlimeBeam, [], this);
+}
+
+fireSlimeBeam() {
+    if (!this.boss || !this.boss.active || !this.slimeBeamActive || this.isGameOver || this.bossDefeated) {
+        this.slimeBeamActive = false;
+        if (this.slimeBeamObject) { this.slimeBeamObject.destroy(); this.slimeBeamObject = null; }
+        if (!this.isGameOver && !this.bossDefeated && this.isHpBelowHalf) this.scheduleSlimeBeam();
+        return;
+    }
+    console.log("King Slime: Firing Slime Beam!");
+
+    // 予兆マーカー (this.slimeBeamObject) の見た目をビーム本番用に変更
+    if (this.slimeBeamObject) {
+        this.tweens.killTweensOf(this.slimeBeamObject); // フェードインTweenを停止
+        this.slimeBeamObject.setFillStyle(0x88ff88, 0.6); // 明るい緑色、少し濃いめのアルファ
+        // (ここにパーティクルやスプライトアニメーションを追加してビームの見た目をリッチにする)
+        // 例: this.startBeamParticleEffect(this.slimeBeamObject.x, this.slimeBeamObject.y, this.slimeBeamObject.width, this.slimeBeamObject.height);
+        console.log("[Beam Fire] Beam visual (Rectangle) activated.");
+    }
+
+    // ビーム放出音SE
+    if (this.bossData.seSlimeBeamFire) {
+        try { this.sound.play(this.bossData.seSlimeBeamFire); } catch(e) {}
+    }
+
+    // 当たり判定は slimeBeamObject (Rectangle) をそのまま使う
+    // (checkSlimeBeamCollisions で毎フレームチェックされる)
+
+    // 持続時間後にビーム終了
+    this.time.delayedCall(this.bossData.slimeBeamDuration || 1800, this.endSlimeBeam, [], this);
+}
+
+endSlimeBeam() {
+    console.log("King Slime: Slime Beam Ended.");
+    this.slimeBeamActive = false; // フラグを戻す
+    // (パーティクルエフェクトなどを停止する処理もここに追加)
+    // this.stopBeamParticleEffect();
+
+    if (this.slimeBeamObject) {
+        // ビームを徐々に消すアニメーション (任意)
+        this.tweens.add({
+            targets: this.slimeBeamObject,
+            alpha: 0,
+            duration: 300,
+            onComplete: () => {
+                if (this.slimeBeamObject?.scene) this.slimeBeamObject.destroy();
+                this.slimeBeamObject = null;
+            }
+        });
+    }
+
+    // 次のビームを予約 (戦闘中なら)
+    if (!this.isGameOver && !this.bossDefeated && this.isHpBelowHalf) {
+        this.scheduleSlimeBeam();
+    }
+}
+
+checkSlimeBeamCollisions() {
+    if (!this.slimeBeamObject || !this.slimeBeamObject.active || !this.paddle || !this.balls) {
+        return;
+    }
+
+    // パドルとの当たり判定
+    if (this.paddle.active && this.physics.world.overlap(this.paddle, this.slimeBeamObject)) {
+        if (!this.isPlayerTrulyInvincible && !this.isPaddleInvulnerable) { // アニラ無敵とパドル接触無敵を考慮
+            console.log("[Beam Hit] Paddle hit by Slime Beam!");
+            this.loseLife();
+            // パドルに一時的な無敵時間を付与 (CommonBossSceneのhandlePaddleBossContactと同様)
+            this.isPaddleInvulnerable = true;
+            this.time.delayedCall(1000, () => { this.isPaddleInvulnerable = false; }, [], this);
+            // パドルの点滅などのフィードバック
+            this.tweens.add({ targets: this.paddle, alpha: 0.5, duration: 100, yoyo: true, repeat: 4 });
         }
     }
 
-    triggerHpHalfEffect() {
-        console.log("[HP Half] Activating phase 2 effects (flash, beam schedule)...");
-        this.cameras.main.flash(400, 230, 200, 80, false); // 黄色っぽいフラッシュ
+    // ボールとの当たり判定
+    this.balls.getChildren().forEach(ball => {
+        if (ball.active && ball.body && this.physics.world.overlap(ball, this.slimeBeamObject)) {
+            console.log(`[Beam Hit] Ball ${ball.name} hit by Slime Beam! Repelling.`);
+            // ボールを強く弾く
+            let repelVx = Phaser.Math.Between(-150, 150); // X方向はランダムに少し
+            let repelVy = (NORMAL_BALL_SPEED || 380) * 1.8; // Y方向は通常より強く下向きに (マイナスなら上向き)
+                                                        // ビームが下向きなので、ボールも下向きに弾かれるのが自然か
+                                                        // もしボールがビームの下から入ったら上向きに弾くなど、より細かくもできる
 
-        // スライムビーム攻撃をここから定期的に行うようにする
-        this.scheduleSlimeBeam();
-    }
+            // ボールの現在のY速度の向きによって、押し出す方向を変える
+            if (ball.body.velocity.y < 0) { // ボールが上向きに飛んでいる場合
+                repelVy = Math.abs(repelVy); // 必ず下向きに
+            } else { // ボールが下向きに飛んでいる場合
+                repelVy = -Math.abs(repelVy); // 強制的に上向きに (あるいはさらに強く下へ？ここは要検討)
+                                            // 今回は「ビームに触れると下に向かって強いスピードで弾かれる」という仕様なので、
+                                            // Y速度の符号に関わらず常に下向き(正)にするのが良さそう
+                repelVy = Math.abs(repelVy);
+            }
 
-    scheduleSlimeBeam() {
-        // (実装は次のステップ)
-        console.log("[Beam] TODO: Implement scheduleSlimeBeam");
-    }
-    startSlimeBeamCharge() {
-        // (実装は次のステップ)
-        console.log("[Beam] TODO: Implement startSlimeBeamCharge");
-    }
-    fireSlimeBeam() {
-        // (実装は次のステップ)
-        console.log("[Beam] TODO: Implement fireSlimeBeam");
-    }
-    endSlimeBeam() {
-        // (実装は次のステップ)
-        console.log("[Beam] TODO: Implement endSlimeBeam");
-    }
-    checkSlimeBeamCollisions() {
-        // (実装は次のステップ)
-        // console.log("[Beam] TODO: Implement checkSlimeBeamCollisions");
-    }
-    // --- ▲ HP半減時処理＆スライムビーム ▲ ---
+
+            // Y方向の最低速度を保証 (ビームの強さを表現)
+            repelVy = Math.max(repelVy, (NORMAL_BALL_SPEED || 380) * 1.5);
+
+            ball.setVelocity(repelVx, repelVy);
+            // (ボールヒットのSEやエフェクトもここに追加可能)
+        }
+    });
+}
+// --- ▲ HP半減時処理＆スライムビーム ▲ ---
 
 // Boss3Scene.js
 
