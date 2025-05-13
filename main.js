@@ -5,7 +5,7 @@ import CommonBossScene from './CommonBossScene.js';
 import UIScene from './UIScene.js';
 import Boss1Scene from './Boss1Scene.js'; // ★ インポート追加
 import Boss2Scene from './Boss2Scene.js'; // ★ Boss2Scene をインポート
-// import Boss3Scene from './Boss3Scene.js'; // 今後追加
+import Boss3Scene from './Boss3Scene.js'; // 今後追加
 // import Boss4Scene from './Boss4Scene.js'; // 今後追加
 // import Boss5Scene from './Boss5Scene.js'; // 今後追加
 
