@@ -66,7 +66,7 @@ export default class Boss3Scene extends CommonBossScene {
         console.log("--- Boss3Scene initializeBossData (King Gold Slime) ---");
         this.bossData = {
             // --- 基本情報 ---
-            health: 20, //仮
+            health: 30, //仮
             textureKey: 'boss_king_slime_stand',
             negativeKey: 'boss_king_slime_negative',
             voiceAppear: AUDIO_KEYS.VOICE_KING_SLIME_APPEAR || AUDIO_KEYS.VOICE_BOSS_APPEAR_GENERIC, // 専用がなければ汎用
@@ -117,7 +117,7 @@ export default class Boss3Scene extends CommonBossScene {
             slimeBeamInterval: 12000, // スライムビームの再使用間隔
 
              // ★このボス戦でドロッププールから除外するパワーアップのリスト★
-        excludedPowerUps: [POWERUP_TYPES.SINDARA, POWERUP_TYPES.ANCHIRA],
+      //  excludedPowerUps: [POWERUP_TYPES.SINDARA, POWERUP_TYPES.ANCHIRA],
 
 
             backgroundKey: 'gameBackground_Boss3',
