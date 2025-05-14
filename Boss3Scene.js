@@ -363,6 +363,75 @@ showKingSlimeVSOverlay() {
     console.log("--- Boss3Scene startSpecificBossMovement Complete ---");
 }
 
+// Boss3Scene.js
+
+// (他のメソッドは変更なし)
+
+// ボス本体の最終的な表示設定とゲームプレイ開始
+finalizeBossAppearanceAndStart() {
+    if (!this.boss) {
+        console.error("!!! ERROR: Boss object missing in finalizeBossAppearanceAndStart for Boss3Scene!");
+        // シーンをリスタートするかタイトルに戻るなどのエラー処理
+        // this.scene.start('TitleScene');
+        return;
+    }
+    console.log("[Boss3Scene] Finalizing King Slime appearance and starting gameplay (custom finalize).");
+
+    // 1. ボスの表示を確定 (CommonBossSceneのロジックを参考に)
+    this.boss.setAlpha(1).setVisible(true);
+    if (this.boss.body) {
+        this.boss.setImmovable(true); // 不動設定
+        this.boss.enableBody(true, this.boss.x, this.boss.y, true, true); // ボディ有効化
+        try {
+            this.boss.body.updateFromGameObject(); // 見た目に合わせる
+        } catch (e) {
+            console.error("Error in updateFromGameObject (Boss3Scene finalize):", e);
+        }
+        console.log(`[Boss3Scene Finalize] Boss body enabled and updated. Immovable: ${this.boss.body.immovable}`);
+    } else {
+        console.error("!!! ERROR: Boss body missing in Boss3Scene finalize!");
+    }
+    this.boss.setData('isInvulnerable', false); // 無敵解除
+
+    // 2. コライダー設定 (CommonBossSceneのメソッドを呼ぶ)
+    console.log("[Boss3Scene Finalize] Calling setColliders.");
+    this.setColliders();
+
+    // 3. ボスめり込み対策のOverlap設定 (CommonBossSceneのメソッドを呼ぶか、ここで直接設定)
+    //    CommonBossSceneに overlap 設定があるなら、それを呼ぶのが良い
+    //    今回はCommonBossSceneのfinalizeBossAppearanceAndStartで設定していたので、
+    //    もしこのメソッドを完全にオーバーライドするなら、ここにも書く必要がある。
+    //    ただし、super.finalizeBossAppearanceAndStart() を呼ぶなら不要。
+    //    ここでは、戦闘開始前にBGMを鳴らすのが主目的なので、
+    //    Commonのfinalizeの主要部分を呼び出し、BGM再生を追加する形が良いかもしれない。
+    //    → もっとシンプルに、superを呼んでからBGM再生でも良い。
+
+    // super.finalizeBossAppearanceAndStart(); // ← これだとCommonのBGM再生と重複する可能性
+
+    // ★★★ ここで確実にボス戦BGMを再生 ★★★
+    console.log("[Boss3Scene Finalize] Attempting to play boss BGM.");
+    this.playBossBgm(); // CommonBossSceneにあるBGM再生メソッドを呼び出す
+
+    // 4. 戦闘開始SEとゲームプレイ開始の遅延呼び出し (CommonBossSceneのロジック)
+    try {
+        if (AUDIO_KEYS.SE_FIGHT_START) this.sound.play(AUDIO_KEYS.SE_FIGHT_START);
+    } catch(e) { console.error("Error playing SE_FIGHT_START (Boss3Scene finalize):", e); }
+
+    const gameplayDelay = GAMEPLAY_START_DELAY || 600;
+    this.time.delayedCall(gameplayDelay, () => {
+        // this.startGameplay(); // CommonBossSceneのstartGameplayを呼ぶ
+        // Boss3SceneでstartGameplayをオーバーライドしていなければ上記でOK
+        // もしBoss3SceneでstartGameplayをオーバーライドしていて、そこで特別な初期化をしているなら、
+        // this.scene.scene.startGameplay(); のように明示的に親を呼ぶか、
+        // Boss3SceneのstartGameplayを直接呼ぶ。
+        // ここではCommonのstartGameplayが呼ばれることを期待。
+        super.startGameplay(); // CommonのstartGameplayを呼ぶのが一番確実
+    }, [], this);
+
+    console.log(`--- Boss3Scene finalizeBossAppearanceAndStart Complete (custom with BGM) ---`);
+}
+
+// (もしCommonBossSceneのstartGameplayもオーバーライドしている場合は、そちらにもBGM再生がないか確認)
 
    // updateSpecificBossBehavior での下降処理
 updateSpecificBossBehavior(time, delta) {
