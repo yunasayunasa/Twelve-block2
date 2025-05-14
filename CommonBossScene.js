@@ -552,7 +552,7 @@ export default class CommonBossScene extends Phaser.Scene {
             this.setColliders();
             // ★★★-----------------------------★★★
             // CommonBossScene または Boss3Scene の create メソッド内 (setColliders の後など)
-/*if (this.balls && this.boss) {
+if (this.balls && this.boss) {
     this.physics.add.overlap(
         this.balls,
         this.boss,
@@ -564,7 +564,7 @@ export default class CommonBossScene extends Phaser.Scene {
         this
     );
     console.log("Overlap check between balls and BOSS (for ejection) SET.");
-}*/
+}
 
 
         } catch(e) { console.error("!!! ERROR finalizing boss appearance or enabling body:", e); }
