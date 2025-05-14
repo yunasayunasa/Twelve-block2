@@ -2315,6 +2315,25 @@ if (this.isMakiraActive && this.balls && this.familiars && this.familiars.countA
    // CommonBossScene.js
     destroyAttackBrickAndDropItem(brick) {
         const brickX = brick.x; const brickY = brick.y;
+
+ // ★★★ フックポイント呼び出しと処理 ★★★
+    const overrideItemType = this.getOverrideDropItem(brick);
+
+    if (overrideItemType && typeof overrideItemType === 'string') {
+        console.log(`[Override Drop] Dropping overridden item: ${overrideItemType} from brick type: ${brick.getData('blockType')}`);
+        this.dropSpecificPowerUp(brickX, brickY, overrideItemType); // アイテムを直接ドロップ
+        
+        // ブロック破壊処理 (アイテムドロップ抽選なしバージョン)
+        // (destroyAttackBrick を呼ぶか、ここで直接処理)
+        this.sound.play(AUDIO_KEYS.SE_DESTROY);
+        this.createImpactParticles(brick.x, brick.y, [0, 360], brick.tintTopLeft || 0xaa88ff, 10); // TODO: 定数化
+        brick.destroy();
+        this.increaseVajraGauge(); // ヴァジラゲージは増やす
+
+        return; // ★★★ オーバーライドドロップしたのでここで処理終了 ★★★
+    }
+    // ★★★---------------------------------★★★
+
         this.destroyAttackBrick(brick, true); // ヴァジラゲージ増加はこの中で
 
         const dropRatePercent = this.chaosSettings.ratePercent;
@@ -2826,6 +2845,19 @@ calculateDynamicFontSize(baseSizeMax) {
             }
         }
     }
+
+    // CommonBossScene.js クラス内に追加
+/**
+ * 攻撃ブロック破壊時に、通常のドロップ抽選をオーバーライドして
+ * 特定のアイテムをドロップさせるためのフックメソッド。
+ * 各ボスシーンで必要に応じてオーバーライドする。
+ * @param {Phaser.Physics.Arcade.Image} brick 破壊された攻撃ブロック
+ * @returns {string|null} ドロップさせたいアイテムのタイプ(string)、またはnull(通常ドロップ)
+ */
+getOverrideDropItem(brick) {
+    // デフォルトでは何もオーバーライドしないので、通常のドロップ抽選が行われる
+    return null;
+}
 
     handleWorldBounds(body,up,down,left,right){const gO=body.gameObject;if(!gO||!(gO instanceof Phaser.Physics.Arcade.Image)||!gO.active)return;if(this.balls.contains(gO)){if(up||left||right){this.sound.play(AUDIO_KEYS.SE_REFLECT,{volume:0.7});let iX=gO.x,iY=gO.y,aR=[0,0];if(up){iY=body.y;aR=[60,120];}else if(left){iX=body.x;aR=[-30,30];}else if(right){iX=body.x+body.width;aR=[150,210];}this.createImpactParticles(iX,iY,aR,0xffffff,5);}}}
     createImpactParticles(x,y,angleRange,tint,count=8){const p=this.add.particles(0,0,'whitePixel',{x:x,y:y,lifespan:{min:100,max:300},speed:{min:80,max:150},angle:{min:angleRange[0],max:angleRange[1]},gravityY:200,scale:{start:0.6,end:0},quantity:count,blendMode:'ADD',emitting:false});p.setParticleTint(tint);p.explode(count);this.time.delayedCall(400,()=>p.destroy());}
