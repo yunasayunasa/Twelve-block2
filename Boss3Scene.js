@@ -117,7 +117,7 @@ export default class Boss3Scene extends CommonBossScene {
             slimeBeamInterval: 12000, // スライムビームの再使用間隔
 
              // ★このボス戦でドロッププールから除外するパワーアップのリスト★
-      //  excludedPowerUps: [POWERUP_TYPES.SINDARA, POWERUP_TYPES.ANCHIRA],
+        excludedPowerUps: [POWERUP_TYPES.SINDARA, POWERUP_TYPES.ANCHIRA],
 
 
             backgroundKey: 'gameBackground_Boss3',
