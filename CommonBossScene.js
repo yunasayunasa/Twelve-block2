@@ -513,66 +513,68 @@ export default class CommonBossScene extends Phaser.Scene {
         this.finalizeBossAppearanceAndStart();
     }
 
-    // ボス本体の最終的な表示設定とゲームプレイ開始
-   finalizeBossAppearanceAndStart() {
-        if (!this.boss) { console.error("!!! ERROR: Boss object missing in finalizeBossAppearanceAndStart!"); return; }
+  finalizeBossAppearanceAndStart() {
+    if (!this.boss) { console.error("!!! ERROR: Boss object missing in finalizeBossAppearanceAndStart!"); return; }
 
-        console.log("[Intro Fusion] Finalizing boss appearance...");
-        try {
-            // 見た目の設定
-            this.boss.setPosition(this.gameWidth / 2, this.boss.getData('targetY'));
-            this.boss.setScale(this.boss.getData('targetScale'));
-            this.boss.setAlpha(1);
-            this.boss.setVisible(true);
+    console.log("[Finalize Appearance] Finalizing boss appearance...");
+    try {
+        this.boss.setPosition(this.gameWidth / 2, this.boss.getData('targetY'));
+        this.boss.setScale(this.boss.getData('targetScale'));
+        this.boss.setAlpha(1);
+        this.boss.setVisible(true);
 
-            // ★ 物理ボディを有効化し、updateFromGameObject で見た目に合わせる ★
-            if (this.boss.body) {
-                // 1. ボディを有効化し、位置を合わせる
-                this.boss.enableBody(true, this.boss.x, this.boss.y, true, true);
-                console.log(`[Intro Fusion] Body enabled. Current enabled state: ${this.boss.body.enable}`);
+        if (this.boss.body) {
+            // ★★★ immovable をここで再確認・再設定 ★★★
+            this.boss.setImmovable(true);
+            console.log(`[Finalize Appearance] Boss immovable set to: ${this.boss.body.immovable}`);
+            // ★★★------------------------------------★★★
 
-                // 2. updateFromGameObject を呼び出してサイズとオフセットを同期
-                try {
-                    this.boss.body.updateFromGameObject();
-                    console.log(`[Intro Fusion] Body updated from GameObject. Size: ${this.boss.body.width.toFixed(0)}x${this.boss.body.height.toFixed(0)}, Offset: (${this.boss.body.offset.x.toFixed(1)}, ${this.boss.body.offset.y.toFixed(1)})`);
-                } catch (e) {
-                     console.error("!!! ERROR calling updateFromGameObject in finalize:", e);
-                     // エラー発生時のフォールバックとして updateBossSize を呼ぶ？
-                     // this.updateBossSize(this.boss, this.bossData.textureKey, this.bossData.widthRatio);
-                }
-            } else { console.error("!!! ERROR: Boss body missing when finalizing appearance!"); }
-            // ★-------------------------------------------------------★
-              // ★★★ 戦闘開始直前に無敵を確実に解除 ★★★
-            this.boss.setData('isInvulnerable', false);
-            console.log(`[FinalizeAppearance] Boss invulnerability set to: ${this.boss.getData('isInvulnerable')}`);
-            // ★★★---------------------------------★★★
+            this.boss.enableBody(true, this.boss.x, this.boss.y, true, true);
+            console.log(`[Finalize Appearance] Body enabled. Current enabled state: ${this.boss.body.enable}`);
 
-            // ★★★ コライダーを最新の状態に更新 ★★★
-            console.log("[FinalizeAppearance] Calling setColliders before starting gameplay.");
-            this.setColliders();
-            // ★★★-----------------------------★★★
-            // CommonBossScene または Boss3Scene の create メソッド内 (setColliders の後など)
-if (this.balls && this.boss) {
-    this.physics.add.overlap(
-        this.balls,
-        this.boss,
-        this.handleBallOverlapBossEject, // 新しいコールバック関数
-        (ball, boss) => { // processCallback
-            // ボスが無敵でない、かつボールがアクティブな場合のみ処理
-            return !boss.getData('isInvulnerable') && ball.active && boss.active;
-        },
-        this
-    );
-    console.log("Overlap check between balls and BOSS (for ejection) SET.");
-}
+            try {
+                this.boss.body.updateFromGameObject();
+                // ... (ログ)
+            } catch (e) {
+                 console.error("!!! ERROR calling updateFromGameObject in finalize:", e);
+            }
+        } else { console.error("!!! ERROR: Boss body missing when finalizing appearance!"); }
 
+        this.boss.setData('isInvulnerable', false);
+        console.log(`[Finalize Appearance] Boss invulnerability set to: ${this.boss.getData('isInvulnerable')}`);
 
-        } catch(e) { console.error("!!! ERROR finalizing boss appearance or enabling body:", e); }
+        console.log("[Finalize Appearance] Calling setColliders before starting gameplay.");
+        this.setColliders(); // Collider設定
 
-        // --- 戦闘開始 ---
-        try { this.sound.play(AUDIO_KEYS.SE_FIGHT_START); } catch(e) { /*...*/ }
-        this.time.delayedCall(GAMEPLAY_START_DELAY, this.startGameplay, [], this);
+        // ★★★ Overlap設定は setColliders の後が適切 ★★★
+        // (setColliders でボスとの通常の collider が設定されるため、
+        //  それとは別に overlap を設定する流れが良い)
+        if (this.balls && this.boss && this.boss.active && this.boss.body?.enable && this.boss.body.immovable) { // ★immovableも条件に追加
+            this.physics.add.overlap(
+                this.balls,
+                this.boss,
+                this.handleBallOverlapBossEject,
+               (ball, currentBoss) => {
+    if (!currentBoss.getData('isInvulnerable') && ball.active && currentBoss.active && currentBoss.body) {
+        const ballBounds = ball.getBounds();
+        const bossBounds = currentBoss.body; // 物理ボディの境界を使う
+        // ボールの中心がボスの物理ボディの範囲内にあるか
+        return Phaser.Geom.Rectangle.Contains(bossBounds, ballBounds.centerX, ballBounds.centerY);
     }
+    return false;
+}
+                
+            );
+            console.log("Overlap check between balls and BOSS (for ejection) SET after colliders.");
+        } else {
+            console.warn("[Finalize Appearance] Conditions not met for Boss Overlap (ejection). Boss active/body/immovable?", this.boss?.active, this.boss?.body?.enable, this.boss?.body?.immovable);
+        }
+
+    } catch(e) { console.error("!!! ERROR finalizing boss appearance or enabling body:", e); }
+
+    try { this.sound.play(AUDIO_KEYS.SE_FIGHT_START); } catch(e) { /*...*/ }
+    this.time.delayedCall(GAMEPLAY_START_DELAY, this.startGameplay, [], this);
+}
 
 // handleBallOverlapBossEject の修正案 (速度変更のみ)
 handleBallOverlapBossEject(ball, boss) {
