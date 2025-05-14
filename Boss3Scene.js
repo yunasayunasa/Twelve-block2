@@ -701,6 +701,9 @@ spawnTargetedAttack() {
             }
             projectile.setData('blockType', 'projectile');
             projectile.setDepth(1);
+             projectile.setData('isGuaranteedDropSource', true); // ★★★ この行が本当に実行されているか？ ★★★
+                // ...
+                console.log("[Targeted Attack Fired] Projectile data:", projectile.data.getAll()); // ★データ確認ログ
             console.log(`[Targeted Attack] Projectile fired towards X:${targetX.toFixed(0)}`);
         }
     }, [], this);
