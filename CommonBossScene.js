@@ -551,6 +551,21 @@ export default class CommonBossScene extends Phaser.Scene {
             console.log("[FinalizeAppearance] Calling setColliders before starting gameplay.");
             this.setColliders();
             // ★★★-----------------------------★★★
+            // CommonBossScene または Boss3Scene の create メソッド内 (setColliders の後など)
+if (this.balls && this.boss) {
+    this.physics.add.overlap(
+        this.balls,
+        this.boss,
+        this.handleBallOverlapBossEject, // 新しいコールバック関数
+        (ball, boss) => { // processCallback
+            // ボスが無敵でない、かつボールがアクティブな場合のみ処理
+            return !boss.getData('isInvulnerable') && ball.active && boss.active;
+        },
+        this
+    );
+    console.log("Overlap check between balls and BOSS (for ejection) SET.");
+}
+
 
         } catch(e) { console.error("!!! ERROR finalizing boss appearance or enabling body:", e); }
 
@@ -558,6 +573,47 @@ export default class CommonBossScene extends Phaser.Scene {
         try { this.sound.play(AUDIO_KEYS.SE_FIGHT_START); } catch(e) { /*...*/ }
         this.time.delayedCall(GAMEPLAY_START_DELAY, this.startGameplay, [], this);
     }
+
+    // CommonBossScene または Boss3Scene に新しいメソッドとして追加
+handleBallOverlapBossEject(ball, boss) {
+    if (!ball.body || !boss.body) return;
+
+    // ボールがボスに「衝突」する通常の collider は別にあるはずなので、
+    // この overlap は「内部に入り込んでしまった」場合の救済策として考える。
+    // どの程度めり込んだら「押し出す」かの閾値を設けることもできる。
+
+    console.log(`[Overlap Boss Eject] Ball ${ball.name} overlapped with Boss. Attempting to eject.`);
+
+    // ボスの中心からボールの中心へのベクトルを計算
+    const repelAngleRad = Phaser.Math.Angle.Between(boss.x, boss.y, ball.x, ball.y);
+    const repelAngleDeg = Phaser.Math.RadToDeg(repelAngleRad);
+
+    // ボールの位置をボスの境界の少し外側に補正 (オプションだが有効)
+    // ボスの当たり判定の半径 (または幅/高さの半分) を使って計算
+    const bossBoundRadius = Math.min(boss.body.width / 2, boss.body.height / 2) * 0.9; // 当たり判定半径の90%
+    const ejectDistance = bossBoundRadius + (ball.displayWidth / 2) + 2; // 押し出し距離
+    ball.x = boss.x + Math.cos(repelAngleRad) * ejectDistance;
+    ball.y = boss.y + Math.sin(repelAngleRad) * ejectDistance;
+
+
+    // 通常のボスヒット時と同様の反射速度を与える
+    let speedMultiplier = 1.0;
+    if (ball.getData('isFast') === true) speedMultiplier = BALL_SPEED_MODIFIERS[POWERUP_TYPES.SHATORA];
+    else if (ball.getData('isSlow') === true) speedMultiplier = BALL_SPEED_MODIFIERS[POWERUP_TYPES.HAILA];
+    const targetSpeed = NORMAL_BALL_SPEED * speedMultiplier;
+
+    let bounceVx = ball.body.velocity.x;
+    let bounceVy = -ball.body.velocity.y; // 基本はY反転
+
+    // 押し出す方向に基づいて速度を調整
+    // (ボス中心からボールへ向かう角度 repelAngleDeg を使う)
+    this.physics.velocityFromAngle(repelAngleDeg, targetSpeed, ball.body.velocity);
+
+    console.log(`[Overlap Boss Eject] Ball ${ball.name} ejected. New velocity: (${ball.body.velocity.x.toFixed(1)}, ${ball.body.velocity.y.toFixed(1)})`);
+
+    // (オプション) 軽いダメージを与えるか、あるいはダメージはcolliderに任せる
+    // this.applyBossDamage(boss, 0.1, "Overlap Eject Hit"); // 極小ダメージ
+}
 
 
      // startGameplay: 戦闘開始処理に加え、遅延してコライダーを設定
