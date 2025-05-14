@@ -2471,7 +2471,7 @@ if (this.isMakiraActive && this.balls && this.familiars && this.familiars.countA
                     // console.log(`[updateBossSize] Updated body from GameObject. Initial Size: ${bossInstance.body.width.toFixed(0)}x${bossInstance.body.height.toFixed(0)}`);
 
                      // 3. ★★★ ボディのスケールを少しだけ縮小 ★★★
-                     const hitboxScaleMultiplier = 0.5; // ← 1.0 より少し小さく (90%にする例)
+                     const hitboxScaleMultiplier = 0.4; // ← 1.0 より少し小さく (90%にする例)
                      bossInstance.body.transform.scaleX = hitboxScaleMultiplier;
                      bossInstance.body.transform.scaleY = hitboxScaleMultiplier;
                      // スケール変更後はサイズを再計算させる必要があるかもしれない
