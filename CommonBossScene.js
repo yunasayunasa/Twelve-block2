@@ -578,6 +578,16 @@ export default class CommonBossScene extends Phaser.Scene {
 
 // handleBallOverlapBossEject の修正案 (速度変更のみ)
 handleBallOverlapBossEject(ball, boss) {
+    console.log("[Overlap Boss Eject] Method called. `this` is:", this);
+    console.log("[Overlap Boss Eject] `this.physics` is:", this.physics);
+    console.log("[Overlap Boss Eject] `this.physics.velocityFromAngle` is:", this.physics?.velocityFromAngle); // ?. で安全にアクセス
+
+    if (!this.physics || typeof this.physics.velocityFromAngle !== 'function') {
+        console.error("CRITICAL: this.physics or this.physics.velocityFromAngle is not available here!");
+        // ここで処理を中断するか、安全なフォールバックを行う
+        if (ball.body) ball.setVelocity(0, -200); // とりあえず上に弾くなど
+        return;
+    }
     if (!ball.body || !boss.body || boss.getData('isInvulnerable')) return; // ボス無敵中も押し出さない
 
     console.log(`[Overlap Boss Eject] Ball ${ball.name} overlapped with Boss. Applying velocity change.`);
