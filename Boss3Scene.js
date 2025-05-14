@@ -74,7 +74,7 @@ export default class Boss3Scene extends CommonBossScene {
             voiceDefeat: AUDIO_KEYS.VOICE_KING_SLIME_DEFEAT || AUDIO_KEYS.VOICE_BOSS_DEFEAT_GENERIC,
             voiceRandom: AUDIO_KEYS.VOICE_KING_SLIME_RANDOM_1 ? [AUDIO_KEYS.VOICE_KING_SLIME_RANDOM_1] : [],
             bgmKey: AUDIO_KEYS.BGM_KING_SLIME || AUDIO_KEYS.BGM1, // 専用がなければ汎用
-            descendTimeMinutes: 3, // ボスが最下部まで下降するおおよその時間(分)
+            descendTimeMinutes: 2, // ボスが最下部まで下降するおおよその時間(分)
     descendFinalPaddingY: 30, // ボス下端が画面下からこの値だけ手前を最終目標とする
             cutsceneText: 'VS キングゴールドスライム',
             widthRatio: 0.75,  // 画面幅の75% (テクスチャのアスペクト比で調整)
