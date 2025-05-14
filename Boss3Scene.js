@@ -74,8 +74,9 @@ export default class Boss3Scene extends CommonBossScene {
             voiceDefeat: AUDIO_KEYS.VOICE_KING_SLIME_DEFEAT || AUDIO_KEYS.VOICE_BOSS_DEFEAT_GENERIC,
             voiceRandom: AUDIO_KEYS.VOICE_KING_SLIME_RANDOM_1 ? [AUDIO_KEYS.VOICE_KING_SLIME_RANDOM_1] : [],
             bgmKey: AUDIO_KEYS.BGM_KING_SLIME || AUDIO_KEYS.BGM1, // 専用がなければ汎用
-            descendTimeMinutes: 2, // ボスが最下部まで下降するおおよその時間(分)
+            descendTimeMinutes: 1, // ボスが最下部まで下降するおおよその時間(分)
     descendFinalPaddingY: 30, // ボス下端が画面下からこの値だけ手前を最終目標とする
+    wallLineToDisableOnHpBelowHalf: 'B', // ★HP半減時に無効化する壁ラインを指定 'A' or 'B'
             cutsceneText: 'VS キングゴールドスライム',
             widthRatio: 0.75,  // 画面幅の75% (テクスチャのアスペクト比で調整)
             heightRatio: 0.3, // ボス本体が表示されるY軸方向の目安
@@ -646,36 +647,52 @@ applyBossDamage(bossInstance, damageAmount, source = "Unknown") {
     }
 }
 
-// triggerHpHalfEffect の実装
+// triggerHpHalfEffect の実装を修正
 triggerHpHalfEffect() {
-    console.log("[HP Half] Activating phase 2: Screen flash and BOSS IS DESCENDING!");
-    this.cameras.main.flash(400, 255, 230, 100, false);
+    console.log("[HP Half] Activating phase 2: Screen flash, BOSS IS DESCENDING FASTER, one wall line disabled!");
+    this.cameras.main.flash(400, 255, 230, 100, false); // 演出用フラッシュ
 
-    this.isDescending = true;
+    this.isDescending = true; // 下降開始フラグ
 
-    // 目標Y座標の計算 (ボスの原点が中心なので、ボスの下端が目標位置に来るように)
-    // 画面下端 - パドルの高さ半分くらい - 指定したパディング
-    const paddleApproxHeight = (PADDLE_HEIGHT || 20); // constants.jsから (なければデフォルト値)
+    // 1. 指定された壁ラインの生成を停止
+    const lineToDisable = this.bossData.wallLineToDisableOnHpBelowHalf;
+    if (lineToDisable === 'A' && this.wallBlockSpawnTimers.lineA) {
+        this.wallBlockSpawnTimers.lineA.remove();
+        this.wallBlockSpawnTimers.lineA = null;
+        console.log("[HP Half] Wall Line A spawner disabled.");
+        // 既存のラインAの壁を全て消す (任意だが、即座に効果を見せるなら)
+        this.attackBricks.getChildren().forEach(block => {
+            if (block.active && block.getData('wallLine') === 'A') block.destroy();
+        });
+    } else if (lineToDisable === 'B' && this.wallBlockSpawnTimers.lineB) {
+        this.wallBlockSpawnTimers.lineB.remove();
+        this.wallBlockSpawnTimers.lineB = null;
+        console.log("[HP Half] Wall Line B spawner disabled.");
+        this.attackBricks.getChildren().forEach(block => {
+            if (block.active && block.getData('wallLine') === 'B') block.destroy();
+        });
+    }
+
+    // 2. 新しい下降速度と目標Y座標を計算
+    const paddleApproxHeight = (PADDLE_HEIGHT || 20);
+    // 目標Y座標 (ボスの原点が中心なので、ボスの下端が目標位置に来るように)
     this.descendTargetY = this.gameHeight - (this.boss.displayHeight / 2) - paddleApproxHeight - (this.bossData.descendFinalPaddingY || 30);
 
-    // 1秒あたりの下降速度を計算
     const distanceToDescend = this.descendTargetY - this.boss.y;
-    const timeToDescendSeconds = (this.bossData.descendTimeMinutes || 3) * 60;
+    const timeToDescendSeconds = (this.bossData.hpBelowHalfDescendTimeMinutes || 1) * 60;
 
-    if (timeToDescendSeconds <= 0 || distanceToDescend <=0) { // 既に目標地点か、時間が0以下なら何もしないか即時移動
+    if (timeToDescendSeconds <= 0 || distanceToDescend <= 0) {
         this.descendSpeedY = 0;
-        if(distanceToDescend > 0) this.boss.setY(this.descendTargetY); // 即時移動
-        console.warn("[Descend] Cannot calculate descendSpeedY or already at target.");
+        if (distanceToDescend > 0 && this.boss && this.boss.active) this.boss.setY(this.descendTargetY); // 即時移動
+        console.warn("[Descend Setup] Cannot calculate descendSpeedY or already at target for HP half phase.");
     } else {
         this.descendSpeedY = distanceToDescend / timeToDescendSeconds; // ピクセル/秒
     }
+    console.log(`[HP Half Descend] Started. TargetY: ${this.descendTargetY.toFixed(1)}, New SpeedY: ${this.descendSpeedY.toFixed(2)} px/s (Target Time: ${timeToDescendSeconds}s)`);
 
-    console.log(`[Descend] Started. TargetY: ${this.descendTargetY.toFixed(1)}, SpeedY: ${this.descendSpeedY.toFixed(2)} px/s`);
-
-    // (オプション) 下降開始のSE
-    // if (this.bossData.seBossDescendStart) this.sound.play(this.bossData.seBossDescendStart);
+    // (オプション) 下降開始を知らせるSE
+    // if (this.bossData.seBossDescendFast) this.sound.play(this.bossData.seBossDescendFast);
 }
-
 
 
 
