@@ -5,7 +5,20 @@ import {
     NORMAL_BALL_SPEED, // ★NORMAL_BALL_SPEED をインポート
     BALL_SPEED_MODIFIERS, // ★BALL_SPEED_MODIFIERS をインポート
     AUDIO_KEYS,
-    // POWERUP_TYPES, // 現時点では未使用
+    // ★★★ ここから追加する可能性のある定数 ★★★
+    PADDLE_HEIGHT,              // ボス下降の目標Y座標計算で使用
+    PADDLE_Y_OFFSET_RATIO,      // (もしパドル位置を再計算するような場面があれば)
+    BALL_RADIUS_RATIO,          // (もしボール関連の計算をここでするなら)
+    POWERUP_ICON_KEYS,        // (もし特定のパワーアップアイコンを直接参照するなら)
+    MAX_PLAYER_LIVES,           // (もしライフ上限を参照するなら)
+    DEFAULT_BOSS_MAX_HEALTH,    // (もしデフォルトボスHPを参照するなら)
+    // ボス戦共通の演出時間なども必要に応じて追加
+    DEFEAT_FLASH_DURATION,
+    DEFEAT_FLASH_INTERVAL,
+    DEFEAT_FLASH_COUNT,
+    DEFEAT_SHAKE_DURATION,
+    DEFEAT_FADE_DURATION,
+    // ★★★ ここまで ★★★
     DEFAULT_ATTACK_BRICK_VELOCITY_Y, // 通常攻撃弾のデフォルト速度などに使う可能性
     CUTSCENE_DURATION, // VSオーバーレイ表示時間などに使用
     GAMEPLAY_START_DELAY // 戦闘開始までのディレイ
