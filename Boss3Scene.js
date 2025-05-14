@@ -689,7 +689,8 @@ startSlimeBeamCharge() {
     this.time.delayedCall(this.bossData.slimeBeamChargeTime || 2500, this.fireSlimeBeam, [], this);
 }
 
-// スライムビームを発射する
+// Boss3Scene.js
+
 fireSlimeBeam() {
     if (!this.boss || !this.boss.active || !this.slimeBeamActive || this.isGameOver || this.bossDefeated) {
         this.slimeBeamActive = false;
@@ -701,17 +702,24 @@ fireSlimeBeam() {
 
     if (this.slimeBeamObject) {
         this.tweens.killTweensOf(this.slimeBeamObject); // 既存のアルファTweenを停止
-        this.slimeBeamObject.setFillStyle(0xCCCC00, 0.65); // 黄色っぽいビーム本番の色とアルファ
-        this.slimeBeamObject.setVisible(true);  // 表示状態を確実にする
-        this.slimeBeamObject.setActive(true);   // アクティブ状態を確実にする
-        console.log(`[Beam Fire] Beam visual (Rectangle) activated. X:${this.slimeBeamObject.x.toFixed(0)}, Y:${this.slimeBeamObject.y.toFixed(0)}, W:${this.slimeBeamObject.width.toFixed(0)}, H:${this.slimeBeamObject.height.toFixed(0)}, Alpha:${this.slimeBeamObject.alpha.toFixed(2)}, Visible:${this.slimeBeamObject.visible}, Active:${this.slimeBeamObject.active}`);
 
-        // TODO: ここに「スライムをいくつも何個もランダムな向きや場所に貼り付けて埋め尽くしたような見た目」
-        // を実装する処理を追加します。
-        // 例: this.createSlimeBeamVisualEffect(this.slimeBeamObject);
+        // ★★★ オブジェクト全体のアルファ値を設定 ★★★
+        this.slimeBeamObject.setAlpha(0.65); // 例: ビーム本番のアルファ値 (setFillStyleのアルファと同じか、別に設定)
+        // ★★★------------------------------------★★★
+
+        this.slimeBeamObject.setFillStyle(0xCCCC00, 1); // 色は不透明(alpha=1)にし、全体のalphaで透明度を制御
+                                                        // または、setFillStyleのalphaも0.65のままにして、
+                                                        // this.slimeBeamObject.setAlpha(1) でも良い。
+                                                        // 一般的には gameObject.alpha で全体の透明度を制御する方が直感的。
+
+        this.slimeBeamObject.setVisible(true);
+        this.slimeBeamObject.setActive(true);
+        console.log(`[Beam Fire] Beam visual activated. X:${this.slimeBeamObject.x.toFixed(0)}, Y:${this.slimeBeamObject.y.toFixed(0)}, Width:${this.slimeBeamObject.width.toFixed(0)}, Height:${this.slimeBeamObject.height.toFixed(0)}, Alpha:${this.slimeBeamObject.alpha.toFixed(2)}, Visible:${this.slimeBeamObject.visible}, Active:${this.slimeBeamObject.active}`);
+
+        // TODO: ビームの見た目の実装
     } else {
         console.error("[Beam Fire] this.slimeBeamObject is NULL when trying to fire beam! Cannot proceed.");
-        this.endSlimeBeam(); // 即座に終了処理へ
+        this.endSlimeBeam();
         return;
     }
 
@@ -719,9 +727,6 @@ fireSlimeBeam() {
         try { this.sound.play(this.bossData.seSlimeBeamFire); } catch(e) { console.error("Error playing beam fire SE:", e); }
     }
 
-    // 当たり判定は checkSlimeBeamCollisions で毎フレーム行われる
-
-    // 持続時間後にビーム終了
     this.time.delayedCall(this.bossData.slimeBeamDuration || 1800, this.endSlimeBeam, [], this);
 }
 
