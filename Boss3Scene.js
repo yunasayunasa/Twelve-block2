@@ -116,6 +116,15 @@ export default class Boss3Scene extends CommonBossScene {
             slimeBeamFlashCount: 3,
             slimeBeamInterval: 12000, // スライムビームの再使用間隔
 
+            guaranteedDropFromTargetedAttack: [
+            POWERUP_TYPES.INDARA,
+            POWERUP_TYPES.BIKARA, // (CommonBossSceneのPOWERUP_TYPES.BIKARAは陰想定)
+            POWERUP_TYPES.BAISRAVA,
+            POWERUP_TYPES.VAJRA,
+            POWERUP_TYPES.BADRA,  
+            ],
+             // ★候補としてバドラを追加 (またはヴァジラなど)
+
              // ★このボス戦でドロッププールから除外するパワーアップのリスト★
         excludedPowerUps: [POWERUP_TYPES.SINDARA, POWERUP_TYPES.ANCHIRA],
 
@@ -774,87 +783,86 @@ triggerHpHalfEffect() {
      * @param {Phaser.Physics.Arcade.Image} brick 衝突した攻撃ブロック
      * @param {Phaser.Physics.Arcade.Image} ball 衝突したボール
      */
-    hitAttackBrick(brick, ball) {
-        if (!brick?.active || !ball?.active || !ball.body) {
-            console.warn("[Boss3 hitAttackBrick] Invalid brick or ball state.");
-            return;
-        }
-
-        const blockType = brick.getData('blockType');
-
-        if (blockType === 'wall') {
-            console.log(`[Boss3 hitAttackBrick] Ball hit WALL component (Line: ${brick.getData('wallLine')}). Forcing downward reflection.`);
-
-            // --- 特殊な下向き反射ロジック ---
-            let newVx = ball.body.velocity.x; // 現在のX速度をベースにする
-            let newVy = Math.abs(ball.body.velocity.y); // 現在のY速度の絶対値（上向きでも下向きでも正の値に）
-
-            // Y速度を必ず下向きにし、最低速度を保証
-            const minBounceSpeedY = NORMAL_BALL_SPEED * 0.5; // 仮: 通常ボール速度の50%
-            newVy = Math.max(newVy, minBounceSpeedY);
-
-            // X速度の調整 (任意)
-            // 例: あまりにも真横に近い角度で壁に当たった場合、X速度を少し抑える
-            if (Math.abs(newVy) < Math.abs(newVx) * 0.3) { // YがXの30%未満なら
-                newVx *= 0.8; // X速度を20%減らす
-            }
-            // 例: 左右の壁の端の方で当たった場合、少し中央に戻るようにX速度を調整する (高度)
-
-            // パワーアップによる速度補正を考慮
-            let speedMultiplier = 1.0;
-            if (ball.getData('isFast') === true) {
-                speedMultiplier = BALL_SPEED_MODIFIERS[POWERUP_TYPES.SHATORA];
-            } else if (ball.getData('isSlow') === true) {
-                speedMultiplier = BALL_SPEED_MODIFIERS[POWERUP_TYPES.HAILA];
-            }
-            const targetSpeed = NORMAL_BALL_SPEED * speedMultiplier;
-
-            // 最終的な速度ベクトルを計算・正規化・適用
-            const finalVel = new Phaser.Math.Vector2(newVx, newVy); // newVyは既に正
-            if (finalVel.lengthSq() === 0) { // ゼロベクトル回避
-                finalVel.set(Phaser.Math.Between(-50, 50), targetSpeed * 0.7); // とりあえずランダムなXと下向きY
-            }
-            finalVel.normalize().scale(targetSpeed);
-
-            ball.setVelocity(finalVel.x, finalVel.y);
-            console.log(`[Wall Hit] Ball new velocity: (${finalVel.x.toFixed(1)}, ${finalVel.y.toFixed(1)})`);
-
-            // --- ブロック破壊とアイテムドロップ ---
-            // CommonBossScene のメソッドを呼び出す
-            this.destroyAttackBrickAndDropItem(brick);
-
-        } else if (blockType === 'projectile') {
-            // 通常の攻撃弾の場合は、CommonBossSceneの処理に任せる
-            console.log("[Boss3 hitAttackBrick] Ball hit PROJECTILE component. Calling super.hitAttackBrick.");
-            super.hitAttackBrick(brick, ball);
-        } else {
-            // 未定義のタイプの場合は、とりあえずCommonBossSceneの処理に任せる
-            console.warn(`[Boss3 hitAttackBrick] Ball hit UNKNOWN blockType: ${blockType}. Calling super.hitAttackBrick.`);
-            super.hitAttackBrick(brick, ball);
-        }
+    // hitAttackBrick メソッド (既存のものを拡張)
+hitAttackBrick(brick, ball) {
+    if (!brick?.active || !ball?.active || !ball.body) {
+        console.warn("[Boss3 hitAttackBrick] Invalid brick or ball state.");
+        return;
     }
 
-// ... (他のメソッド) ...
-    // ボールと壁ブロックの衝突処理のオーバーライド
-    // (CommonBossSceneのhitAttackBrickから呼ばれることを想定し、
-    //  CommonBossScene側でblockTypeによる分岐を実装するか、ここで完全に上書き)
-    /*
-    hitAttackBrick(brick, ball) {
-        if (!brick?.active || !ball?.active) return;
-        const blockType = brick.getData('blockType');
+    const blockType = brick.getData('blockType');
+    const isGuaranteedDropSource = brick.getData('isGuaranteedDropSource'); // ターゲット攻撃弾の印
 
-        if (blockType === 'wall') {
-            console.log("Ball hit WALL component (King Slime). Forcing downward reflection.");
-            // ... 強制下向き反射ロジック ...
-            this.destroyAttackBrickAndDropItem(brick);
-        } else if (blockType === 'projectile') {
-            console.log("Ball hit PROJECTILE component (King Slime). Using default reflection.");
-            super.hitAttackBrick(brick, ball); // 親のメソッドを呼ぶ (アイテムドロップなども含む)
+    // --- ▼ ターゲット攻撃弾（確定ドロップ源）の処理 ▼ ---
+    if (blockType === 'projectile' && isGuaranteedDropSource === true) {
+        console.log("[Boss3 hitAttackBrick] Ball hit GUARANTEED DROP source projectile.");
+        const brickX = brick.x;
+        const brickY = brick.y;
+
+        // 1. 確定ドロップアイテムを選定・ドロップ
+        const guaranteedDropCandidates = this.bossData.guaranteedDropFromTargetedAttack;
+        if (guaranteedDropCandidates && guaranteedDropCandidates.length > 0) {
+            const itemToDrop = Phaser.Utils.Array.GetRandom(guaranteedDropCandidates);
+            console.log(`[Guaranteed Drop] Dropping: ${itemToDrop}`);
+            this.dropSpecificPowerUp(brickX, brickY, itemToDrop); // CommonBossSceneのメソッド
         } else {
-            super.hitAttackBrick(brick, ball); // 不明なタイプは親に任せる
+            console.warn("[Guaranteed Drop] No candidates defined in bossData.");
         }
+
+        // 2. ブロックを破壊 (アイテムドロップ抽選は行わない)
+        //    CommonBossSceneのdestroyAttackBrickはアイテムドロップ抽選を含むので、
+        //    ここでは破壊とSE再生、ヴァジラゲージ増加だけを行うヘルパーが別途あると良い。
+        //    なければ、ここで直接記述。
+        this.sound.play(AUDIO_KEYS.SE_DESTROY); // 破壊音
+        this.createImpactParticles(brick.x, brick.y, [0,360], brick.tintTopLeft || 0xaa88ff, 10); // 破片
+        brick.destroy();
+        this.increaseVajraGauge(); // ヴァジラゲージ増加
+
+        // 3. ボールの反射 (通常の物理反射)
+        //    super.hitAttackBrick(brick, ball) を呼ぶと二重で破壊処理が走るので、
+        //    ここでは反射ロジックだけを適用するか、何もしない（通常の物理エンジンに任せる）
+        //    今回は、破壊して終わりとし、ボールの速度は物理エンジンが解決すると想定。
+        //    もし特定の反射をさせたいなら、ここに反射ロジックを書く。
+        //    例えば、CommonBossScene の hitAttackBrick の反射部分だけを抜き出して適用など。
+        //    ここではシンプルに、破壊したらボールはそのまま物理法則に従う、としておく。
+
+        return; // このブロックの処理はここで終わり
     }
-    */
+    // --- ▲ ターゲット攻撃弾の処理 終了 ▲ ---
+
+    // --- ▼ 壁ブロックの処理 ▼ ---
+    if (blockType === 'wall') {
+        console.log(`[Boss3 hitAttackBrick] Ball hit WALL component (Line: ${brick.getData('wallLine')}). Forcing downward reflection.`);
+        // ... (既存の下向き反射ロジック) ...
+        // この中で this.destroyAttackBrickAndDropItem(brick) を呼んでいるはず (これは通常のドロップ抽選あり)
+        // そのままでOK。
+        let newVx = ball.body.velocity.x;
+        let newVy = Math.abs(ball.body.velocity.y);
+        const minBounceSpeedY = (NORMAL_BALL_SPEED || 380) * 0.5;
+        newVy = Math.max(newVy, minBounceSpeedY);
+        if (Math.abs(newVy) < Math.abs(newVx) * 0.3) newVx *= 0.8;
+
+        let speedMultiplier = 1.0;
+        if (ball.getData('isFast') === true) speedMultiplier = BALL_SPEED_MODIFIERS[POWERUP_TYPES.SHATORA];
+        else if (ball.getData('isSlow') === true) speedMultiplier = BALL_SPEED_MODIFIERS[POWERUP_TYPES.HAILA];
+        const targetSpeed = (NORMAL_BALL_SPEED || 380) * speedMultiplier;
+
+        const finalVel = new Phaser.Math.Vector2(newVx, newVy);
+        if (finalVel.lengthSq() === 0) finalVel.set(Phaser.Math.Between(-50, 50), targetSpeed * 0.7);
+        finalVel.normalize().scale(targetSpeed);
+        ball.setVelocity(finalVel.x, finalVel.y);
+
+        this.destroyAttackBrickAndDropItem(brick); // 通常のドロップ抽選あり
+
+        return; // 壁ブロックの処理もここで終わり
+    }
+    // --- ▲ 壁ブロックの処理 終了 ▲ ---
+
+    // --- ▼ その他の projectile (もしあれば) または未定義タイプ ▼ ---
+    // (キングスライムの場合、projectile はターゲット攻撃弾のみの想定だが、念のため)
+    console.log(`[Boss3 hitAttackBrick] Ball hit other/unknown projectile type: ${blockType}. Calling super.hitAttackBrick.`);
+    super.hitAttackBrick(brick, ball); // CommonBossSceneのデフォルト処理
+}
 
     // shutdownScene でタイマーなどをクリア
    
