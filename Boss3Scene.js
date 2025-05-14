@@ -395,7 +395,7 @@ updateSpecificBossBehavior(time, delta) {
 
   // --- ▼ 流れる壁ギミック ▼ ---
 startWallBlockSpawners() {
-    const spawnInterval = this.bossData.wallBlockSpawnInterval || 300; // デフォルト300ms
+    const spawnInterval = this.bossData.wallBlockSpawnInterval || 450; // デフォルト300ms
     const initialDelay = 100; // 最初のブロックが少し遅れて出始めるように (任意)
 
     console.log(`[Wall] Starting wall block spawners. Interval: ${spawnInterval}ms`);
