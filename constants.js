@@ -163,6 +163,34 @@ BGM_KING_SLIME: 'bgm_king_slime',                   // キングスライム戦B
     
     
     // (他のボスも同様に専用ボイスキーを追加していく)
+     // --- ルシゼロ (Boss4) 専用ボイス ---
+    VOICE_LUCILIUS_APPEAR: 'voice_lucilius_appear',       // ルシゼロ登場ボイス
+    VOICE_LUCILIUS_DAMAGE: 'voice_lucilius_damage',       // ルシゼロ被ダメージボイス (決着の刻)
+    VOICE_LUCILIUS_DEFEAT: 'voice_lucilius_defeat',       // ルシゼロ撃破ボイス (決着の刻)
+    VOICE_LUCILIUS_RANDOM_1: 'voice_lucilius_random_1',   // ルシゼロランダムボイス1
+    // VOICE_LUCILIUS_RANDOM_2: 'voice_lucilius_random_2',   // 必要に応じて追加
+    VOICE_LUCILIUS_TRIAL_START: 'voice_lucilius_trial_start', // 新しい試練開始時のセリフなど (任意)
+    VOICE_LUCILIUS_TRIAL_COMPLETE: 'voice_lucilius_trial_complete', // 試練達成時のセリフなど (任意)
+    VOICE_LUCILIUS_CHOICE: 'voice_lucilius_choice',         // 「調和と破壊」選択を促すセリフ (任意)
+    VOICE_LUCILIUS_PARADISE_LOST: 'voice_lucilius_paradise_lost', // パラダイス・ロスト詠唱 (任意)
+
+    // --- ルシゼロ (Boss4) 専用SE ---
+    SE_JI_END_BELL: 'se_ji_end_bell',                 // ジエンドタイマーの鐘の音
+    SE_TRIAL_ANNOUNCE: 'se_trial_announce',           // 新しい試練が提示される時のSE (UI表示と同期)
+    SE_TRIAL_SUCCESS: 'se_trial_success',             // 試練達成時の成功SE
+    SE_CRYSTAL_SPAWN: 'se_crystal_spawn',             // 「調和と破壊」クリスタル出現SE
+    SE_CRYSTAL_BREAK_ORDER: 'se_crystal_break_order',   // 秩序クリスタル破壊SE
+    SE_CRYSTAL_BREAK_CHAOS: 'se_crystal_break_chaos',   // 混沌クリスタル破壊SE
+    SE_PARADISE_LOST_CHARGE: 'se_paradise_lost_charge', // 「パラダイス・ロスト」チャージSE
+    SE_PARADISE_LOST_EXECUTE: 'se_paradise_lost_execute',// 「パラダイス・ロスト」発動SE
+    SE_LUCILIUS_WARP_EFFECT: 'se_lucilius_warp',        // ルシゼロワープSE
+    SE_ABYSS_CORE_SHOW: 'se_abyss_core_show',           // アビス・コア出現SE (任意)
+    SE_ABYSS_CORE_HIT_SOUND: 'se_abyss_core_hit',         // アビス・コアヒットSE (任意)
+    SE_TIME_FIELD_ON: 'se_time_field_on',               // 「時の超越」フィールド展開SE
+    SE_TIME_FIELD_OFF: 'se_time_field_off',              // 「時の超越」フィールド解除SE
+    SE_LUCILIUS_ATTACK_RADIAL: 'se_lucilius_attack_radial', // 放射攻撃SE
+    SE_LUCILIUS_ATTACK_TARGET: 'se_lucilius_attack_target', // ターゲット攻撃SE
+    SE_LUCILIUS_INVULNERABLE_HIT: 'se_lucilius_invul_hit', // 試練中ボスにボールが当たった時の無効音 (任意)
     BGM_LUCILIUS_PHASE1: 'bgm_lucilius_phase1.mp3'
 };
 

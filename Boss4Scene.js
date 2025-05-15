@@ -73,7 +73,7 @@ export default class Boss4Scene extends CommonBossScene {
             bgmKey: AUDIO_KEYS.BGM_LUCILIUS_PHASE1, // 初期BGM
             // (ルート選択後や最終決戦でBGMを変える場合は、別途ロジックが必要)
             cutsceneText: 'VS ダークラプチャー・ゼロ', // Commonのカットシーンで使われる場合
-            widthRatio: 0.25,
+            widthRatio: 0.35,
             moveRangeXRatioFinal: 0.7, // 最終決戦時の移動範囲
             moveDurationFinal: 3000,   // 最終決戦時の移動時間
 
