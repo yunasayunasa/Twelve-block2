@@ -518,17 +518,7 @@ resetAllBallsToPaddle() {
 }
 
 
-shatterCrystal(crystal) {
-    if (!crystal || !crystal.active) return;
-    console.log(`[ChoiceEvent] Shattering ${crystal.getData('crystalType')} crystal visually.`);
-    crystal.disableBody(true, false); // ボディだけ無効化、非表示にはしない
-    // crystal.setActive(false); // activeもfalseに
-    this.tweens.add({
-        targets: crystal, alpha: 0, scale: crystal.scale * 0.3, angle: 180, duration: 400, ease: 'Power2',
-        onComplete: () => { if (crystal.scene) crystal.destroy(); }
-    });
-    // TODO: 破壊音 (AUDIO_KEYS.SE_CRYSTAL_BREAK_ORDER or CHAOS)
-}
+shatterCrystal
 
 // selectRoute: ルートを設定し、次の試練へ
 selectRoute(route) { // destroyedCrystal引数は不要に
@@ -844,70 +834,86 @@ hitChaosFragment(ball, fragment) {
 
 
 
-// warpBoss メソッドの修正案 (「収束と拡散」風の演出)
+// Boss4Scene.js の warpBoss メソッド (createTimeline を使わないリッチな演出案)
+
 warpBoss() {
-    if (!this.boss || !this.boss.active || this.tweens.isTweening(this.boss)) { // 既にワープ中などは実行しない
-        // (isTweening(this.boss) は大雑把なチェック。専用の isWarping フラグが良い)
+    if (!this.boss || !this.boss.active || this.isWarping) { // isWarping フラグを追加して管理
         return;
     }
-    console.log("[BossAction] Initiating Rich Warp Sequence...");
-    // this.isWarping = true; // ワープ中フラグを立てる
+    console.log("[BossAction] Initiating Rich Warp Sequence (Sequential Tweens)...");
+    this.isWarping = true; // ワープ中フラグを立てる
 
     // ワープSE（開始音）
-    if (AUDIO_KEYS.SE_LUCILIUS_WARP_EFFECT_START) this.sound.play(AUDIO_KEYS.SE_LUCILIUS_WARP_EFFECT_START);
+    if (AUDIO_KEYS.SE_LUCILIUS_WARP_EFFECT_START) { // キーの存在確認
+        try { this.sound.play(AUDIO_KEYS.SE_LUCILIUS_WARP_EFFECT_START); } catch(e){}
+    }
 
     // 1. 現在地で収束・消滅エフェクト
-    this.tweens.createTimeline()
-        .add({
-            targets: this.boss,
-            scaleX: this.boss.scaleX * 0.1, // Xスケールを10%に
-            scaleY: this.boss.scaleY * 0.1, // Yスケールを10%に
-            alpha: 0,
-            angle: this.boss.angle + Phaser.Math.RND.pick([-90, 90, 180]), // 少し回転しながら
-            duration: this.bossData.warpDurationFadeOut || 200,
-            ease: 'Power2.easeIn'
-        })
-        .add({ // 2. 短い消滅維持時間
-            targets: this.boss, // ダミーターゲットでも良い
-            alpha: 0, // alphaは0のまま
-            duration: this.bossData.warpDurationHold || 150,
-            onComplete: () => {
+    this.tweens.add({
+        targets: this.boss,
+        scaleX: (this.boss.getData('targetScale') || this.boss.scaleX) * 0.05, // 元のスケールの5%に
+        scaleY: (this.boss.getData('targetScale') || this.boss.scaleY) * 0.05,
+        alpha: 0,
+        angle: this.boss.angle + Phaser.Math.RND.pick([-90, 90, 180, 270]), // 少し回転
+        duration: this.bossData.warpDurationFadeOut || 250, // 消える時間を少し長く
+        ease: 'Cubic.easeIn', // 徐々に加速して消える感じ
+        onComplete: () => {
+            if (!this.boss || !this.isWarping) return; // ワープがキャンセルされた場合など
+
+            // 2. 短い消滅維持時間 (delayedCallで表現)
+            this.time.delayedCall(this.bossData.warpDurationHold || 100, () => {
+                if (!this.boss || !this.isWarping) return;
+
                 // 3. 新しい位置を決定
                 const targetX = Phaser.Math.Between(
-                    this.boss.displayWidth / 2 + 50, // マージン調整
-                    this.gameWidth - this.boss.displayWidth / 2 - 50
+                    this.boss.displayWidth / 2 + 60, // マージンを少し増やす
+                    this.gameWidth - this.boss.displayWidth / 2 - 60
                 );
                 const minY = this.gameHeight * (this.bossData.warpYRange.minRatio || 0.15);
                 const maxY = this.gameHeight * (this.bossData.warpYRange.maxRatio || 0.25);
-                const targetY = Phaser.Math.Between(minY + this.boss.displayHeight/2, maxY - this.boss.displayHeight/2); // ボス自身の高さを考慮
-                
-                this.boss.setPosition(targetX, Math.max(this.boss.displayHeight/2, targetY)); // Yが画面上部にはみ出ないように
-                this.boss.setScale(this.bossData.widthRatio / (this.boss.texture.source[0].width / this.gameWidth) * 0.1); // 消滅時と同じ小さいスケールから開始
+                // ボス自身の高さを考慮してY座標の範囲を決定
+                const bossHeightForCalc = this.boss.height * (this.boss.getData('targetScale') || this.boss.scaleY); // 表示高さを取得
+                const finalTargetY = Phaser.Math.Clamp(
+                    Phaser.Math.Between(minY + bossHeightForCalc / 2, maxY - bossHeightForCalc / 2),
+                    bossHeightForCalc / 2, // 画面上端にはみ出ない最小Y
+                    this.gameHeight - bossHeightForCalc / 2 // 画面下端にはみ出ない最大Y (通常はここまで下がらないが念のため)
+                );
+
+                this.boss.setPosition(targetX, finalTargetY);
+                // 消滅時と同じ小さいスケールから開始 (alphaは0のまま)
+                this.boss.setScale((this.boss.getData('targetScale') || this.boss.scaleX) * 0.05);
 
                 console.log(`[BossAction] Warped to new position: X:${this.boss.x.toFixed(0)}, Y:${this.boss.y.toFixed(0)}`);
                 // ワープSE（出現音）
-                if (AUDIO_KEYS.SE_LUCILIUS_WARP_EFFECT_END) this.sound.play(AUDIO_KEYS.SE_LUCILIUS_WARP_EFFECT_END);
+                if (AUDIO_KEYS.SE_LUCILIUS_WARP_EFFECT_END) { // キーの存在確認
+                     try { this.sound.play(AUDIO_KEYS.SE_LUCILIUS_WARP_EFFECT_END); } catch(e){}
+                }
 
                 // 4. 新しい位置で拡散・出現エフェクト
-                this.tweens.createTimeline()
-                .add({
+                this.tweens.add({
                     targets: this.boss,
-                    scaleX: this.boss.getData('targetScale') || this.bossData.widthRatio / (this.boss.texture.source[0].width / this.gameWidth), // 元のスケールに戻す
-                    scaleY: this.boss.getData('targetScale') || this.bossData.widthRatio / (this.boss.texture.source[0].width / this.gameWidth),
+                    scaleX: this.boss.getData('targetScale') || (this.bossData.widthRatio / (this.boss.texture.source[0].width / this.gameWidth)), // 元のスケールに戻す
+                    scaleY: this.boss.getData('targetScale') || (this.bossData.widthRatio / (this.boss.texture.source[0].width / this.gameWidth)),
                     alpha: 1,
-                    angle: this.boss.angle + Phaser.Math.RND.pick([-90, 90, 180]), // 元の角度に戻るか、さらに回転
-                    duration: this.bossData.warpDurationFadeIn || 200,
-                    ease: 'Power2.easeOut',
+                    angle: this.boss.angle + Phaser.Math.RND.pick([-90, 90, 180, 270]), // 元の角度に戻るか、さらに回転
+                    duration: this.bossData.warpDurationFadeIn || 250, // 出現時間を少し長く
+                    ease: 'Cubic.easeOut', // 徐々に減速して現れる感じ
                     onComplete: () => {
-                        // this.isWarping = false; // ワープ終了
+                        this.isWarping = false; // ワープ終了
                         // ワープ後の行動停止時間を考慮して次の攻撃タイミングを調整
-                        this.lastAttackTime = this.time.now + (this.bossData.pauseAfterWarp || 800) - (this.currentRoute === 'order' ? (this.bossData.attackIntervalOrder.min + this.bossData.attackIntervalOrder.max)/2 : (this.bossData.attackIntervalChaos.min + this.bossData.attackIntervalChaos.max)/2 );
-                        console.log("[BossAction] Rich Warp Sequence Complete.");
+                        // (この計算は前回同様だが、平均攻撃間隔の取得はbossDataから行うようにする)
+                        const avgAttackInterval = this.currentRoute === 'order' ?
+                            (this.bossData.attackIntervalOrder.min + this.bossData.attackIntervalOrder.max) / 2 :
+                            (this.bossData.attackIntervalChaos.min + this.bossData.attackIntervalChaos.max) / 2;
+                        this.lastAttackTime = this.time.now + (this.bossData.pauseAfterWarp || 800) - avgAttackInterval;
+                        console.log("[BossAction] Rich Warp Sequence (Sequential Tweens) Complete.");
                     }
-                }).play();
-            }
-        }).play();
+                });
+            }, [], this);
+        }
+    });
 }
+
 
     // 放射攻撃 (仮実装)
     // Boss4Scene.js
