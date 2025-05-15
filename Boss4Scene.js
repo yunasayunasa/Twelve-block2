@@ -371,9 +371,66 @@ export default class Boss4Scene extends CommonBossScene {
 
         // 各試練の達成条件チェック (例)
         if (this.activeTrial && !this.activeTrial.completed) {
-            this.checkTrialCompletion(this.activeTrial, ball, brick); // ball, brickは適切なものに
+           
         }
     }
+
+    hitBoss(boss, ball) {
+    super.hitBoss(boss, ball); // まず親クラスの通常のボスヒット処理を実行
+
+    if (this.activeTrial && !this.activeTrial.completed && this.activeTrial.id === 2) { // 試練IIか？
+        this.activeTrial.hitCount = (this.activeTrial.hitCount || 0) + 1;
+        this.updateTrialProgressUI(this.activeTrial); // UI更新 (例: "3/5")
+        if (this.activeTrial.hitCount >= this.activeTrial.requiredHits) {
+            this.completeCurrentTrial();
+        }
+    }
+    // 他にも「ボスにボールが当たること」が条件の試練があれば、ここで判定を追加
+    // 例: 試練V「星光の追撃」（クビラ効果中にヒット）
+    if (this.activeTrial && !this.activeTrial.completed && this.activeTrial.id === 5) {
+        if (ball.getData('isKubiraActive')) { // クビラはボールダメージアップなので、ボールにフラグがない想定。プレイヤーのクビラ状態を見る必要がある
+             // or this.isPlayerKubiraActive のようなフラグで判断
+            // ここでは仮に、ボールがクビラ状態を持つ（CommonBossSceneでそのように設定している）とする
+            this.activeTrial.hitCountKubira = (this.activeTrial.hitCountKubira || 0) + 1;
+            this.updateTrialProgressUI(this.activeTrial);
+            if (this.activeTrial.hitCountKubira >= this.activeTrial.requiredHitsKubira) {
+                this.completeCurrentTrial();
+            }
+        }
+    }
+    // ワープ処理 (ボールヒット時)
+    if (!this.isFinalBattleActive) {
+        this.warpBoss();
+    }
+}
+
+spawnChaosFragments(count) {
+    // this.chaosFragmentsGroup = this.physics.add.group(); // 専用グループ
+    // for (let i = 0; i < count; i++) {
+    //     const fragment = this.chaosFragmentsGroup.create(x, y, 'chaos_fragment_texture');
+    //     fragment.setData('isChaosFragment', true);
+    // }
+    // ボールと欠片のコライダー設定
+    // this.physics.add.collider(this.balls, this.chaosFragmentsGroup, this.hitChaosFragment, null, this);
+    this.activeTrial.destroyedCount = 0; // カウンター初期化
+    this.updateTrialProgressUI(this.activeTrial);
+    console.log(`[Trial] Spawned ${count} Chaos Fragments. Need to destroy.`);
+}
+
+// ボールが混沌の欠片に当たった時のコールバック
+hitChaosFragment(ball, fragment) {
+    if (!fragment.active) return;
+    // (破片破壊のSEやエフェクト)
+    fragment.destroy();
+
+    if (this.activeTrial && !this.activeTrial.completed && this.activeTrial.id === 3) {
+        this.activeTrial.destroyedCount++;
+        this.updateTrialProgressUI(this.activeTrial); // UI更新 (例: "破壊数: 3/5")
+        if (this.activeTrial.destroyedCount >= this.activeTrial.objectsToDestroy) {
+            this.completeCurrentTrial();
+        }
+    }
+}
 
     // ワープ処理の本体
     warpBoss() {
