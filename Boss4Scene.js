@@ -179,7 +179,7 @@ startIntroCutscene() {
 
     // テストA: CUTSCENE_DURATION の参照
      const cutsceneDuration = CUTSCENE_DURATION || 1800;
-    // console.log("Test A: cutsceneDuration =", cutsceneDuration);
+     console.log("Test A: cutsceneDuration =", cutsceneDuration);
 
     // テストB: オーバーレイ生成
     // const overlay = this.add.rectangle(0, 0, this.gameWidth, this.gameHeight, 0x100020, 0.75)
