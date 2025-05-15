@@ -171,8 +171,8 @@ BGM_KING_SLIME: 'bgm_king_slime',                   // キングスライム戦B
     // VOICE_LUCILIUS_RANDOM_2: 'voice_lucilius_random_2',   // 必要に応じて追加
     VOICE_LUCILIUS_TRIAL_START: 'voice_lucilius_trial_start', // 新しい試練開始時のセリフなど (任意)
     VOICE_LUCILIUS_TRIAL_COMPLETE: 'voice_lucilius_trial_complete', // 試練達成時のセリフなど (任意)
-    VOICE_LUCILIUS_CHOICE: 'voice_lucilius_choice',         // 「調和と破壊」選択を促すセリフ (任意)
-    VOICE_LUCILIUS_PARADISE_LOST: 'voice_lucilius_paradise_lost', // パラダイス・ロスト詠唱 (任意)
+    VOICE_LUCILIUS_ICE: 'voice_lucilius_choice',         // 「調和と破壊」選択を促すセリフ (任意)
+    VOICE_LUCILIUS_PARがADISE_LOST: 'voice_lucilius_paradise_lost', // パラダイス・ロスト詠唱 (任意)
 
     // --- ルシゼロ (Boss4) 専用SE ---
     SE_JI_END_BELL: 'se_ji_end_bell',                 // ジエンドタイマーの鐘の音

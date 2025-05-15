@@ -199,9 +199,7 @@ applyBossDamage(bossInstance, damageAmount, source = "Unknown") {
             if (this.isGameOver || this.bossDefeated) return; // 既に終了していたら何もしない
 
             console.log("[Boss4Scene Intro] Delay finished. Setting up UI and preparing for combat.");
-            this.setupJiEndTimer();    // ジエンドタイマーUIとロジック初期化
-            this.setupTrialUI();       // 試練表示UI初期化
-
+          
             // CommonBossSceneの戦闘開始準備フローを呼び出す
             // これにより、ボスが表示され、物理が有効になり、startGameplayが呼ばれる
             super.startIntroCutscene();
@@ -222,7 +220,9 @@ applyBossDamage(bossInstance, damageAmount, source = "Unknown") {
         // CommonBossSceneのstartGameplayの残り処理を実行
         // (BGM再生、プレイヤー操作有効化、startSpecificBossMovement呼び出しなど)
         super.startGameplay();
-         
+          // this.setupJiEndTimer();    // ジエンドタイマーUIとロジック初期化
+         //   this.setupTrialUI();       // 試練表示UI初期化
+
     
 
         // ただし、試練I「調和と破壊」の間はプレイヤー操作を無効にしたい場合がある
