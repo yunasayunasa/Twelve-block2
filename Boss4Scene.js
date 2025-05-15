@@ -89,8 +89,13 @@ export default class Boss4Scene extends CommonBossScene {
             targetedAttackParamsOrder: { chargeTime: 600, speedMultiplier: 1.1 },
             targetedAttackParamsChaos: { chargeTime: 900, speedMultiplier: 0.9 },
 
-            warpInterval: 6000, // ワープ間隔 (ms)
-
+            warpYRange: { minRatio: 0.15, maxRatio: 0.25 }, // ワープ先のY座標範囲 (画面高さ比)
+    warpDelayAfterAttack: 300, // 攻撃後のワープ開始までの遅延 (ms)
+    warpDelayAfterHit: 100,    // ボールヒット後のワープ開始までの遅延 (ms)
+    warpDurationFadeOut: 200,  // ワープで消える時間
+    warpDurationHold: 150,     // 消えている時間
+    warpDurationFadeIn: 200,   // 再出現する時間
+    pauseAfterWarp: 800,       // ワープ後の行動停止時間 (ms)
             trials: this.defineTrials(),
             trialRewardItem: POWERUP_TYPES.BIKARA_YANG,
             // ルシゼロ専用攻撃弾のテクスチャキー
@@ -673,16 +678,15 @@ selectRoute(route, destroyedCrystalOriginal = null) { // 引数名変更
             const attackIntervalConfig = this.currentRoute === 'order' ? this.bossData.attackIntervalOrder : this.bossData.attackIntervalChaos;
             const interval = Phaser.Math.Between(attackIntervalConfig.min, attackIntervalConfig.max);
 
-            if (time > this.lastAttackTime + interval) {
-                // ランダムで放射攻撃かターゲット攻撃を選択
+               if (time > this.lastAttackTime + interval) {
                 if (Phaser.Math.Between(0, 1) === 0) {
                     this.fireRadialAttack();
                 } else {
                     this.fireTargetedAttack();
                 }
-                this.lastAttackTime = time;
-                // 攻撃直後にもワープ
-                this.warpBoss();
+                this.lastAttackTime = time; // 攻撃実行時刻を記録
+                // 攻撃後に少し遅れてワープ
+                this.time.delayedCall(this.bossData.warpDelayAfterAttack || 300, this.warpBoss, [], this);
             }
         }
 
@@ -729,6 +733,9 @@ hitBoss(boss, ball) {
         } catch (e) {
             console.error("[Boss4 hitBoss - TrialPhase] Error setting ball velocity for reflection:", e);
         }
+
+         this.time.delayedCall(this.bossData.warpDelayAfterHit || 100, this.warpBoss, [], this);
+    
 
         // (オプション) ボールヒット時のSE（効いていない感じの音）
         // try { if (AUDIO_KEYS.SE_LUCILIUS_INVULNERABLE_HIT) this.sound.play(AUDIO_KEYS.SE_LUCILIUS_INVULNERABLE_HIT); } catch(e){}
@@ -823,15 +830,72 @@ hitChaosFragment(ball, fragment) {
     }
 }
 
-    // ワープ処理の本体
-    warpBoss() {
-        if (!this.boss || !this.boss.active) return;
-        // 画面上部のランダムなX座標にワープ (Yは固定)
-        const targetX = Phaser.Math.Between(this.boss.displayWidth / 2, this.gameWidth - this.boss.displayWidth / 2);
-        // (ワープエフェクトなど)
-        this.boss.setX(targetX);
-        console.log(`[BossAction] Lucilius warped to X: ${targetX.toFixed(0)}`);
+
+
+// warpBoss メソッドの修正案 (「収束と拡散」風の演出)
+warpBoss() {
+    if (!this.boss || !this.boss.active || this.tweens.isTweening(this.boss)) { // 既にワープ中などは実行しない
+        // (isTweening(this.boss) は大雑把なチェック。専用の isWarping フラグが良い)
+        return;
     }
+    console.log("[BossAction] Initiating Rich Warp Sequence...");
+    // this.isWarping = true; // ワープ中フラグを立てる
+
+    // ワープSE（開始音）
+    if (AUDIO_KEYS.SE_LUCILIUS_WARP_EFFECT_START) this.sound.play(AUDIO_KEYS.SE_LUCILIUS_WARP_EFFECT_START);
+
+    // 1. 現在地で収束・消滅エフェクト
+    this.tweens.createTimeline()
+        .add({
+            targets: this.boss,
+            scaleX: this.boss.scaleX * 0.1, // Xスケールを10%に
+            scaleY: this.boss.scaleY * 0.1, // Yスケールを10%に
+            alpha: 0,
+            angle: this.boss.angle + Phaser.Math.RND.pick([-90, 90, 180]), // 少し回転しながら
+            duration: this.bossData.warpDurationFadeOut || 200,
+            ease: 'Power2.easeIn'
+        })
+        .add({ // 2. 短い消滅維持時間
+            targets: this.boss, // ダミーターゲットでも良い
+            alpha: 0, // alphaは0のまま
+            duration: this.bossData.warpDurationHold || 150,
+            onComplete: () => {
+                // 3. 新しい位置を決定
+                const targetX = Phaser.Math.Between(
+                    this.boss.displayWidth / 2 + 50, // マージン調整
+                    this.gameWidth - this.boss.displayWidth / 2 - 50
+                );
+                const minY = this.gameHeight * (this.bossData.warpYRange.minRatio || 0.15);
+                const maxY = this.gameHeight * (this.bossData.warpYRange.maxRatio || 0.25);
+                const targetY = Phaser.Math.Between(minY + this.boss.displayHeight/2, maxY - this.boss.displayHeight/2); // ボス自身の高さを考慮
+                
+                this.boss.setPosition(targetX, Math.max(this.boss.displayHeight/2, targetY)); // Yが画面上部にはみ出ないように
+                this.boss.setScale(this.bossData.widthRatio / (this.boss.texture.source[0].width / this.gameWidth) * 0.1); // 消滅時と同じ小さいスケールから開始
+
+                console.log(`[BossAction] Warped to new position: X:${this.boss.x.toFixed(0)}, Y:${this.boss.y.toFixed(0)}`);
+                // ワープSE（出現音）
+                if (AUDIO_KEYS.SE_LUCILIUS_WARP_EFFECT_END) this.sound.play(AUDIO_KEYS.SE_LUCILIUS_WARP_EFFECT_END);
+
+                // 4. 新しい位置で拡散・出現エフェクト
+                this.tweens.createTimeline()
+                .add({
+                    targets: this.boss,
+                    scaleX: this.boss.getData('targetScale') || this.bossData.widthRatio / (this.boss.texture.source[0].width / this.gameWidth), // 元のスケールに戻す
+                    scaleY: this.boss.getData('targetScale') || this.bossData.widthRatio / (this.boss.texture.source[0].width / this.gameWidth),
+                    alpha: 1,
+                    angle: this.boss.angle + Phaser.Math.RND.pick([-90, 90, 180]), // 元の角度に戻るか、さらに回転
+                    duration: this.bossData.warpDurationFadeIn || 200,
+                    ease: 'Power2.easeOut',
+                    onComplete: () => {
+                        // this.isWarping = false; // ワープ終了
+                        // ワープ後の行動停止時間を考慮して次の攻撃タイミングを調整
+                        this.lastAttackTime = this.time.now + (this.bossData.pauseAfterWarp || 800) - (this.currentRoute === 'order' ? (this.bossData.attackIntervalOrder.min + this.bossData.attackIntervalOrder.max)/2 : (this.bossData.attackIntervalChaos.min + this.bossData.attackIntervalChaos.max)/2 );
+                        console.log("[BossAction] Rich Warp Sequence Complete.");
+                    }
+                }).play();
+            }
+        }).play();
+}
 
     // 放射攻撃 (仮実装)
     // Boss4Scene.js
