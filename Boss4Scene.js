@@ -65,6 +65,7 @@ export default class Boss4Scene extends CommonBossScene {
             finalBattleHp: 5,
             textureKey: 'boss_lucilius_stand',
             negativeKey: 'boss_lucilius_negative',
+              backgroundKey: 'gameBackground_Boss4',
             voiceAppear: AUDIO_KEYS.VOICE_LUCILIUS_APPEAR,
             voiceDamage: AUDIO_KEYS.VOICE_LUCILIUS_DAMAGE,
             voiceDefeat: AUDIO_KEYS.VOICE_LUCILIUS_DEFEAT,
