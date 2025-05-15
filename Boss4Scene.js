@@ -195,8 +195,8 @@ startIntroCutscene() {
     console.log("Test D: fontSize =", fontSize);
 
     // テストE: textStyle の準備
-    // const textStyle = { fontSize: `${fontSize}px`, fill: '#E0E0E0', fontFamily: 'serif', align: 'center', stroke: '#111111', strokeThickness: Math.max(4, fontSize * 0.07) };
-    // console.log("Test E: textStyle prepared.");
+    const textStyle = { fontSize: `${fontSize}px`, fill: '#E0E0E0', fontFamily: 'serif', align: 'center', stroke: '#111111', strokeThickness: Math.max(4, fontSize * 0.07) };
+     console.log("Test E: textStyle prepared.");
 
     // テストF: VSテキスト生成
     // const vsText = this.add.text(this.gameWidth / 2, this.gameHeight / 2, textContent, textStyle)
