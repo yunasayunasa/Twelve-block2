@@ -222,7 +222,7 @@ applyBossDamage(bossInstance, damageAmount, source = "Unknown") {
         // CommonBossSceneのstartGameplayの残り処理を実行
         // (BGM再生、プレイヤー操作有効化、startSpecificBossMovement呼び出しなど)
         super.startGameplay();
-        const uiSetupDelay = 5000; // ★1秒遅らせる (ミリ秒単位で調整可能)
+        const uiSetupDelay = 4000; // ★1秒遅らせる (ミリ秒単位で調整可能)
 
     this.time.delayedCall(uiSetupDelay, () => {
         if (this.isGameOver || this.bossDefeated) return; // 既に終了していたら何もしない
