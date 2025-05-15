@@ -175,18 +175,42 @@ startIntroCutscene() {
     this.sound.stopAll();
     this.stopBgm(); // CommonBossSceneのメソッドを呼ぶ
 
-    // --- ▼ シンプルなVSカットイン表示 ▼ ---
-    const cutsceneDuration = CUTSCENE_DURATION || 1800;
-    const overlay = this.add.rectangle(0, 0, this.gameWidth, this.gameHeight, 0x100020, 0.75) // 少し紫がかった暗幕
-        .setOrigin(0,0).setDepth(899);
-    const textContent = this.bossData.cutsceneText || "TRIAL OF THE ABYSS"; // ボス名でも試練の総称でも
-    const fontSize = this.calculateDynamicFontSize(65);
-    const textStyle = { fontSize: `${fontSize}px`, fill: '#E0E0E0', fontFamily: 'serif', align: 'center', stroke: '#111111', strokeThickness: Math.max(4, fontSize * 0.07) };
-    const vsText = this.add.text(this.gameWidth / 2, this.gameHeight / 2, textContent, textStyle)
-        .setOrigin(0.5).setDepth(900);
+      // ★★★ 以下を一つずつコメント解除してテスト ★★★
 
-    if (AUDIO_KEYS.SE_CUTSCENE_START) this.sound.play(AUDIO_KEYS.SE_CUTSCENE_START);
-    if (this.bossData.voiceAppear) this.sound.play(this.bossData.voiceAppear); // 登場ボイス
+    // テストA: CUTSCENE_DURATION の参照
+     const cutsceneDuration = CUTSCENE_DURATION || 1800;
+    // console.log("Test A: cutsceneDuration =", cutsceneDuration);
+
+    // テストB: オーバーレイ生成
+    // const overlay = this.add.rectangle(0, 0, this.gameWidth, this.gameHeight, 0x100020, 0.75)
+    //     .setOrigin(0,0).setDepth(899);
+    // console.log("Test B: overlay created:", overlay);
+
+    // テストC: textContent の準備
+    // const textContent = this.bossData.cutsceneText || "VS DARK RUPTURE ZERO";
+    // console.log("Test C: textContent =", textContent);
+
+    // テストD: calculateDynamicFontSize の呼び出し
+    // const fontSize = this.calculateDynamicFontSize(60);
+    // console.log("Test D: fontSize =", fontSize);
+
+    // テストE: textStyle の準備
+    // const textStyle = { fontSize: `${fontSize}px`, fill: '#E0E0E0', fontFamily: 'serif', align: 'center', stroke: '#111111', strokeThickness: Math.max(4, fontSize * 0.07) };
+    // console.log("Test E: textStyle prepared.");
+
+    // テストF: VSテキスト生成
+    // const vsText = this.add.text(this.gameWidth / 2, this.gameHeight / 2, textContent, textStyle)
+    //     .setOrigin(0.5).setDepth(900);
+    // console.log("Test F: vsText created:", vsText);
+
+    // テストG: SE_CUTSCENE_START の再生
+    // try { if (AUDIO_KEYS.SE_CUTSCENE_START) this.sound.play(AUDIO_KEYS.SE_CUTSCENE_START); console.log("Test G: Played SE_CUTSCENE_START"); } catch(e) { console.error("Error G:", e); }
+
+    // テストH: voiceAppear の再生
+    // if (this.bossData.voiceAppear) try { this.sound.play(this.bossData.voiceAppear); console.log("Test H: Played voiceAppear"); } catch(e) { console.error("Error H:", e); }
+
+    console.log("[Boss4Scene Intro] Fine-grained test point reached.");
+    // delayedCallなどはまだコメントアウトのまま
 
   /*  this.time.delayedCall(cutsceneDuration, () => {
         if (overlay.scene) overlay.destroy();
