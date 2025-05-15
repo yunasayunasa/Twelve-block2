@@ -207,7 +207,7 @@ startIntroCutscene() {
      try { if (AUDIO_KEYS.SE_CUTSCENE_START) this.sound.play(AUDIO_KEYS.SE_CUTSCENE_START); console.log("Test G: Played SE_CUTSCENE_START"); } catch(e) { console.error("Error G:", e); }
 
     // テストH: voiceAppear の再生
-    // if (this.bossData.voiceAppear) try { this.sound.play(this.bossData.voiceAppear); console.log("Test H: Played voiceAppear"); } catch(e) { console.error("Error H:", e); }
+     if (this.bossData.voiceAppear) try { this.sound.play(this.bossData.voiceAppear); console.log("Test H: Played voiceAppear"); } catch(e) { console.error("Error H:", e); }
 
     console.log("[Boss4Scene Intro] Fine-grained test point reached.");
     // delayedCallなどはまだコメントアウトのまま
