@@ -138,8 +138,20 @@ export default class Boss4Scene extends CommonBossScene {
             this.boss.setImmovable(true); // 最初は動かない
             if(this.boss.body) this.boss.body.moves = false;
 
-            // UIへの初期HP反映 (試練中は無限なので特殊表示の可能性も)
-            this.events.emit('updateBossHp', '∞', '∞'); // または '????'
+
+
+            // --- ▼ ライフ表示の変更 ▼ ---
+        // UIに初期HP情報を渡す (試練中は無限大記号で表示)
+        // 「決着の刻」になるまではHPは変動しないので、ここで一度設定すればOK
+        // isFinalBattleActive フラグで判断
+        if (!this.isFinalBattleActive) {
+            this.events.emit('updateBossHp', '∞', '∞'); // ★ 無限大記号を使用
+            console.log("[Boss4 Create] Boss HP set to ∞ for UI.");
+        } else {
+            // (決着の刻のHP設定は startFinalBattle メソッドで行う)
+            this.events.emit('updateBossHp', this.boss.getData('health'), this.boss.getData('maxHealth'));
+        }
+        // --- ▲ ライフ表示の変更 終了 ▲ ---
             this.events.emit('updateBossNumber', this.currentBossIndex, TOTAL_BOSSES); // TOTAL_BOSSESをimport
         }
         console.log("--- Boss4Scene createSpecificBoss Complete ---");
@@ -177,16 +189,29 @@ export default class Boss4Scene extends CommonBossScene {
             this.formatTime(this.jiEndTimeRemaining), timerTextStyle
         ).setOrigin(0.5, 0.5).setDepth(-5); // ★背景とボスの間 (背景-10, ボス0と仮定)
 
-        const initialFxDuration = 3000;
-        const originalDepth = this.jiEndTimerText.depth;
-        const originalScale = this.jiEndTimerText.scale;
-        this.jiEndTimerText.setDepth(9998).setScale(originalScale * 1.2);
-        this.tweens.add({ targets: this.jiEndTimerText, scale: originalScale * 1.3, alpha: 0.7, duration: 300, yoyo: true, repeat: Math.floor(initialFxDuration / 600) - 1, onStart: () => this.playBellSound() });
-        this.time.delayedCall(initialFxDuration, () => {
-            if (this.jiEndTimerText?.active) {
-                this.jiEndTimerText.setDepth(originalDepth).setScale(originalScale).setAlpha(1);
+          // --- ▼ 初期登場演出の削除または変更 ▼ ---
+    // 以前の拡大縮小・点滅Tweenは削除
+
+    // シンプルに、数秒間だけ少し手前に表示するだけにする (任意)
+    const initialDisplayDuration = 2000; // 2秒間 (調整可能)
+    const originalDepth = this.jiEndTimerText.depth;
+
+    // もし「最初に少しだけ目立たせたい」という意図が少しでも残っているなら、
+    // 深度を一時的に上げる程度に留める。完全に不要ならこのブロックごと削除。
+    if (false) { // ← ここを true にすれば一時的な深度変更が有効になる。false なら何もしない。
+        this.jiEndTimerText.setDepth(100); // 一時的に少し手前に (例: ボスより手前、UIより奥)
+        this.time.delayedCall(initialDisplayDuration, () => {
+            if (this.jiEndTimerText && this.jiEndTimerText.active) {
+                this.jiEndTimerText.setDepth(originalDepth); // 元の深度に戻す
+                console.log(`[JiEndTimer] Depth reset to: ${this.jiEndTimerText.depth} after initial display.`);
             }
         }, [], this);
+
+    }
+     // タイマー開始時の鐘の音 (初回) - これは残しても良い演出
+    this.playBellSound();
+    // --- ▲ 初期登場演出の削除または変更 終了 ▲ ---
+
         this.isJiEndTimerRunning = true;
         console.log("[JiEndTimer] Setup complete.");
     }
