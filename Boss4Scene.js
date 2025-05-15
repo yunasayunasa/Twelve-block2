@@ -180,7 +180,7 @@ applyBossDamage(bossInstance, damageAmount, source = "Unknown") {
         // finalizeBossAppearanceAndStartで表示される。
 
         // UIセットアップと最初の試練開始の準備
-        this.time.delayedCall(1200, () => { // 1.2秒ほど待ってから開始 (調整可能)
+        this.time.delayedCall(1100, () => { // 1.2秒ほど待ってから開始 (調整可能)
             if (this.isGameOver || this.bossDefeated) return; // 既に終了していたら何もしない
 
             console.log("[Boss4Scene Intro] Delay finished. Setting up UI and preparing for combat.");
