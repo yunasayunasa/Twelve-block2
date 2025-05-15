@@ -205,6 +205,10 @@ applyBossDamage(bossInstance, damageAmount, source = "Unknown") {
             super.startIntroCutscene();
             this.finalizeBossAppearanceAndStart();
             this.isIntroAnimating = false; // 演出終了
+             this.setupJiEndTimer();    // ジエンドタイマーUIとロジック初期化
+          this.setupTrialUI();       // 試練表示UI初期化
+
+    
         }, [], this);
     }
 
@@ -220,10 +224,7 @@ applyBossDamage(bossInstance, damageAmount, source = "Unknown") {
         // CommonBossSceneのstartGameplayの残り処理を実行
         // (BGM再生、プレイヤー操作有効化、startSpecificBossMovement呼び出しなど)
         super.startGameplay();
-          this.setupJiEndTimer();    // ジエンドタイマーUIとロジック初期化
-          this.setupTrialUI();       // 試練表示UI初期化
-
-    
+         
 
         // ただし、試練I「調和と破壊」の間はプレイヤー操作を無効にしたい場合がある
         if (this.activeTrial && this.activeTrial.isChoiceEvent) {
