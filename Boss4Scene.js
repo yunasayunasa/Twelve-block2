@@ -126,7 +126,7 @@ export default class Boss4Scene extends CommonBossScene {
         super.createSpecificBoss(); // this.boss が CommonBossScene で生成される
         if (this.boss) {
             // ルシゼロは試練中は画面上部中央に固定
-            const initialY = this.gameHeight * 0.20; // Y座標 (調整可能)
+            const initialY = this.gameHeight * 0.4; // Y座標 (調整可能)
             this.boss.setPosition(this.gameWidth / 2, initialY);
             this.boss.setImmovable(true);
             if (this.boss.body) this.boss.body.moves = false; // 物理的に動かないように
@@ -427,7 +427,7 @@ startHarmonyAndDestructionChoice() {
     }
     console.log("[ChoiceEvent] Presenting Harmony and Destruction choice. Player needs to destroy a crystal.");
 
-    const crystalY = this.gameHeight * 0.45; // Y位置調整
+    const crystalY = this.gameHeight * 0.5; // Y位置調整
     const crystalScale = 0.28; // スケール調整
     const crystalDepth = 10;  // ボールより手前、ボスより手前
 
