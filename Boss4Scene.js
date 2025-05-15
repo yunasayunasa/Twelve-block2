@@ -140,18 +140,11 @@ export default class Boss4Scene extends CommonBossScene {
 
 
 
-            // --- ▼ ライフ表示の変更 ▼ ---
-        // UIに初期HP情報を渡す (試練中は無限大記号で表示)
-        // 「決着の刻」になるまではHPは変動しないので、ここで一度設定すればOK
-        // isFinalBattleActive フラグで判断
-        if (!this.isFinalBattleActive) {
-            this.events.emit('updateBossHp', '∞', '∞'); // ★ 無限大記号を使用
-            console.log("[Boss4 Create] Boss HP set to ∞ for UI.");
-        } else {
-            // (決着の刻のHP設定は startFinalBattle メソッドで行う)
-            this.events.emit('updateBossHp', this.boss.getData('health'), this.boss.getData('maxHealth'));
-        }
-        // --- ▲ ライフ表示の変更 終了 ▲ ---
+          // --- ▼ ライフ表示の修正 ▼ ---
+        // 試練中はHPを「∞」としてUIに通知
+        this.events.emit('updateBossHp', '∞', '∞');
+        console.log("[Boss4 Create] Boss HP UI explicitly set to ∞.");
+        // --- ▲ ライフ表示の修正 終了 ▲ ---
             this.events.emit('updateBossNumber', this.currentBossIndex, TOTAL_BOSSES); // TOTAL_BOSSESをimport
         }
         console.log("--- Boss4Scene createSpecificBoss Complete ---");
