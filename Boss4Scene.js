@@ -189,6 +189,7 @@ applyBossDamage(bossInstance, damageAmount, source = "Unknown") {
 
             // CommonBossSceneの戦闘開始準備フローを呼び出す
             // これにより、ボスが表示され、物理が有効になり、startGameplayが呼ばれる
+            super.startIntroCutscene();
             this.finalizeBossAppearanceAndStart();
             this.isIntroAnimating = false; // 演出終了
         }, [], this);
@@ -292,25 +293,24 @@ applyBossDamage(bossInstance, damageAmount, source = "Unknown") {
         }
 
         if (currentTrial.isChoiceEvent) {
-            this.startHarmonyAndDestructionChoice();
-        } else if (currentTrial.isFinalBattle) {
-            this.startFinalBattle();
-        } else {
-            // 通常の試練開始時の処理 (専用オブジェクトの召喚など)
-            this.setupCurrentTrialEnvironment(currentTrial);
-            // 戦闘開始 (プレイヤー操作有効化など) - finalizeBossAppearanceAndStart から呼ばれる startGameplay で行う
-            if (!this.playerControlEnabled && this.activeTrialIndex > 0) { // 最初の選択イベント後から操作可能に
-                 this.time.delayedCall(500, () => { // 少し間をおいて
-                    if (!this.isGameOver && !this.bossDefeated) {
-                        this.playerControlEnabled = true;
-                        this.isBallLaunched = false; // ボールは再発射待ち
-                        if (!this.currentBgm || !this.currentBgm.isPlaying) this.playBossBgm(); // BGMもここで
-                        console.log("[TrialLogic] Player control enabled for current trial.");
-                    }
-                }, [], this);
-            }
+        this.startHarmonyAndDestructionChoice();
+        this.playerControlEnabled = false; // 選択イベント中は操作不可のまま
+    } else if (currentTrial.isFinalBattle) {
+        this.startFinalBattle();
+        this.playerControlEnabled = true; // 最終決戦は操作可能
+        if (!this.currentBgm || !this.currentBgm.isPlaying) this.playBossBgm(); // 最終決戦BGM
+    } else {
+        // 通常の試練開始
+        this.setupCurrentTrialEnvironment(currentTrial);
+        // ★★★ 選択イベント後、または最初の通常試練からプレイヤー操作を有効化 ★★★
+        if (!this.playerControlEnabled) { // まだ操作不可なら
+            this.playerControlEnabled = true;
+            this.isBallLaunched = false; // ボールは再発射待ち
+            if (!this.currentBgm || !this.currentBgm.isPlaying) this.playBossBgm();
+            console.log("[TrialLogic] Player control ENABLED for current trial.");
         }
     }
+}
 
     // 現在の試練に応じた環境設定 (専用オブジェクト召喚など)
     setupCurrentTrialEnvironment(trial) {
@@ -323,25 +323,72 @@ applyBossDamage(bossInstance, damageAmount, source = "Unknown") {
 
 
     // 「調和と破壊」の選択イベントを開始
-    startHarmonyAndDestructionChoice() {
-        this.isChoiceEventActive = true;
-        this.playerControlEnabled = false; // 選択中は操作させないか、ボールは打てるようにするか
-        console.log("[ChoiceEvent] Presenting Harmony/Destruction choice.");
+  startHarmonyAndDestructionChoice() {
+    this.isChoiceEventActive = true;
+    this.playerControlEnabled = false; // 選択中はボールを打てないようにする (または打てるがクリスタルに当てる必要がある)
+    this.trialUiText.setText("十二の試練：試練 I「調和と破壊の選択」\n調和か混沌、どちらかを選べ");
+    console.log("[ChoiceEvent] Presenting Harmony/Destruction choice. Waiting for player input.");
 
-        // TODO: 画面に秩序と混沌のクリスタルを表示
-        // this.harmonyCrystal = this.add.sprite(...).setInteractive();
-        // this.destructionCrystal = this.add.sprite(...).setInteractive();
-        // クリスタル破壊のコールバックで this.currentRoute を設定し、
-        // this.isChoiceEventActive = false; this.startNextTrial(); を呼ぶ
-        // (この骨子ではダミーで一定時間後に進む)
-        this.time.delayedCall(1000, () => {
-            // ダミーで混沌ルートを選択
-            this.currentRoute = 'chaos'; // or 'order'
-            console.log(`[ChoiceEvent] Player (dummy) chose: ${this.currentRoute}`);
-            this.isChoiceEventActive = false;
-            this.startNextTrial(); // 次の試練へ
-        }, [], this);
+    const crystalY = this.gameHeight * 0.45; // 表示Y位置
+    const crystalWidth = this.gameWidth * 0.15; // 仮の幅
+    const crystalHeight = crystalWidth * 1.5;   // 仮の高さ
+    const crystalScale = 1.0; // スケールは画像に合わせて
+
+    // 秩序のクリスタル
+    if (this.harmonyCrystal) this.harmonyCrystal.destroy();
+    this.harmonyCrystal = this.physics.add.image(this.gameWidth * 0.3, crystalY, 'crystal_order') // ★要アセットキー
+        .setScale(crystalScale).setImmovable(true).setDepth(5);
+    // this.harmonyCrystal.body.setAllowGravity(false); // 必要なら
+    this.physics.add.collider(this.balls, this.harmonyCrystal, () => this.selectRoute('order', this.harmonyCrystal), null, this);
+    // (クリックでも選択できるようにするなら .setInteractive().on('pointerdown', ...))
+
+    // 混沌のクリスタル
+    if (this.destructionCrystal) this.destructionCrystal.destroy();
+    this.destructionCrystal = this.physics.add.image(this.gameWidth * 0.7, crystalY, 'crystal_chaos') // ★要アセットキー
+        .setScale(crystalScale).setImmovable(true).setDepth(5);
+    // this.destructionCrystal.body.setAllowGravity(false);
+    this.physics.add.collider(this.balls, this.destructionCrystal, () => this.selectRoute('chaos', this.destructionCrystal), null, this);
+
+    // (オプション) 選択の制限時間タイマー
+    // this.choiceTimer = this.time.delayedCall(15000, () => {
+    //     if (this.isChoiceEventActive) {
+    //         console.log("[ChoiceEvent] Time up. Defaulting route (e.g., neutral or random).");
+    //         this.selectRoute('neutral'); // 時間切れの場合の処理
+    //     }
+    // }, [], this);
+
+    // ★注意★: この時点ではまだ playerControlEnabled = false のまま。
+    // selectRoute が呼ばれた後、次の試練が始まる前に true に戻す必要がある。
+    // → startNextTrial の中で、isChoiceEvent でない試練なら true にする。
+}
+
+selectRoute(route, destroyedCrystal = null) {
+    if (!this.isChoiceEventActive) return; // 既に選択済みなら何もしない
+
+    console.log(`[ChoiceEvent] Player selected route: ${route}`);
+    this.currentRoute = route;
+    this.isChoiceEventActive = false; // 選択イベント終了
+    // if (this.choiceTimer) this.choiceTimer.remove(); // 制限時間タイマー解除
+
+    // ジエンドカウント速度とボス攻撃性に影響を与える (これは update メソッドで this.currentRoute を見る)
+    console.log(`[ChoiceEvent] JiEndTimer speed will now be affected by route: ${this.currentRoute}`);
+    console.log(`[ChoiceEvent] Boss attack pattern will now be affected by route: ${this.currentRoute}`);
+
+
+    // 破壊されなかった方のクリスタルも消す
+    if (destroyedCrystal === this.harmonyCrystal && this.destructionCrystal && this.destructionCrystal.active) {
+        this.destructionCrystal.destroy();
+    } else if (destroyedCrystal === this.destructionCrystal && this.harmonyCrystal && this.harmonyCrystal.active) {
+        this.harmonyCrystal.destroy();
     }
+    // 選択されたクリスタルも破棄 (アニメーションさせても良い)
+    destroyedCrystal?.destroy();
+    this.harmonyCrystal = null;
+    this.destructionCrystal = null;
+
+    // ★次の試練（原初の契約）へ★
+    this.startNextTrial();
+}
 
     // 最終決戦「決着の刻」を開始
     startFinalBattle() {
