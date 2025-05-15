@@ -375,6 +375,14 @@ startHarmonyAndDestructionChoice() {
     // ★もしボールがなければここで生成するロジックは残しても良いが、通常は不要のはず★
     this.playerControlEnabled = true; // CommonのstartGameplayでtrueになる想定
     this.isBallLaunched = false;    // CommonのstartGameplayでfalseになる想定
+     // ボールがなければ生成、あればパドル上にリセット
+    if (this.balls && this.balls.countActive(true) === 0) {
+        console.log("[ChoiceEvent] No active balls, creating one for choice.");
+        this.createAndAddBallToPaddle(); // パドル上にボールを生成するヘルパー
+    } else if (this.balls) {
+        console.log("[ChoiceEvent] Resetting existing balls to paddle for choice.");
+        this.resetAllBallsToPaddle(); // 全ボールをパドル上に戻すヘルパー
+    }
 
     if (this.trialUiText && this.activeTrial && this.activeTrial.isChoiceEvent) {
         this.trialUiText.setText(`十二の試練：試練 ${this.activeTrial.id}「${this.activeTrial.name}」\n${this.activeTrial.conditionText}`);
