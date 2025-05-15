@@ -174,9 +174,7 @@ startIntroCutscene() {
     this.isBallLaunched = false;
     this.sound.stopAll();
     this.stopBgm(); // CommonBossSceneのメソッドを呼ぶ
-    const bgmKeyPhase1 = AUDIO_KEYS.BGM_LUCILIUS_PHASE1; // ★constants.jsで定義したキー
-
-      // ★★★ 以下を一つずつコメント解除してテスト ★★★
+   // ★★★ 以下を一つずつコメント解除してテスト ★★★
 
     // テストA: CUTSCENE_DURATION の参照
      const cutsceneDuration = CUTSCENE_DURATION || 1800;
@@ -192,7 +190,7 @@ startIntroCutscene() {
         this.gameHeight * 0.4, // 表示Y位置 (調整可能)
         this.bossData.textureKey // ルシゼロのテクスチャキー
     )
-    .setScale(this.bossData.widthRatio * 2.5) // 表示スケール (widthRatioを元に調整)
+    .setScale(this.bossData.widthRatio ) // 表示スケール (widthRatioを元に調整)
     .setOrigin(0.5, 0.5)
     .setDepth(900); // オーバーレイより手前、テキストより奥
     console.log("[Boss4 Cutscene] Cutscene boss image created.");
@@ -218,6 +216,7 @@ startIntroCutscene() {
 
     // テストG: SE_CUTSCENE_START の再生
      try { if (AUDIO_KEYS.SE_CUTSCENE_START) this.sound.play(AUDIO_KEYS.SE_CUTSCENE_START); console.log("Test G: Played SE_CUTSCENE_START"); } catch(e) { console.error("Error G:", e); }
+try { if (AUDIO_KEYS.BGM_LUCILIUS_PHASE1) this.sound.play(AUDIO_KEYS.BGM_LUCILIUS_PHASE1); console.log("Test G: Played SBGM_LUCILIUS_PHASE1"); } catch(e) { console.error("Error G:", e); }
 
     // テストH: voiceAppear の再生
      if (this.bossData.voiceAppear) try { this.sound.play(this.bossData.voiceAppear); console.log("Test H: Played voiceAppear"); } catch(e) { console.error("Error H:", e); }
