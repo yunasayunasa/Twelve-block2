@@ -163,6 +163,7 @@ BGM_KING_SLIME: 'bgm_king_slime',                   // キングスライム戦B
     
     
     // (他のボスも同様に専用ボイスキーを追加していく)
+    BGM_LUCILIUS_PHASE1: 'bgm_lucilius_phase1.mp3'
 };
 
 // --- ボス戦共通のデフォルト値 ---
