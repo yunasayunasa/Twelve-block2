@@ -2,57 +2,59 @@
 import CommonBossScene from './CommonBossScene.js';
 import {
     AUDIO_KEYS, POWERUP_TYPES, NORMAL_BALL_SPEED, BALL_SPEED_MODIFIERS,
-    PADDLE_HEIGHT, // 必要に応じて追加していく
-    // ...その他、Boss4Sceneで直接参照するconstants.jsの定数
+    PADDLE_HEIGHT, // 必要に応じてその他も
+    // (ジエンドタイマーや試練達成報酬のSEキーもここに定義されている想定)
+    // SE_JI_END_BELL, SE_TRIAL_COMPLETEなど
 } from './constants.js';
-
-// --- ルシゼロ戦固有の定数 (必要であれば) ---
-const JIHEND_COUNT_INITIAL_MINUTES = 5;
-const TRIAL_COUNT = 11; // 「決着の刻」を除く試練の数
 
 export default class Boss4Scene extends CommonBossScene {
     constructor() {
-        super('Boss4Scene');
+        super('Boss4Scene'); // シーンキー
 
-        // --- ジエンドカウント関連 ---
-        this.jihendTimer = null; // Phaser.Time.TimerEvent
-        this.jihendRemainingMs = JIHEND_COUNT_INITIAL_MINUTES * 60 * 1000;
-        this.jihendTimerText = null; // this.add.text で生成するタイマー表示用
+        // --- ジエンドタイマー関連 ---
+        this.jiEndTimerText = null;
+        this.jiEndTimeRemaining = 0;
+        this.isJiEndTimerRunning = false;
+        this.bellSoundTimings = [
+            4 * 60 * 1000, 3 * 60 * 1000, 2 * 60 * 1000, 1 * 60 * 1000,
+            30 * 1000, 10 * 1000
+        ];
+        this.playedBellTimings = {};
+        this.jiEndVideoKey = 'gameOverVideo_JiEnd'; // BootSceneでロードする動画キー
 
-        // --- 試練進行関連 ---
-        this.trialsData = []; // 各試練の設定と状態を格納する配列
-        this.currentTrialIndex = -1; // 現在進行中の試練のインデックス (-1:未開始, 0:調和と破壊, 1-10:試練II-XI, 11:決着の刻)
-        this.activeTrialObject = null; // 現在の試練のデータオブジェクト
-        this.trialUiText = null;    // this.add.text または UIScene連携で試練内容表示
+        // --- 試練関連 ---
+        this.trialsData = []; // 各試練の情報（名前、条件、達成状況、ドロップアイテムなど）
+        this.activeTrialIndex = -1; // 現在の試練のインデックス (-1は未開始または選択中)
+        this.trialUiText = null; // 試練表示用テキストオブジェクト (UISceneに依頼も可)
 
         // --- 「調和と破壊」関連 ---
-        this.harmonyDestructionChoice = null; // 'harmony' (秩序), 'destruction' (混沌), or null (未選択)
-        this.orderCrystal = null;
-        this.chaosCrystal = null;
+        this.currentRoute = null; // 'order', 'chaos', or null (選択前)
+        this.harmonyCrystal = null;
+        this.destructionCrystal = null;
+        this.isChoiceEventActive = false;
 
-        // --- ルシファー本体関連 ---
-        this.isFinalBattle = false; // 「決着の刻」かどうかのフラグ
-        // (ルシファーの攻撃パターン管理用タイマーなどは initializeBossData や startSpecificBossMovement で)
-        this.radiateAttackTimer = null;
-        this.lockOnAttackTimer = null;
-
-        // --- その他 ---
+        // --- ルシゼロ本体関連 ---
+        this.isFinalBattleActive = false; // 「決着の刻」フラグ
+        this.lastAttackTime = 0; // 攻撃間隔管理用
+        this.lastWarpTime = 0;   // ワープ間隔管理用
     }
 
     init(data) {
         super.init(data);
-        this.jihendRemainingMs = (this.bossData?.jihendInitialMinutes || JIHEND_COUNT_INITIAL_MINUTES) * 60 * 1000; // bossDataから取得できるように
-        this.currentTrialIndex = -1;
-        this.activeTrialObject = null;
-        this.harmonyDestructionChoice = null;
-        this.isFinalBattle = false;
+        this.isJiEndTimerRunning = false;
+        this.playedBellTimings = {};
+        this.activeTrialIndex = -1; // 念のためリセット
+        this.currentRoute = null;
+        this.isChoiceEventActive = false;
+        this.isFinalBattleActive = false;
+        this.lastAttackTime = 0;
+        this.lastWarpTime = 0;
 
-        // タイマー類クリア
-        this.jihendTimer?.remove(); this.jihendTimer = null;
-        this.radiateAttackTimer?.remove(); this.radiateAttackTimer = null;
-        this.lockOnAttackTimer?.remove(); this.lockOnAttackTimer = null;
-        this.orderCrystal?.destroy(); this.orderCrystal = null;
-        this.chaosCrystal?.destroy(); this.chaosCrystal = null;
+        // タイマーやクリスタルオブジェクトが残っていれば破棄
+        this.jiEndTimerText?.destroy(); this.jiEndTimerText = null;
+        this.harmonyCrystal?.destroy(); this.harmonyCrystal = null;
+        this.destructionCrystal?.destroy(); this.destructionCrystal = null;
+        this.trialUiText?.destroy(); this.trialUiText = null;
 
         console.log("--- Boss4Scene INIT Complete ---");
     }
@@ -60,324 +62,429 @@ export default class Boss4Scene extends CommonBossScene {
     initializeBossData() {
         console.log("--- Boss4Scene initializeBossData (Lucilius Zero) ---");
         this.bossData = {
-            health: 5, // 「決着の刻」でのHP
-            textureKey: 'boss_lucilius_zero_stand', // ★要アセット
-            negativeKey: 'boss_lucilius_zero_negative', // ★要アセット
-            // ... (ボイス、BGM、移動、基本攻撃のパラメータなど) ...
-            jihendInitialMinutes: 5,
-            ワープタイミング: { onHit: true, afterAttack: true }, // ワープ条件
+            health: Infinity, // 試練中はHP無限
+            finalBattleHp: 5,   // 「決着の刻」のHP
+            textureKey: 'boss_lucilius_stand', // ★要アセット
+            negativeKey: 'boss_lucilius_negative', // ★要アセット
+            voiceAppear: AUDIO_KEYS.VOICE_LUCILIUS_APPEAR, // ★要定数・アセット
+            voiceDamage: AUDIO_KEYS.VOICE_LUCILIUS_DAMAGE,
+            voiceDefeat: AUDIO_KEYS.VOICE_LUCILIUS_DEFEAT,
+            voiceRandom: [AUDIO_KEYS.VOICE_LUCILIUS_RANDOM_1],
+            bgmKey: AUDIO_KEYS.BGM_LUCILIUS_PHASE1, // ★ルートやフェーズでBGM変えるなら複数用意
+            cutsceneText: 'VS ルシファーゼロ', // 最初のカットシーン用 (もしあれば)
+            widthRatio: 0.25, // 通常時の表示幅
+            // ルシゼロは試練中は中央固定なので移動関連パラメータは最終決戦用
+            moveRangeXRatioFinal: 0.7,
+            moveDurationFinal: 3000,
 
-            // 試練ごとの設定とドロップアイテム
-            trialsDefinition: [
-                { name: "調和と破壊の選択", conditionText: "調和か混沌、どちらかを選べ", targetItem: null, duration: 0 /* 他の試練とは性質が異なる */ },
-                { name: "原初の契約", conditionText: "ルシファー本体にボールを5回当てる。", targetItem: POWERUP_TYPES.ANCHIRA, targetHits: 5, currentHits: 0 },
-                { name: "混沌の残滓を掃討せよ", conditionText: "召喚された5つの「混沌の欠片」を全て破壊する。", targetItems: [POWERUP_TYPES.BAISRAVA, POWERUP_TYPES.MAKIRA], targetCount: 5, currentCount: 0, summonedObjects: [] },
-                { name: "天穿つ最終奥義", conditionText: "ヴァジラ奥義を1回発動する。", targetItem: POWERUP_TYPES.VAJRA, targetActivations: 1, currentActivations: 0 },
-                { name: "星光の追撃", conditionText: "クビラ効果中に本体にボールを3回当てる。", targetItem: POWERUP_TYPES.KUBIRA, targetHitsInState: 3, currentHitsInState: 0 },
-                { name: "楽園追放 ～神罰の洗礼～", conditionText: "全画面攻撃「パラダイス・ロスト」を受けろ。", targetItem: POWERUP_TYPES.ANILA /*ドロップ方法特殊*/, needsToBeHitBySpecial: true, hasBeenHit: false },
-                { name: "三宝の導き", conditionText: "指定のアイテム3種（ビカラ陽、バドラ、マコラ）を全て集めろ。", targetItemPool: [POWERUP_TYPES.BIKARA_YANG, POWERUP_TYPES.BADRA, POWERUP_TYPES.MAKORA], collectedItems: new Set(), currentTargetItemIndex: 0},
-                { name: "深淵より来る核を狙え", conditionText: "ルシファー上部の「アビス・コア」にボールを1回当てる。", targetItem: POWERUP_TYPES.SINDARA, targetCoreHits: 1, currentCoreHits: 0, coreObject: null },
-                { name: "時の超越、歪む流れの中で", conditionText: "速度変化フィールド内で本体にボールを3回当てる。", targetItems: [POWERUP_TYPES.HAILA, POWERUP_TYPES.SHATORA], targetHitsInField: 3, currentHitsInField: 0, isFieldActive: false },
-                { name: "連鎖する星々の輝き", conditionText: "本体にボールを連続3回当てる。", targetItem: POWERUP_TYPES.INDARA, targetConsecutiveHits: 3, currentConsecutiveHits: 0 },
-                { name: "虚無の壁を打ち破れ", conditionText: "「虚無の壁」の奥の本体にボールを1回当てる。", targetItem: POWERUP_TYPES.BIKARA_YIN, wallBlocks: [], targetHitsAfterWall: 1, currentHitsAfterWall: 0 },
-                { name: "終焉の刻 ～決着を付ける～", conditionText: "ルシファーを撃破せよ！", targetItem: null /*特別ドロップ*/ }
-            ],
-            // ルートによる攻撃頻度調整値など
-            orderRouteAttackMultiplier: 0.75, // 例: 攻撃間隔が75%に（激化）
-            chaosRouteAttackMultiplier: 1.5,  // 例: 攻撃間隔が150%に（激減）
+            jiEndCountInitialMinutes: 5,
+            jiEndTimerYPosRatio: 0.1, // タイマーのY位置 (画面高さ比)
+            jiEndTimerFontSizeRatio: 1 / 15, // タイマーフォントサイズ (画面幅比)
+
+            // 攻撃パターンパラメータ (秩序/混沌で変わる)
+            attackIntervalOrder: { min: 1500, max: 2500 }, // 秩序ルートの攻撃間隔
+            attackIntervalChaos: { min: 4000, max: 6000 }, // 混沌ルートの攻撃間隔
+            // (弾速、弾数などもルート別に設定可能)
+            warpInterval: 5000, // 通常時のワープ間隔の目安
+
+            // 試練データ配列
+            trials: this.defineTrials(), // 別メソッドで試練内容を定義
+
+            // 試練達成時の報酬アイテム
+            trialRewardItem: POWERUP_TYPES.BIKARA_YANG,
         };
-        // trialsData に bossData.trialsDefinition をコピーして、実行時の状態を持たせる
-        this.trialsData = JSON.parse(JSON.stringify(this.bossData.trialsDefinition)); // ディープコピー
 
-        this.bossVoiceKeys = []; // ルシゼロ専用ボイス設定
+        this.bossVoiceKeys = Array.isArray(this.bossData.voiceRandom) ? this.bossData.voiceRandom : [];
+        this.trialsData = this.bossData.trials; // trialsDataプロパティに格納
         console.log("Lucilius Zero Specific Data Initialized.");
     }
 
-    create() {
-        super.create(); // CommonBossSceneのcreateを呼ぶ（UIや基本オブジェクト生成）
-                        // この中で createSpecificBoss, startIntroCutscene が呼ばれる
-
-        // --- ジエンドタイマーUI生成 ---
-        const timerStyle = { fontSize: `${this.calculateDynamicFontSize(40)}px`, fill: '#FFFFFF', fontFamily: 'Arial, sans-serif', stroke: '#000000', strokeThickness: 4 };
-        this.jihendTimerText = this.add.text(this.gameWidth / 2, 50, 'ジ・エンドまで 残り --:--:--', timerStyle)
-            .setOrigin(0.5, 0.5)
-            .setDepth(-5); // ボスより奥、背景より手前 (要調整)
-        // (横いっぱいにするには、テキスト幅を監視してスケール調整するか、複数のテキストオブジェクトを使うなど工夫が必要)
-
-        // --- 試練UI生成 ---
-        const trialUiStyle = { fontSize: `${this.calculateDynamicFontSize(28)}px`, fill: '#FFFFFF', align: 'center', stroke: '#000000', strokeThickness: 3};
-        this.trialUiText = this.add.text(this.gameWidth / 2, this.boss.y + this.boss.displayHeight / 2 + 60, "試練待機中...", trialUiStyle) // ボスHPバーの下あたりを想定
-            .setOrigin(0.5, 0)
-            .setDepth(1000); // UIなので手前 (UISceneと被らないように)
-            // もしUISceneで一括管理するならイベント発行方式
-
-        console.log("--- Boss4Scene CREATE Complete ---");
+    // 試練内容を定義するヘルパーメソッド
+    defineTrials() {
+        return [
+            { id: 1, name: "調和と破壊の選択", conditionText: "調和か混沌、どちらかを選べ", targetItem: null, completed: false, isChoiceEvent: true },
+            { id: 2, name: "原初の契約", conditionText: "ルシファー本体にボールを5回当てる。(0/5)", targetItem: POWERUP_TYPES.ANCHIRA, completed: false, hitCount: 0, requiredHits: 5 },
+            { id: 3, name: "混沌の残滓を掃討せよ", conditionText: "混沌の欠片を全て破壊せよ。(0/5)", targetItemRandom: [POWERUP_TYPES.MAKIRA, POWERUP_TYPES.BAISRAVA], completed: false, objectsToDestroy: 5, destroyedCount: 0, /* ...欠片生成ロジックなど... */ },
+            { id: 4, name: "天穿つ最終奥義", conditionText: "ヴァジラ奥義を1回発動せよ。", targetItem: POWERUP_TYPES.VAJRA, completed: false, ougiUsed: false },
+            { id: 5, name: "星光の追撃", conditionText: "クビラ効果中に本体にボールを3回当てる。(0/3)", targetItem: POWERUP_TYPES.KUBIRA, completed: false, hitCountKubira: 0, requiredHitsKubira: 3 },
+            { id: 6, name: "楽園追放 ～神罰の洗礼～", conditionText: "全画面攻撃「パラダイス・ロスト」を受けよ。", targetItem: null, anilaDropLocation: null, completed: false, paradiseLostTriggered: false }, // anilaDropLocation はドロップ時に設定
+            { id: 7, name: "三宝の導き", conditionText: "指定の三種の神器を集めよ。(0/3)", targetItemsToCollect: [POWERUP_TYPES.BIKARA_YANG, POWERUP_TYPES.BADRA, POWERUP_TYPES.MAKORA], collectedItems: [], targetItem: null, completed: false }, // targetItemは進行中に設定
+            { id: 8, name: "深淵より来る核を狙え", conditionText: "「アビス・コア」にボールを1回当てよ。", targetItem: POWERUP_TYPES.SINDARA, completed: false, coreHit: false, /* ...コア出現ロジック... */ },
+            { id: 9, name: "時の超越、歪む流れの中で", conditionText: "速度変化フィールド内で本体にボールを3回当てる。(0/3)", targetItemAlternate: [POWERUP_TYPES.HAILA, POWERUP_TYPES.SHATORA], completed: false, hitCountTimeField: 0, requiredHitsTimeField: 3, /* ...フィールド展開ロジック... */ },
+            { id: 10, name: "連鎖する星々の輝き", conditionText: "本体にボールを連続3回当てる。(0/3)", targetItem: POWERUP_TYPES.INDARA, completed: false, consecutiveHits: 0, requiredConsecutiveHits: 3 },
+            { id: 11, name: "虚無の壁を打ち破れ", conditionText: "虚無の壁の奥の本体にボールを1回当てよ。", targetItem: POWERUP_TYPES.BIKARA_YIN, completed: false, wallBreachedAndHit: false, /* ...壁生成ロジック... */ },
+            { id: 12, name: "終焉の刻 ～決着を付ける～", conditionText: "ルシファーを撃破せよ！", targetItem: null, completed: false, isFinalBattle: true }
+        ];
     }
 
-    // createSpecificBoss: ルシゼロの初期位置などを設定
+
     createSpecificBoss() {
-        super.createSpecificBoss();
+        super.createSpecificBoss(); // this.boss 生成
         if (this.boss) {
-            this.boss.setPosition(this.gameWidth / 2, this.gameHeight * 0.2); // 例: 画面上部中央
-            this.boss.setImmovable(true); // 基本的に動かない
+            this.boss.setPosition(this.gameWidth / 2, this.gameHeight * 0.2); // 仮：画面上部中央に固定
+            this.boss.setImmovable(true); // 最初は動かない
             if(this.boss.body) this.boss.body.moves = false;
-            // updateBossSizeでスケール調整
-            this.updateBossSize(this.boss, this.bossData.textureKey, this.bossData.widthRatio || 0.25);
+
+            // UIへの初期HP反映 (試練中は無限なので特殊表示の可能性も)
+            this.events.emit('updateBossHp', '∞', '∞'); // または '????'
+            this.events.emit('updateBossNumber', this.currentBossIndex, TOTAL_BOSSES); // TOTAL_BOSSESをimport
         }
+        console.log("--- Boss4Scene createSpecificBoss Complete ---");
     }
 
-    // startIntroCutscene: ルシゼロ専用の登場演出、その後 setupFirstTrial を呼ぶ
+    // CommonBossSceneのcreateから呼ばれる登場演出
     startIntroCutscene() {
-        // (CommonBossSceneのものをベースに、ルシゼロ専用の演出を追加・変更)
-        // super.startIntroCutscene(); // もしCommonのカットインを流用しつつ何かしたい場合
-        console.log("[Boss4Scene] Starting Lucilius Zero's intro sequence...");
-        // ... (専用演出) ...
-        // 演出完了後:
-        // this.finalizeBossAppearanceAndStart(); // これの中でstartGameplayが呼ばれる
-        // startGameplay の中で戦闘BGM再生とジエンドタイマー開始、最初の試練設定を行う
-        // finalizeBossAppearanceAndStart は Common のものをそのまま使うと仮定
-        super.finalizeBossAppearanceAndStart(); // これを呼ぶと、最終的に super.startGameplay() が呼ばれる
+        console.log("[Boss4Scene] Starting Lucilius Zero intro sequence...");
+        // (専用の登場カットシーンがあればここに実装)
+        // 今回はシンプルに、すぐにジエンドタイマーと試練開始へ
+        this.playerControlEnabled = false;
+        this.isBallLaunched = false;
+        this.sound.stopAll(); // 念のため
+        this.stopBgm();       // 同上
+
+        // ボスはcreateSpecificBossで配置済みなので、ここでは何もしないか、短い登場エフェクト
+        this.time.delayedCall(500, () => { // 少し間を置いて
+            this.setupJiEndTimer(); // ジエンドタイマー表示開始 (初期演出含む)
+            this.setupTrialUI();    // 試練UI表示の初期化
+            this.startNextTrial();  // 最初の試練（調和と破壊）を開始
+        }, [], this);
     }
 
-    // startGameplay: CommonBossSceneから呼ばれる。ここで戦闘BGM、ジエンドタイマー、最初の試練を開始。
-    startGameplay() {
-        super.startGameplay(); // BGM再生、プレイヤー操作有効化など
-        console.log("[Boss4Scene] Lucilius Zero gameplay started.");
+    // ジエンドタイマーのセットアップと初期演出
+    setupJiEndTimer() {
+        if (this.jiEndTimerText) this.jiEndTimerText.destroy();
+        const initialTime = (this.bossData.jiEndCountInitialMinutes || 5) * 60 * 1000;
+        this.jiEndTimeRemaining = initialTime;
 
-        this.startJihendTimer();
-        this.setupNextTrial(); // 最初の試練（調和と破壊）を開始
+        const timerFontSize = Math.floor(this.gameWidth * (this.bossData.jiEndTimerFontSizeRatio || 1/15));
+        const timerTextStyle = { fontSize: `${timerFontSize}px`, fill: '#ffffff', fontFamily: 'sans-serif', align: 'center', stroke: '#000000', strokeThickness: Math.max(2, timerFontSize * 0.05) };
+
+        this.jiEndTimerText = this.add.text(
+            this.gameWidth / 2, this.gameHeight * (this.bossData.jiEndTimerYPosRatio || 0.1),
+            this.formatTime(this.jiEndTimeRemaining), timerTextStyle
+        ).setOrigin(0.5, 0.5).setDepth(-5); // ★背景とボスの間 (背景-10, ボス0と仮定)
+
+        const initialFxDuration = 3000;
+        const originalDepth = this.jiEndTimerText.depth;
+        const originalScale = this.jiEndTimerText.scale;
+        this.jiEndTimerText.setDepth(9998).setScale(originalScale * 1.2);
+        this.tweens.add({ targets: this.jiEndTimerText, scale: originalScale * 1.3, alpha: 0.7, duration: 300, yoyo: true, repeat: Math.floor(initialFxDuration / 600) - 1, onStart: () => this.playBellSound() });
+        this.time.delayedCall(initialFxDuration, () => {
+            if (this.jiEndTimerText?.active) {
+                this.jiEndTimerText.setDepth(originalDepth).setScale(originalScale).setAlpha(1);
+            }
+        }, [], this);
+        this.isJiEndTimerRunning = true;
+        console.log("[JiEndTimer] Setup complete.");
     }
 
-    // --- ▼ ジエンドカウント関連 ▼ ---
-    startJihendTimer() {
-        this.updateJihendTimerDisplay();
-        if (this.jihendTimer) this.jihendTimer.remove();
-        this.jihendTimer = this.time.addEvent({
-            delay: 10, // 10ミリ秒ごとに更新 (表示のため)
-            callback: this.updateJihendCount,
-            callbackScope: this,
-            loop: true
-        });
-        console.log("Jihend Timer Started.");
+    // 試練UIの初期セットアップ
+    setupTrialUI() {
+        if (this.trialUiText) this.trialUiText.destroy();
+        // UISceneに依頼するか、Boss4Sceneで直接描画するか
+        // ここではBoss4Sceneで直接描画する例 (UISceneと連携する方が望ましい場合もある)
+        const trialFontSize = Math.floor(this.gameWidth / 20);
+        const trialTextStyle = { fontSize: `${trialFontSize}px`, fill: '#ffffff', fontFamily: 'sans-serif', align: 'center', lineSpacing: trialFontSize * 0.2, stroke: '#000000', strokeThickness: Math.max(1, trialFontSize*0.03)};
+        this.trialUiText = this.add.text(
+            this.gameWidth / 2,
+            (this.uiScene?.livesText?.y || this.gameHeight * 0.05) + 70, // ボスHPバーの下あたり (調整)
+            "", // 最初は空
+            trialTextStyle
+        ).setOrigin(0.5, 0).setDepth(100); // ボスより手前、UIよりは奥など
+        console.log("[TrialUI] Setup complete.");
     }
 
-    updateJihendCount() {
-        if (this.isGameOver || this.bossDefeated) {
-            this.jihendTimer?.remove();
+    // 次の試練を開始する (または現在の試練のUIを更新)
+    startNextTrial() {
+        this.activeTrialIndex++;
+        if (this.activeTrialIndex >= this.trialsData.length) {
+            console.error("[TrialLogic] Attempted to start trial beyond a_vailable trials.");
+            // 本来は「決着の刻」の前に全ての試練が終わるはず
+            this.triggerJiEndGameOver(); // 予期せぬエラーとしてゲームオーバー
             return;
         }
 
-        let speedMultiplier = 1.0;
-        if (this.harmonyDestructionChoice === 'harmony') { // 秩序選択
-            speedMultiplier = this.bossData.orderRouteJihendMultiplier || 0.75; // 速度75% (遅くなる)
-        } else if (this.harmonyDestructionChoice === 'destruction') { // 混沌選択
-            speedMultiplier = this.bossData.chaosRouteJihendMultiplier || 1.25; // 速度125% (早くなる)
+        const currentTrial = this.trialsData[this.activeTrialIndex];
+        this.activeTrial = currentTrial; // CommonBossSceneのプロパティにも設定 (getOverrideDropItemで参照のため)
+
+        console.log(`[TrialLogic] Starting Trial ${currentTrial.id}: ${currentTrial.name}`);
+        if (this.trialUiText && this.trialUiText.active) {
+            let displayText = `十二の試練：試練 ${currentTrial.id}「${currentTrial.name}」\n`;
+            displayText += `${currentTrial.conditionText}`;
+            this.trialUiText.setText(displayText);
         }
 
-        this.jihendRemainingMs -= 10 * speedMultiplier; // 10ms経過 (delayに合わせる)
-
-        if (this.jihendRemainingMs <= 0) {
-            this.jihendRemainingMs = 0;
-            this.updateJihendTimerDisplay();
-            this.triggerJihend(); // ジ・エンド発動
-            this.jihendTimer?.remove();
+        if (currentTrial.isChoiceEvent) {
+            this.startHarmonyAndDestructionChoice();
+        } else if (currentTrial.isFinalBattle) {
+            this.startFinalBattle();
         } else {
-            this.updateJihendTimerDisplay();
-        }
-    }
-
-    updateJihendTimerDisplay() {
-        if (!this.jihendTimerText || !this.jihendTimerText.active) return;
-        const totalSeconds = Math.floor(this.jihendRemainingMs / 1000);
-        const minutes = Math.floor(totalSeconds / 60);
-        const seconds = totalSeconds % 60;
-        const milliseconds = Math.floor((this.jihendRemainingMs % 1000) / 10); // 下2桁ミリ秒
-
-        this.jihendTimerText.setText(`ジ・エンドまで 残り ${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}:${String(milliseconds).padStart(2, '0')}`);
-    }
-
-    triggerJihend() {
-        console.log("!!! JIHEND TRIGGERED !!!");
-        // TODO: 強制ゲームオーバー演出
-        this.gameOver("ジ・エンド"); // CommonBossSceneのgameOverをメッセージ付きで呼ぶなど
-    }
-    // --- ▲ ジエンドカウント関連 ▲ ---
-
-
-    // --- ▼ 試練システム関連 ▼ ---
-    setupNextTrial() {
-        this.currentTrialIndex++;
-        if (this.currentTrialIndex < this.trialsData.length) {
-            this.activeTrialObject = this.trialsData[this.currentTrialIndex];
-            console.log(`[Trial System] Starting Trial ${this.currentTrialIndex + 1}: ${this.activeTrialObject.name}`);
-            this.updateTrialDisplay();
-            this.initializeCurrentTrial(); // 各試練の初期化処理
-        } else {
-            console.log("[Trial System] All trials should be complete or final battle started.");
-            // ここに来る場合は「決着の刻」の条件を満たしたか、何かおかしい
-            if (!this.isFinalBattle) { // まだ決着の刻が始まっていないなら
-                this.startFinalBattle();
+            // 通常の試練開始時の処理 (専用オブジェクトの召喚など)
+            this.setupCurrentTrialEnvironment(currentTrial);
+            // 戦闘開始 (プレイヤー操作有効化など) - finalizeBossAppearanceAndStart から呼ばれる startGameplay で行う
+            if (!this.playerControlEnabled && this.activeTrialIndex > 0) { // 最初の選択イベント後から操作可能に
+                 this.time.delayedCall(500, () => { // 少し間をおいて
+                    if (!this.isGameOver && !this.bossDefeated) {
+                        this.playerControlEnabled = true;
+                        this.isBallLaunched = false; // ボールは再発射待ち
+                        if (!this.currentBgm || !this.currentBgm.isPlaying) this.playBossBgm(); // BGMもここで
+                        console.log("[TrialLogic] Player control enabled for current trial.");
+                    }
+                }, [], this);
             }
         }
     }
 
-    updateTrialDisplay() {
-        if (!this.trialUiText || !this.trialUiText.active || !this.activeTrialObject) {
-            if (this.trialUiText) this.trialUiText.setText(""); // 何も表示しない
-            return;
-        }
-        const trial = this.activeTrialObject;
-        let displayText = `十二の試練：${trial.name}\n${trial.conditionText}`;
-        // TODO: ここに各試練の達成状況（例: (3/5)）を追加するロジック
-        // (これは各試練の達成判定時に更新するのが良い)
-        this.trialUiText.setText(displayText);
+    // 現在の試練に応じた環境設定 (専用オブジェクト召喚など)
+    setupCurrentTrialEnvironment(trial) {
+        // 例: 試練III「混沌の残滓」なら欠片を召喚
+        if (trial.id === 3) this.spawnChaosFragments(trial.objectsToDestroy);
+        // 例: 試練XI「虚無の壁」なら壁を召喚
+        if (trial.id === 11) this.spawnVoidWall();
+        // 他の試練の準備も同様に
     }
 
-    initializeCurrentTrial() {
-        // 現在の試練に応じた初期設定（例：オブジェクト召喚、フラグクリアなど）
-        // 例：試練III「混沌の残滓」なら、ここで混沌の欠片を召喚
-        // 例：試練VI「楽園追放」なら、ここでルシファーの特殊行動を開始させる
-        // 例：試練XI「虚無の壁」なら、ここで壁ブロックを生成
-        console.log(`[Trial System] Initializing specific logic for trial: ${this.activeTrialObject?.name}`);
-        // TODO: 各試練の初期化ロジックを実装
-        if (this.activeTrialObject?.name === "調和と破壊の選択") {
-            this.presentHarmonyDestructionChoice();
-        }
+
+    // 「調和と破壊」の選択イベントを開始
+    startHarmonyAndDestructionChoice() {
+        this.isChoiceEventActive = true;
+        this.playerControlEnabled = false; // 選択中は操作させないか、ボールは打てるようにするか
+        console.log("[ChoiceEvent] Presenting Harmony/Destruction choice.");
+
+        // TODO: 画面に秩序と混沌のクリスタルを表示
+        // this.harmonyCrystal = this.add.sprite(...).setInteractive();
+        // this.destructionCrystal = this.add.sprite(...).setInteractive();
+        // クリスタル破壊のコールバックで this.currentRoute を設定し、
+        // this.isChoiceEventActive = false; this.startNextTrial(); を呼ぶ
+        // (この骨子ではダミーで一定時間後に進む)
+        this.time.delayedCall(1000, () => {
+            // ダミーで混沌ルートを選択
+            this.currentRoute = 'chaos'; // or 'order'
+            console.log(`[ChoiceEvent] Player (dummy) chose: ${this.currentRoute}`);
+            this.isChoiceEventActive = false;
+            this.startNextTrial(); // 次の試練へ
+        }, [], this);
     }
 
-    completeCurrentTrial() {
-        if (!this.activeTrialObject || this.isFinalBattle) return;
-        console.log(`[Trial System] Trial COMPLETED: ${this.activeTrialObject.name}`);
-        // 試練達成報酬：ビカラ陽ドロップ
-        if (this.activeTrialObject.name !== "調和と破壊の選択" && this.activeTrialObject.name !== "終焉の刻 ～決着を付ける～") { //報酬がない試練もある
-            this.dropSpecificPowerUp(this.boss.x, this.boss.y, POWERUP_TYPES.BIKARA_YANG);
-        }
-        // (試練達成のSEやエフェクト)
-        this.setupNextTrial(); // 次の試練へ
-    }
-
-    presentHarmonyDestructionChoice() {
-        // TODO: 画面に秩序と混沌のクリスタルを生成・表示
-        // それぞれに当たり判定を設定し、破壊されたら this.harmonyDestructionChoice に結果をセットし、
-        // completeCurrentTrial() を呼んで次の試練に進む
-        console.log("[Trial System] Presenting Harmony/Destruction choice to player.");
-    }
-
+    // 最終決戦「決着の刻」を開始
     startFinalBattle() {
-        console.log("[Trial System] All trials done! Starting FINAL BATTLE (決着の刻)!");
-        this.isFinalBattle = true;
-        this.activeTrialObject = this.trialsData.find(t => t.name.includes("終焉の刻")); // 最終試練オブジェクトを取得
-        this.updateTrialDisplay();
-        // ボスにHPを設定し、攻撃パターンを変更、移動を開始させる
-        if (this.boss) {
-            this.boss.setData('health', this.bossData.health); // 有限HPに
-            this.boss.setData('maxHealth', this.bossData.health);
-            this.events.emit('updateBossHp', this.boss.getData('health'), this.boss.getData('maxHealth'));
-            // this.boss.setImmovable(false); // 動けるように (Commonの移動TWEENを使うなら不要かも)
-            // if(this.boss.body) this.boss.body.moves = true;
-            this.startSpecificBossMovementForFinalBattle(); // 最終決戦用の動きを開始
+        console.log("[FinalBattle] All trials cleared! Starting final battle with Lucilius Zero!");
+        this.isFinalBattleActive = true;
+        this.boss.setData('health', this.bossData.finalBattleHp);
+        this.boss.setData('maxHealth', this.bossData.finalBattleHp);
+        this.events.emit('updateBossHp', this.boss.getData('health'), this.boss.getData('maxHealth')); // UIにHP表示
+        // ボスを動けるようにする
+        if (this.boss.body) this.boss.body.moves = true;
+        this.startSpecificBossMovement(); // Commonの左右移動などを開始させる
+        // アイテムドロップは「全種100%」になるように getOverrideDropItem で制御
+    }
+
+    // CommonBossSceneのメソッドをオーバーライドして試練達成時の報酬を追加
+    // (これは試練達成条件を判定する各箇所から呼ぶ)
+    completeCurrentTrial() {
+        if (this.activeTrial && !this.activeTrial.completed) {
+            console.log(`[TrialLogic] Trial ${this.activeTrial.id}「${this.activeTrial.name}」 COMPLETED!`);
+            this.activeTrial.completed = true;
+
+            // 報酬：ビカラ陽ドロップ
+            if (this.bossData.trialRewardItem && this.boss && this.boss.active) {
+                console.log(`[Trial Reward] Dropping ${this.bossData.trialRewardItem}`);
+                this.dropSpecificPowerUp(this.boss.x, this.boss.y + this.boss.displayHeight/2, this.bossData.trialRewardItem);
+            }
+            // (試練達成SEなど)
+
+            // 次の試練へ
+            this.time.delayedCall(1000, this.startNextTrial, [], this); // 1秒後に次の試練
         }
     }
-    // --- ▲ 試練システム関連 ▲ ---
 
 
-    // --- ▼ ボスAI・攻撃パターン ▼ ---
-    // startSpecificBossMovement: 試練中は中央固定、決着の刻で動き出す
+    // ボス本体の移動は試練中はなし、最終決戦でのみ
     startSpecificBossMovement() {
-        console.log(`--- Boss4Scene startSpecificBossMovement (FinalBattle: ${this.isFinalBattle}) ---`);
-        if (!this.boss || !this.boss.active) return;
-
-        if (this.isFinalBattle) {
-            // 最終決戦時の動き (CommonBossSceneの左右移動TWEENなどを呼び出す)
-            console.log("[Final Battle] Boss starts moving!");
-            super.startSpecificBossMovement(); // 親の移動ロジックを借用
-            // または、専用の激しい移動パターンをここで開始
+        if (this.isFinalBattleActive) {
+            console.log("[FinalBattle] Lucilius Zero starts moving!");
+            // CommonBossSceneの汎用移動を呼び出すか、専用の動きを実装
+            // super.startSpecificBossMovement(); // 例: Commonの左右移動
+            // ここでは仮に何もしない (専用の動きをupdateSpecificBossBehaviorで書く想定)
         } else {
-            // 試練中は基本的に中央上部で静止 (ワープはある)
-            console.log("[Trial Phase] Boss remains stationary (except for warps).");
-            this.boss.setPosition(this.gameWidth / 2, this.gameHeight * 0.2); // 位置再固定
-            // ボスが攻撃を行うタイマーはここで開始（または updateSpecificBossBehavior で管理）
-            this.scheduleNextBossAttacks();
-        }
-    }
-    startSpecificBossMovementForFinalBattle(){ // isFinalBattle=true の時に呼ばれる
-        console.log("[Boss4Scene] Starting final battle movement for Lucilius Zero.");
-        super.startSpecificBossMovement(); // Commonの左右移動など
-    }
-
-
-    scheduleNextBossAttacks() {
-        // 秩序/混沌ルートに応じて攻撃頻度を変える
-        let attackIntervalMultiplier = 1.0;
-        if (this.harmonyDestructionChoice === 'harmony') {
-            attackIntervalMultiplier = this.bossData.orderRouteAttackMultiplier || 0.75;
-        } else if (this.harmonyDestructionChoice === 'destruction') {
-            attackIntervalMultiplier = this.bossData.chaosRouteAttackMultiplier || 1.5;
-        }
-        // TODO: この倍率を使って、放射攻撃とターゲット攻撃のタイマーを設定する
-        // (キングスライムの scheduleNextRadialAttackなどを参考にする)
-        console.log(`[Boss AI] Scheduling attacks with multiplier: ${attackIntervalMultiplier}`);
-    }
-    // (放射攻撃、ターゲット攻撃のspawnメソッドはキングスライムのものを参考に実装)
-    // (パラダイス・ロストなどの特殊攻撃メソッドもここに追加)
-    // --- ▲ ボスAI・攻撃パターン ▲ ---
-
-
-    // --- ▼ アイテムドロップ制御 (CommonBossSceneのフックを利用) ▼ ---
-    getOverrideDropItem(brick) {
-        if (this.isFinalBattle) { // 決着の刻
-            // 全アイテムランダムドロップ (100%)
-            const allItems = Object.values(POWERUP_TYPES);
-            return Phaser.Utils.Array.GetRandom(allItems);
-        }
-
-        if (this.activeTrialObject && this.activeTrialObject.targetItem) {
-            // 試練に対応する固定アイテム
-            return this.activeTrialObject.targetItem;
-        }
-        if (this.activeTrialObject && this.activeTrialObject.targetItems && this.activeTrialObject.targetItems.length > 0) {
-            // 試練III（混沌の残滓）や試練IX（時の超越）のように複数候補からランダム
-            return Phaser.Utils.Array.GetRandom(this.activeTrialObject.targetItems);
-        }
-        if (this.activeTrialObject && this.activeTrialObject.name === "三宝の導き") {
-            // 三宝の輝きの現在のターゲットアイテムを返す
-            if(this.activeTrialObject.collectedItems && this.activeTrialObject.targetItemPool) {
-                const currentTarget = this.activeTrialObject.targetItemPool[this.activeTrialObject.collectedItems.size];
-                return currentTarget || null; // まだ集めるべきアイテムがあればそれを返す
+            console.log("[TrialPhase] Lucilius Zero remains stationary.");
+            // ボスは動かないので、既存の移動Tweenがあれば停止
+            if (this.bossMoveTween) {
+                this.tweens.killTweensOf(this.boss);
+                this.bossMoveTween = null;
+            }
+            if (this.boss && this.boss.body) { // 念のため速度を0に
+                this.boss.setVelocity(0,0);
             }
         }
-        return null; // それ以外はCommonBossSceneの通常ドロップ
     }
-    // --- ▲ アイテムドロップ制御 ▲ ---
 
+    // ボスの攻撃パターンとワープ
+    updateSpecificBossBehavior(time, delta) {
+        if (this.isIntroAnimating || !this.playerControlEnabled || !this.boss || !this.boss.active || this.bossDefeated || this.isGameOver || this.isChoiceEventActive) {
+            return;
+        }
 
-    // --- ▼ ボールとボスのOverlap処理 (スタック対策) ▼ ---
-    // (handleBallOverlapBossEject は CommonBossScene にあるので、ここでは何もしないか、
-    //  もしBoss4Sceneで特別な処理が必要ならオーバーライド)
-    // --- ▲ ボールとボスのOverlap処理 ▲ ---
+        // ワープ処理 (試練XII「決着の刻」以外)
+        if (!this.isFinalBattleActive && time > this.lastWarpTime + (this.bossData.warpInterval || 5000)) {
+            // (ボールヒット時と攻撃直後にもワープするロジックは別途 hitBoss や攻撃メソッド内に追加)
+            // ここでは時間経過による定期ワープの例
+            this.warpBoss();
+            this.lastWarpTime = time;
+        }
 
+        // 攻撃処理 (試練I「調和と破壊」以降、かつ「決着の刻」ではない場合)
+        if (this.activeTrialIndex > 0 && !this.isFinalBattleActive) {
+            const attackIntervalConfig = this.currentRoute === 'order' ? this.bossData.attackIntervalOrder : this.bossData.attackIntervalChaos;
+            const interval = Phaser.Math.Between(attackIntervalConfig.min, attackIntervalConfig.max);
 
-    // --- ▼ ボスHPが0になった際の処理 (決着の刻のみ) ▼ ---
-    handleZeroHealth(bossInstance) {
-        if (this.isFinalBattle && bossInstance === this.boss) {
-            console.log("[Boss4Scene] Lucilius Zero (Final Battle) HP reached zero! Victory!");
-            this.bossDefeated = true; // Commonの撃破フラグを立てる
-            super.defeatBoss(bossInstance); // Commonの撃破演出へ
-        } else {
-            // 試練中はHP無限なので、ここには来ないはずだが、念のため
-            console.warn("[Boss4Scene] handleZeroHealth called unexpectedly during trials phase.");
+            if (time > this.lastAttackTime + interval) {
+                // ランダムで放射攻撃かターゲット攻撃を選択
+                if (Phaser.Math.Between(0, 1) === 0) {
+                    this.fireRadialAttack();
+                } else {
+                    this.fireTargetedAttack();
+                }
+                this.lastAttackTime = time;
+                // 攻撃直後にもワープ
+                this.warpBoss();
+            }
+        }
+
+        // 「決着の刻」のボスAIはここに記述
+        if (this.isFinalBattleActive) {
+            // (最終決戦用の特別な攻撃パターンや動き)
+        }
+
+        // 各試練の達成条件チェック (例)
+        if (this.activeTrial && !this.activeTrial.completed) {
+            this.checkTrialCompletion(this.activeTrial, ball, brick); // ball, brickは適切なものに
         }
     }
-    // --- ▲ ボスHPが0になった際の処理 ▲ ---
 
+    // ワープ処理の本体
+    warpBoss() {
+        if (!this.boss || !this.boss.active) return;
+        // 画面上部のランダムなX座標にワープ (Yは固定)
+        const targetX = Phaser.Math.Between(this.boss.displayWidth / 2, this.gameWidth - this.boss.displayWidth / 2);
+        // (ワープエフェクトなど)
+        this.boss.setX(targetX);
+        console.log(`[BossAction] Lucilius warped to X: ${targetX.toFixed(0)}`);
+    }
+
+    // 放射攻撃 (仮実装)
+    fireRadialAttack() { /* TODO: 放射状に弾を撃つ */ console.log("[BossAttack] Firing Radial Attack!");}
+    // ターゲット攻撃 (仮実装)
+    fireTargetedAttack() { /* TODO: パドル狙いの弾を撃つ */ console.log("[BossAttack] Firing Targeted Attack!");}
+    // 混沌の欠片召喚 (仮実装)
+    spawnChaosFragments(count) { /* TODO */ console.log(`[Trial] Spawning ${count} Chaos Fragments.`);}
+    // 虚無の壁召喚 (仮実装)
+    spawnVoidWall() { /* TODO */ console.log("[Trial] Spawning Void Wall.");}
+    // 試練達成チェック (仮実装 - 各試練の条件に応じて詳細化)
+    checkTrialCompletion(trial, ball = null, brick = null) {
+        if (!trial || trial.completed) return;
+        let trialJustCompleted = false;
+        // --- ここに各試練IDごとの達成判定ロジックを書く ---
+        // 例: trial.id === 2 (原初の契約)
+        // if (trial.id === 2 && /* ボールがボスに当たった */) {
+        //     trial.hitCount++;
+        //     this.updateTrialProgressUI(trial); // UI更新
+        //     if (trial.hitCount >= trial.requiredHits) trialJustCompleted = true;
+        // }
+        // ... 他の試練の判定 ...
+
+        if (trialJustCompleted) {
+            this.completeCurrentTrial();
+        }
+    }
+    updateTrialProgressUI(trial) { /* TODO: UIの達成状況を更新 */ }
+
+
+    // --- ジエンドタイマー関連メソッド (前回のものを流用) ---
+    formatTime(milliseconds) { /* ... */ return `ジ・エンドまで 残り ${String(Math.floor(milliseconds/60000)).padStart(2,'0')}:${String(Math.floor((milliseconds%60000)/1000)).padStart(2,'0')}:${String(Math.floor((milliseconds%1000)/10)).padStart(2,'0')}`; }
+    playBellSound() { /* ... */ try { if(AUDIO_KEYS.SE_JI_END_BELL) this.sound.play(AUDIO_KEYS.SE_JI_END_BELL); } catch(e){} }
+    triggerJiEndGameOver() { /* ... (動画再生とsuper.gameOver()) ... */
+        if (this.isGameOver) return; this.isGameOver = true; this.playerControlEnabled = false;
+        this.physics.pause(); this.stopAllBossTimers(); this.sound.stopAll(); if(this.currentBgm)this.currentBgm=null;
+        if (this.cache.video.has(this.jiEndVideoKey)) { /* ... 動画再生 ... */
+             const video = this.add.video(this.gameWidth / 2, this.gameHeight / 2, this.jiEndVideoKey).setOrigin(0.5, 0.5).setDepth(9999);
+             this.uiScene?.scene.setVisible(false); if(this.jiEndTimerText) this.jiEndTimerText.setVisible(false); if(this.trialUiText) this.trialUiText.setVisible(false);
+             video.play(false); video.on('complete', () => { if(video.scene)video.destroy(); super.gameOver();}, this); video.on('error', () => super.gameOver(), this);
+        } else { super.gameOver(); }
+    }
+    stopAllBossTimers() { /* ... (このシーンのタイマーを全て止める) ... */
+        this.radialAttackTimer?.remove(); this.targetedAttackTimer?.remove();
+        // 他の試練用タイマーなども
+    }
+    // --- ジエンドタイマー関連メソッド終了 ---
+
+
+    // --- 「十二神将の導き」アイテムドロップ制御 (Commonからオーバーライド) ---
+    getOverrideDropItem(brick) {
+        if (!this.activeTrial || this.isFinalBattleActive || this.isChoiceEventActive || !brick.getData('blockType')) {
+            // 「決着の刻」、選択中、または通常の攻撃ブロックでない場合は通常ドロップ
+            if (this.isFinalBattleActive) { // 最終決戦は全アイテム100%ドロップ
+                return Phaser.Utils.Array.GetRandom(Object.values(POWERUP_TYPES));
+            }
+            return null;
+        }
+
+        // 試練III「混沌の残滓」: マキラかバイシュラヴァをランダム
+        if (this.activeTrial.id === 3 && this.activeTrial.targetItemRandom) {
+            return Phaser.Utils.Array.GetRandom(this.activeTrial.targetItemRandom);
+        }
+        // 試練VII「三宝の導き」: 現在集めているターゲットアイテム
+        if (this.activeTrial.id === 7 && this.activeTrial.targetItemsToCollect) {
+            const currentTarget = this.activeTrial.targetItemsToCollect.find(item => !this.activeTrial.collectedItems.includes(item));
+            return currentTarget || null; // まだ集め終わっていない最初のアイテム
+        }
+        // 試練IX「時の超越」: ハイラかシャトラを交互
+        if (this.activeTrial.id === 9 && this.activeTrial.targetItemAlternate) {
+            // (交互ドロップのロジックをここに。例: 前回ドロップを記録)
+            // 簡単な例: 破壊されたブロックのX座標で決めるなど
+            return brick.x < this.gameWidth / 2 ? this.activeTrial.targetItemAlternate[0] : this.activeTrial.targetItemAlternate[1];
+        }
+
+        // 上記以外で、試練に targetItem が設定されていればそれを返す
+        if (this.activeTrial.targetItem) {
+            return this.activeTrial.targetItem;
+        }
+        return null; // それ以外は通常ドロップ
+    }
+
+
+    // updateメソッド (ジエンドタイマー更新など)
+    update(time, delta) {
+        super.update(time, delta); // CommonBossSceneのupdateを呼ぶ (ボス行動など)
+
+        if (this.isJiEndTimerRunning && !this.isGameOver && !this.bossDefeated) {
+            let speedMultiplier = 1.0;
+            if (this.currentRoute === 'order') speedMultiplier = 0.75;
+            else if (this.currentRoute === 'chaos') speedMultiplier = 1.25;
+            this.jiEndTimeRemaining -= delta * speedMultiplier;
+
+            if (this.jiEndTimerText?.active) this.jiEndTimerText.setText(this.formatTime(this.jiEndTimeRemaining));
+
+            for (const timing of this.bellSoundTimings) {
+                if (this.jiEndTimeRemaining <= timing && !this.playedBellTimings[timing]) {
+                    this.playBellSound(); this.playedBellTimings[timing] = true; break;
+                }
+            }
+            if (this.jiEndTimeRemaining <= 0) {
+                this.jiEndTimeRemaining = 0; this.isJiEndTimerRunning = false;
+                this.triggerJiEndGameOver();
+            }
+        }
+    }
+
+    // シーン終了時の処理
     shutdownScene() {
         super.shutdownScene();
-        this.jihendTimer?.remove();
-        this.jihendTimerText?.destroy();
+        this.jiEndTimerText?.destroy();
         this.trialUiText?.destroy();
-        this.orderCrystal?.destroy();
-        this.chaosCrystal?.destroy();
-        // 他のタイマーやオブジェクトもクリア
+        this.harmonyCrystal?.destroy();
+        this.destructionCrystal?.destroy();
+        // 他のこのシーン固有のオブジェクトやタイマーもクリア
         console.log("--- Boss4Scene SHUTDOWN Complete ---");
     }
 }
