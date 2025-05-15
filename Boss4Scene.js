@@ -1,10 +1,23 @@
 // Boss4Scene.js (ルシゼロ戦 - 骨子)
 import CommonBossScene from './CommonBossScene.js';
 import {
-    AUDIO_KEYS, POWERUP_TYPES, NORMAL_BALL_SPEED, BALL_SPEED_MODIFIERS,
-    PADDLE_HEIGHT, // 必要に応じてその他も
-    // (ジエンドタイマーや試練達成報酬のSEキーもここに定義されている想定)
-    // SE_JI_END_BELL, SE_TRIAL_COMPLETEなど
+    // 必須に近いもの
+    AUDIO_KEYS,
+    POWERUP_TYPES,
+    TOTAL_BOSSES, // ボス番号表示のため
+    GAMEPLAY_START_DELAY,
+
+    // あると便利なもの、使う可能性が高いもの
+    NORMAL_BALL_SPEED,
+    BALL_SPEED_MODIFIERS,
+    DEFAULT_ATTACK_BRICK_VELOCITY_Y,
+    CUTSCENE_DURATION, // VS表示などで使う可能性
+    POWERUP_ICON_KEYS, // 試練UIでアイテムアイコン表示などするなら
+
+    // 念のため (CommonBossSceneとの兼ね合いやデバッグで参照するかも)
+    // PADDLE_HEIGHT,
+    // MAX_PLAYER_LIVES,
+
 } from './constants.js';
 
 export default class Boss4Scene extends CommonBossScene {
