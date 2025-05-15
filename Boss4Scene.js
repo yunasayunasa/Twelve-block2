@@ -186,77 +186,81 @@ applyBossDamage(bossInstance, damageAmount, source = "Unknown") {
 }
 
    // startIntroCutscene: ボス4専用のシンプルなカットイン後、finalizeBossAppearanceAndStartを呼ぶ
+// Boss4Scene.js
+
+// (constructor, init, initializeBossData, defineTrials, createSpecificBoss, applyBossDamage は前回提示のものをベースに)
+
+// CommonBossSceneのcreateから呼ばれる登場演出をオーバーライド
 startIntroCutscene() {
-    console.log("[Boss4Scene] Starting Lucilius Zero intro sequence with custom (simplified) cutscene...");
+    console.log("[Boss4Scene] Overriding startIntroCutscene for Lucilius Zero's custom intro.");
     this.isIntroAnimating = true;
     this.playerControlEnabled = false;
     this.isBallLaunched = false;
     this.sound.stopAll();
-    this.stopBgm(); // CommonBossSceneのメソッドを呼ぶ
-   // ★★★ 以下を一つずつコメント解除してテスト ★★★
+    this.stopBgm(); // CommonBossSceneのメソッドを呼んでBGMを止める
 
-    // テストA: CUTSCENE_DURATION の参照
-     const cutsceneDuration = CUTSCENE_DURATION || 1800;
-     console.log("Test A: cutsceneDuration =", cutsceneDuration);
+    // --- ▼ Boss4Scene 専用のシンプルなVSカットイン表示 ▼ ---
+    const cutsceneDuration = CUTSCENE_DURATION || 1800; // constants.js から
+    const overlay = this.add.rectangle(0, 0, this.gameWidth, this.gameHeight, 0x100020, 0.75)
+        .setOrigin(0,0).setDepth(899);
+    const textContent = this.bossData.cutsceneText || "TRIAL OF THE ABYSS";
+    const fontSize = this.calculateDynamicFontSize(65); // Commonのヘルパー
+    const textStyle = {
+        fontSize: `${fontSize}px`, fill: '#E0E0E0', fontFamily: 'serif',
+        align: 'center', stroke: '#100010', strokeThickness: Math.max(4, fontSize * 0.07)
+    };
+    const vsText = this.add.text(this.gameWidth / 2, this.gameHeight / 2, textContent, textStyle)
+        .setOrigin(0.5).setDepth(900);
 
-    // テストB: オーバーレイ生成
-     const overlay = this.add.rectangle(0, 0, this.gameWidth, this.gameHeight, 0x100020, 0.75)
-         .setOrigin(0,0).setDepth(899);
-     console.log("Test B: overlay created:", overlay);
-       // --- ▼ カットイン用ボス画像の表示 ▼ ---
-    const bossImageForCutscene = this.add.image(
-        this.gameWidth / 2,
-        this.gameHeight * 0.4, // 表示Y位置 (調整可能)
-        this.bossData.textureKey // ルシゼロのテクスチャキー
-    )
-    .setScale(this.bossData.widthRatio ) // 表示スケール (widthRatioを元に調整)
-    .setOrigin(0.5, 0.5)
-    .setDepth(900); // オーバーレイより手前、テキストより奥
-    console.log("[Boss4 Cutscene] Cutscene boss image created.");
-    // --- ▲ カットイン用ボス画像の表示 終了 ▲ ---
+    // カットイン開始SE
+    if (AUDIO_KEYS.SE_CUTSCENE_START) {
+        try { this.sound.play(AUDIO_KEYS.SE_CUTSCENE_START); } catch(e) {}
+    }
+    // ★ルシゼロ登場ボイスは、finalizeBossAppearanceAndStartの直前か、startFusionIntroを模倣するならそのタイミング★
+    // ここでは、finalizeBossAppearanceAndStart の中でボスが表示される直前に再生することを想定
+    // (CommonBossSceneのstartFusionIntroで voiceAppear を再生しているので、それに倣う)
 
+    console.log("[Boss4Scene Cutscene] Displaying custom VS text and overlay for Lucilius Zero.");
+    // --- ▲ Boss4Scene 専用のシンプルなカットイン表示 終了 ▲ ---
 
-    // テストC: textContent の準備
-    const textContent = this.bossData.cutsceneText || "VS DARK RUPTURE ZERO";
-     console.log("Test C: textContent =", textContent);
-
-    // テストD: calculateDynamicFontSize の呼び出し
-     const fontSize = this.calculateDynamicFontSize(60);
-    console.log("Test D: fontSize =", fontSize);
-
-    // テストE: textStyle の準備
-    const textStyle = { fontSize: `${fontSize}px`, fill: '#E0E0E0', fontFamily: 'serif', align: 'center', stroke: '#111111', strokeThickness: Math.max(4, fontSize * 0.07) };
-     console.log("Test E: textStyle prepared.");
-
-    // テストF: VSテキスト生成
-     const vsText = this.add.text(this.gameWidth / 2, this.gameHeight / 2, textContent, textStyle)
-         .setOrigin(0.5).setDepth(900);
-     console.log("Test F: vsText created:", vsText);
-
-    // テストG: SE_CUTSCENE_START の再生
-     try { if (AUDIO_KEYS.SE_CUTSCENE_START) this.sound.play(AUDIO_KEYS.SE_CUTSCENE_START); console.log("Test G: Played SE_CUTSCENE_START"); } catch(e) { console.error("Error G:", e); }
-try { if (AUDIO_KEYS.BGM_LUCILIUS_PHASE1) this.sound.play(AUDIO_KEYS.BGM_LUCILIUS_PHASE1); console.log("Test G: Played SBGM_LUCILIUS_PHASE1"); } catch(e) { console.error("Error G:", e); }
-
-    // テストH: voiceAppear の再生
-     if (this.bossData.voiceAppear) try { this.sound.play(this.bossData.voiceAppear); console.log("Test H: Played voiceAppear"); } catch(e) { console.error("Error H:", e); }
-
-    console.log("[Boss4Scene Intro] Fine-grained test point reached.");
-    // delayedCallなどはまだコメントアウトのまま
-
-     this.time.delayedCall(cutsceneDuration, () => {
-        if (overlay.scene) overlay.destroy();
-        if (bossImageForCutscene && bossImageForCutscene.scene) { // ★存在とシーン所属を確認
-            bossImageForCutscene.destroy(); // ★カットイン用画像を破棄
-            console.log("[Boss4 Cutscene] Cutscene boss image destroyed.");
-        }
-        if (vsText.scene) vsText.destroy();
+    // カットイン表示後、フュージョン演出をスキップし、直接ボス表示確定と戦闘準備へ
+    this.time.delayedCall(cutsceneDuration, () => {
+        // カットイン用オブジェクトを安全に破棄
+        if (overlay && overlay.scene) overlay.destroy();
+        if (vsText && vsText.scene) vsText.destroy();
 
         if (this.isGameOver || this.bossDefeated) return;
-        console.log("[Boss4Scene Intro] Custom cutscene finished. Proceeding to finalize boss appearance.");
+
+        console.log("[Boss4Scene Intro] Custom cutscene finished. Skipping Fusion, proceeding to finalize boss appearance.");
+
+        // ★★★ CommonBossSceneのstartFusionIntroがやっていることの一部をここで実行 ★★★
+        // 1. ボス戦BGM再生開始
+        this.playBossBgm(); // CommonBossSceneのメソッド
+        // 2. ボス固有の登場ボイスを再生
+        if (this.bossData.voiceAppear && typeof this.bossData.voiceAppear === 'string') {
+            try { this.sound.play(this.bossData.voiceAppear); } catch(e) {}
+        }
+        // 3. (もしあれば) 登場時の共通インパクトSEなど
+        if (AUDIO_KEYS.SE_FLASH_IMPACT_COMMON) { // CommonのstartFusionIntroで使っているSE
+            try { this.sound.play(AUDIO_KEYS.SE_FLASH_IMPACT_COMMON); 
+                try { if (AUDIO_KEYS.BGM_LUCILIUS_PHASE1) this.sound.play(AUDIO_KEYS.BGM_LUCILIUS_PHASE1); console.log("Test G: Played SBGM_LUCILIUS_PHASE1"); } catch(e) { console.error("Error G:", e); }
+
+            } catch(e) {}
+        }
+        // ★★★-----------------------------------------------------------------★★★
+
+        // ★★★ CommonBossScene の finalizeBossAppearanceAndStart を呼び出す ★★★
+        // これにより、ボスが表示され、物理ボディが有効になり、コライダーが設定され、
+        // 最終的に (Boss4Sceneでオーバーライドされた) startGameplay が遅延呼び出しされる。
         this.finalizeBossAppearanceAndStart();
         this.isIntroAnimating = false;
     }, [], this);
 }
+
+// startGameplay (オーバーライド版 - 前回提示の通り)
+// finalizeBossAppearanceAndStart は CommonBossScene のものをそのまま使用するので、Boss4Sceneではオーバーライド不要
+// startSpecificBossMovement (オーバーライド版 - 前回提示の通り、試練中は静止、最終決戦で移動)
+// (その他の Boss4Scene 固有メソッド: setupJiEndTimer, setupTrialUI, startNextTrial, etc. は前回提示のものをベースに)
 
 
   // startGameplay (オーバーライド): Commonの処理を呼びつつ、ルシゼロ専用の初期化
