@@ -166,86 +166,56 @@ applyBossDamage(bossInstance, damageAmount, source = "Unknown") {
     }
 }
 
-    // ボス登場演出 (CommonBossSceneのcreateから呼ばれる)
-    startIntroCutscene() {
-        console.log("[Boss4Scene] Starting Lucilius Zero intro sequence (custom).");
-        this.isIntroAnimating = true; // 演出中フラグ
-        this.playerControlEnabled = false;
-        this.isBallLaunched = false;
-        this.sound.stopAll(); // 既存の音をクリア
-        this.stopBgm();
+   // startIntroCutscene: ボス4専用のシンプルなカットイン後、finalizeBossAppearanceAndStartを呼ぶ
+startIntroCutscene() {
+    console.log("[Boss4Scene] Starting Lucilius Zero intro sequence with custom (simplified) cutscene...");
+    this.isIntroAnimating = true;
+    this.playerControlEnabled = false;
+    this.isBallLaunched = false;
+    this.sound.stopAll();
+    this.stopBgm(); // CommonBossSceneのメソッドを呼ぶ
 
-        this.stopBgm(); // 念のため既存のBGMを止める (CommonBossSceneのメソッド)
-        const bgmKeyPhase1 = AUDIO_KEYS.BGM_LUCILIUS_PHASE1; // ★constants.jsで定義したキー
-        if (bgmKeyPhase1 && this.cache.audio.has(bgmKeyPhase1)) {
-            console.log(`[Boss4 BGM] Playing Phase 1 BGM: ${bgmKeyPhase1}`);
-            this.currentBgm = this.sound.add(bgmKeyPhase1, { loop: true, volume: 0.45 });
-            try {
-                this.currentBgm.play();
-            } catch (e) {
-                console.error(`[Boss4 BGM] Error playing ${bgmKeyPhase1}:`, e);
-            }
-        } else {
-            console.warn(`[Boss4 BGM] BGM key "${bgmKeyPhase1}" not found or not loaded.`);
-        }
+    // --- ▼ シンプルなVSカットイン表示 ▼ ---
+    const cutsceneDuration = CUTSCENE_DURATION || 1800;
+    const overlay = this.add.rectangle(0, 0, this.gameWidth, this.gameHeight, 0x100020, 0.75) // 少し紫がかった暗幕
+        .setOrigin(0,0).setDepth(899);
+    const textContent = this.bossData.cutsceneText || "TRIAL OF THE ABYSS"; // ボス名でも試練の総称でも
+    const fontSize = this.calculateDynamicFontSize(65);
+    const textStyle = { fontSize: `${fontSize}px`, fill: '#E0E0E0', fontFamily: 'serif', align: 'center', stroke: '#111111', strokeThickness: Math.max(4, fontSize * 0.07) };
+    const vsText = this.add.text(this.gameWidth / 2, this.gameHeight / 2, textContent, textStyle)
+        .setOrigin(0.5).setDepth(900);
 
-        // (ここにルシゼロ専用の短い登場アニメーションやSEなどを追加可能)
-        // 例: 画面が暗転し、ルシゼロがゆっくりフェードインするなど。
-        // ボス自体はcreateSpecificBossで非表示・透明になっているので、
-        // finalizeBossAppearanceAndStartで表示される。
+    if (AUDIO_KEYS.SE_CUTSCENE_START) this.sound.play(AUDIO_KEYS.SE_CUTSCENE_START);
+    if (this.bossData.voiceAppear) this.sound.play(this.bossData.voiceAppear); // 登場ボイス
 
-        // UIセットアップと最初の試練開始の準備
-        this.time.delayedCall(110, () => { // 1.2秒ほど待ってから開始 (調整可能)
-            if (this.isGameOver || this.bossDefeated) return; // 既に終了していたら何もしない
+    this.time.delayedCall(cutsceneDuration, () => {
+        if (overlay.scene) overlay.destroy();
+        if (vsText.scene) vsText.destroy();
 
-            console.log("[Boss4Scene Intro] Delay finished. Setting up UI and preparing for combat.");
-          
-            // CommonBossSceneの戦闘開始準備フローを呼び出す
-            // これにより、ボスが表示され、物理が有効になり、startGameplayが呼ばれる
-            super.startIntroCutscene();
-            this.finalizeBossAppearanceAndStart();
-            this.isIntroAnimating = false; // 演出終了
-             
-    
-        }, [], this);
-    }
-
-    // 戦闘開始処理 (CommonBossSceneのfinalizeBossAppearanceAndStartから遅延呼び出しされる)
-    // ここで最初の試練を開始する
-    startGameplay() {
-        console.log("[Boss4Scene] startGameplay override called.");
-
-       
-
-        // CommonBossSceneのstartGameplayの残り処理を実行
-        // (BGM再生、プレイヤー操作有効化、startSpecificBossMovement呼び出しなど)
-        super.startGameplay();
-        const uiSetupDelay = 4000; // ★1秒遅らせる (ミリ秒単位で調整可能)
-
-    this.time.delayedCall(uiSetupDelay, () => {
-        if (this.isGameOver || this.bossDefeated) return; // 既に終了していたら何もしない
-
-        console.log(`[Boss4Scene startGameplay] Delayed UI setup executing after ${uiSetupDelay}ms.`);
-
-        if (!this.jiEndTimerText) { // まだセットアップされていなければ
-            this.setupJiEndTimer();    // ジエンドタイマー表示とカウント開始
-        }
-        if (!this.trialUiText) { // まだセットアップされていなければ
-            this.setupTrialUI();       // 試練表示UI初期化
-        }
-
-        // 最初の試練 (ID 1: 調和と破壊の選択) を開始
-        // (activeTrialIndexが-1の時だけ呼ぶなど、重複呼び出し防止を入れるとより安全)
-        if (this.activeTrialIndex < 0) {
-            this.startNextTrial();
-        }
-
-        // (試練I「調和と破壊」の間のプレイヤー操作制御は startHarmonyAndDestructionChoice で行う想定)
-
+        if (this.isGameOver || this.bossDefeated) return;
+        console.log("[Boss4Scene Intro] Custom cutscene finished. Proceeding to finalize boss appearance.");
+        // CommonBossSceneの戦闘開始準備フローを呼び出す
+        // これにより、ボスが表示され、物理が有効になり、startGameplayが呼ばれる
+        this.finalizeBossAppearanceAndStart();
+        this.isIntroAnimating = false;
     }, [], this);
-    // --- ▲ ジエンドタイマーと試練UIのセットアップ遅延 終了 ▲ ---
+}
 
-    }
+
+    // startGameplay: Commonの処理後、UIセットアップと最初の試練開始を遅延実行
+startGameplay() {
+    console.log("[Boss4Scene] startGameplay override called.");
+    super.startGameplay(); // BGM再生, playerControlEnabled=true (Commonで), startSpecificBossMovement (Boss4の静止処理)
+
+    const uiSetupDelay = 500; // 0.5秒遅らせる (調整可能)
+    this.time.delayedCall(uiSetupDelay, () => {
+        if (this.isGameOver || this.bossDefeated) return;
+        console.log(`[Boss4Scene startGameplay] Delayed UI setup executing after ${uiSetupDelay}ms.`);
+        if (!this.jiEndTimerText) this.setupJiEndTimer();
+        if (!this.trialUiText) this.setupTrialUI();
+        if (this.activeTrialIndex < 0) this.startNextTrial(); // 最初の試練へ
+    }, [], this);
+}
 
     // ジエンドタイマーのセットアップと初期演出
     setupJiEndTimer() {
@@ -361,101 +331,115 @@ applyBossDamage(bossInstance, damageAmount, source = "Unknown") {
 // (defineTrials で trial ID 1 が isChoiceEvent: true になっていること)
 // Boss4Scene.js
 
+// startHarmonyAndDestructionChoice: クリスタル表示と衝突設定
 startHarmonyAndDestructionChoice() {
     this.isChoiceEventActive = true;
-    this.playerControlEnabled = true; // ★プレイヤー操作を有効にする
-    this.isBallLaunched = false;    // ボールは未発射状態
+    // ★プレイヤー操作はこのメソッドの冒頭ではなく、startGameplayで既に有効になっているはず★
+    // ★ボールもstartGameplay -> super.startGameplay() -> createBalls で準備されているはず★
+    // ★もしボールがなければここで生成するロジックは残しても良いが、通常は不要のはず★
+    // this.playerControlEnabled = true; // CommonのstartGameplayでtrueになる想定
+    // this.isBallLaunched = false;    // CommonのstartGameplayでfalseになる想定
 
     if (this.trialUiText && this.activeTrial && this.activeTrial.isChoiceEvent) {
-        let displayText = `十二の試練：試練 ${this.activeTrial.id}「${this.activeTrial.name}」\n`;
-        displayText += `${this.activeTrial.conditionText}`;
-        this.trialUiText.setText(displayText);
+        this.trialUiText.setText(`十二の試練：試練 ${this.activeTrial.id}「${this.activeTrial.name}」\n${this.activeTrial.conditionText}`);
     }
-
     console.log("[ChoiceEvent] Presenting Harmony and Destruction choice. Player needs to destroy a crystal.");
 
-    const crystalY = this.gameHeight * 0.40;
-    const crystalScale = 0.25;
-    const crystalDepth = 5;
+    const crystalY = this.gameHeight * 0.45; // Y位置調整
+    const crystalScale = 0.28; // スケール調整
+    const crystalDepth = 10;  // ボールより手前、ボスより手前
 
-    // --- 秩序のクリスタル ---
+    const crystalHitCallback = (ball, crystal) => {
+        if (!this.isChoiceEventActive || !crystal.active) return; // イベント中かつクリスタルがアクティブな場合のみ
+        
+        const route = crystal.getData('crystalType');
+        console.log(`[ChoiceEvent] Ball hit ${route} Crystal.`);
+
+        // 両方のクリスタルを破壊演出（shatterCrystal内でdestroyも行う）
+        this.shatterCrystal(this.harmonyCrystal);
+        this.shatterCrystal(this.destructionCrystal);
+        // colliderも不要になるので破棄できるとベストだが、シーン終了まで残っても大きな問題はない
+        // (あるいは、shatterCrystal内でcolliderもdisableする)
+
+        this.selectRoute(route); // ルート選択処理（クリスタルオブジェクトは渡さない）
+    };
+
+    // 秩序のクリスタル
     if (this.harmonyCrystal) this.harmonyCrystal.destroy();
-    try {
-        this.harmonyCrystal = this.physics.add.image(this.gameWidth * 0.35, crystalY, 'crystal_order')
-            .setScale(crystalScale)
-            .setImmovable(true)
-            .setDepth(crystalDepth)
-            .setData('crystalType', 'order');
-        this.harmonyCrystal.body.setAllowGravity(false).setCollideWorldBounds(false);
-        // ★ボールとの衝突設定★
-        this.physics.add.collider(
-            this.balls,
-            this.harmonyCrystal,
-            (ball, crystal) => {
-                console.log("[ChoiceEvent] Ball hit Harmony Crystal.");
-                // ★クリスタル破壊処理を先に行う★
-                this.shatterCrystal(crystal); // 破壊演出など
-                this.selectRoute('order', crystal); // ルート選択処理
-                // ★ボールは消さない。colliderが物理的に反射させる★
-            },
-            (ball, crystal) => { // processCallback: クリスタルがアクティブな場合のみ衝突
-                return crystal.active;
-            },
-            this
-        );
-        console.log("[ChoiceEvent] Harmony Crystal created.");
-    } catch (e) { console.error("[ChoiceEvent] Error creating Harmony Crystal:", e); }
+    this.harmonyCrystal = this.physics.add.image(this.gameWidth * 0.3, crystalY, 'crystal_order')
+        .setScale(crystalScale).setImmovable(true).setDepth(crystalDepth).setData('crystalType', 'order').setActive(true).setVisible(true);
+    if (this.harmonyCrystal.body) this.harmonyCrystal.body.setAllowGravity(false);
+    this.physics.add.collider(this.balls, this.harmonyCrystal, crystalHitCallback, (b,c)=>c.active, this);
 
-    // --- 混沌のクリスタル ---
+    // 混沌のクリスタル
     if (this.destructionCrystal) this.destructionCrystal.destroy();
-    try {
-        this.destructionCrystal = this.physics.add.image(this.gameWidth * 0.65, crystalY, 'crystal_chaos')
-            .setScale(crystalScale)
-            .setImmovable(true)
-            .setDepth(crystalDepth)
-            .setData('crystalType', 'chaos');
-        this.destructionCrystal.body.setAllowGravity(false).setCollideWorldBounds(false);
-        // ★ボールとの衝突設定★
-        this.physics.add.collider(
-            this.balls,
-            this.destructionCrystal,
-            (ball, crystal) => {
-                console.log("[ChoiceEvent] Ball hit Destruction Crystal.");
-                this.shatterCrystal(crystal);
-                this.selectRoute('chaos', crystal);
-                // ★ボールは消さない★
-            },
-            (ball, crystal) => {
-                return crystal.active;
-            },
-            this
-        );
-        console.log("[ChoiceEvent] Destruction Crystal created.");
-    } catch (e) { console.error("[ChoiceEvent] Error creating Destruction Crystal:", e); }
+    this.destructionCrystal = this.physics.add.image(this.gameWidth * 0.7, crystalY, 'crystal_chaos')
+        .setScale(crystalScale).setImmovable(true).setDepth(crystalDepth).setData('crystalType', 'chaos').setActive(true).setVisible(true);
+    if (this.destructionCrystal.body) this.destructionCrystal.body.setAllowGravity(false);
+    this.physics.add.collider(this.balls, this.destructionCrystal, crystalHitCallback, (b,c)=>c.active, this);
 
-
-    // ボールがなければ生成
+    // プレイヤー操作はCommonのstartGameplayで有効になっているはず
+    // ボールがなければここで生成 (念のため)
     if (this.balls && this.balls.countActive(true) === 0) {
-        console.log("[ChoiceEvent] No active balls, creating one.");
-        if (this.paddle && this.paddle.active) {
-            this.createAndAddBall(this.paddle.x, this.paddle.y - (this.paddle.displayHeight / 2) - (this.gameWidth * (BALL_RADIUS_RATIO || 0.05)));
-        } else {
-            this.createAndAddBall(this.gameWidth / 2, this.gameHeight * 0.7);
-        }
-        this.isBallLaunched = false; // 生成したボールは未発射
+        this.createAndAddBallToPaddle(); // パドル上にボールを生成するヘルパーを想定
+        this.isBallLaunched = false;
+    } else { // 既にボールがある場合はパドル上に戻して未発射に
+        this.resetAllBallsToPaddle(); // 全ボールをパドル上に戻すヘルパーを想定
+        this.isBallLaunched = false;
     }
-    // 既にボールがある場合も、未発射状態に戻す
-    this.balls?.getChildren().forEach(ball => {
-        if (ball.active && ball.body && this.paddle?.active) { // パドルがあればパドル上に
-            ball.setVelocity(0,0);
-            ball.setPosition(this.paddle.x, this.paddle.y - (this.paddle.displayHeight / 2) - ball.displayHeight / 2);
-        } else if (ball.active && ball.body) { // パドルがなければ中央下に
-             ball.setVelocity(0,0);
-             ball.setPosition(this.gameWidth / 2, this.gameHeight * 0.8);
-        }
-    });
-    this.isBallLaunched = false;
+    console.log("[ChoiceEvent] Crystals displayed. Waiting for player to hit one.");
 }
+
+// createAndAddBallToPaddle と resetAllBallsToPaddle はCommonBossSceneにあるか、ここで定義するヘルパー
+createAndAddBallToPaddle() {
+    if (this.paddle && this.paddle.active) {
+        this.createAndAddBall(this.paddle.x, this.paddle.y - (this.paddle.displayHeight / 2) - (this.gameWidth * (BALL_RADIUS_RATIO || 0.05)));
+    } else { this.createAndAddBall(this.gameWidth / 2, this.gameHeight * 0.7); }
+}
+resetAllBallsToPaddle() {
+    this.balls?.getChildren().forEach(ball => {
+        if (ball.active && ball.body && this.paddle?.active) {
+            ball.setVelocity(0,0).setPosition(this.paddle.x, this.paddle.y - (this.paddle.displayHeight / 2) - ball.displayHeight / 2);
+        } // ... (パドルがない場合のフォールバックも)
+    });
+}
+
+
+shatterCrystal(crystal) {
+    if (!crystal || !crystal.active) return;
+    console.log(`[ChoiceEvent] Shattering ${crystal.getData('crystalType')} crystal visually.`);
+    crystal.disableBody(true, false); // ボディだけ無効化、非表示にはしない
+    // crystal.setActive(false); // activeもfalseに
+    this.tweens.add({
+        targets: crystal, alpha: 0, scale: crystal.scale * 0.3, angle: 180, duration: 400, ease: 'Power2',
+        onComplete: () => { if (crystal.scene) crystal.destroy(); }
+    });
+    // TODO: 破壊音 (AUDIO_KEYS.SE_CRYSTAL_BREAK_ORDER or CHAOS)
+}
+
+// selectRoute: ルートを設定し、次の試練へ
+selectRoute(route) { // destroyedCrystal引数は不要に
+    if (!this.isChoiceEventActive) return; // 重複呼び出し防止
+
+    console.log(`[ChoiceEvent] Player selected route: ${route}`);
+    this.currentRoute = route;
+    this.isChoiceEventActive = false; // 選択イベント終了
+
+    // (破壊されなかった方のクリスタルは、shatterCrystalが両方呼ばれることで対応済みのはず)
+    // (あるいは、ここで明示的に両方destroyしても良い)
+    if(this.harmonyCrystal?.scene) this.harmonyCrystal.destroy();
+    if(this.destructionCrystal?.scene) this.destructionCrystal.destroy();
+    this.harmonyCrystal = null;
+    this.destructionCrystal = null;
+
+
+    // 少し間を置いてから次の試練へ
+    this.time.delayedCall(800, () => { // 破壊演出を見せるため少し長めに
+        console.log("[ChoiceEvent] Proceeding to next trial after selection.");
+        this.startNextTrial();
+    }, [], this);
+}
+
 
 // クリスタル破壊の共通処理 (演出など)
 shatterCrystal(crystal) {
@@ -656,14 +640,15 @@ hitBoss(boss, ball) {
 
         // 試練達成判定 (ボールがボスに当たることが条件の試練)
         if (this.activeTrial && !this.activeTrial.completed) {
-            // 試練II「原初の契約」
-            if (this.activeTrial.id === 2) {
-                this.activeTrial.hitCount = (this.activeTrial.hitCount || 0) + 1;
-                this.updateTrialProgressUI(this.activeTrial);
-                if (this.activeTrial.hitCount >= this.activeTrial.requiredHits) {
-                    this.completeCurrentTrial();
-                }
+        let trialJustCompleted = false;
+        // 試練II「原初の契約」
+           if (this.activeTrial.id === 2 && boss === this.boss) { // ボス本体へのヒットか確認
+            this.activeTrial.hitCount = (this.activeTrial.hitCount || 0) + 1;
+            if (this.trialUiText) this.updateTrialProgressUI(this.activeTrial);
+            if (this.activeTrial.hitCount >= this.activeTrial.requiredHits) {
+                trialJustCompleted = true;
             }
+        }
             // 試練V「星光の追撃」 (クビラ効果中かどうかの判定はプレイヤーのフラグか、ボールに付与されたデータで)
             if (this.activeTrial.id === 5 && this.isPlayerKubiraActive()) { // isPlayerKubiraActive() は仮のメソッド
                 this.activeTrial.hitCountKubira = (this.activeTrial.hitCountKubira || 0) + 1;
@@ -689,13 +674,21 @@ hitBoss(boss, ball) {
                     this.completeCurrentTrial();
                 }
             }
+            
         }
 
-        // ボスをワープさせる
-        this.warpBoss();
+         if (trialJustCompleted) {
+            this.completeCurrentTrial();
+        }
+    }
+
+    if (this.isFinalBattleActive) {
+        super.hitBoss(boss, ball);
+    } else {
+        // ... (試練中の反射とワープ処理) ...
+        if (boss === this.boss) this.warpBoss(); // ボス本体に当たった時だけワープ
     }
 }
-
 // isPlayerKubiraActive() や isTimeFieldActive() は、
 // Boss4Scene のプロパティや状態に応じて true/false を返すヘルパーメソッドとして実装します。
 // 例:
@@ -769,7 +762,18 @@ hitChaosFragment(ball, fragment) {
             this.completeCurrentTrial();
         }
     }
-    updateTrialProgressUI(trial) { /* TODO: UIの達成状況を更新 */ }
+    // updateTrialProgressUI (試練の進捗UIを更新するメソッド)
+updateTrialProgressUI(trial) {
+    if (!this.trialUiText || !this.trialUiText.active || !trial) return;
+    let progressText = "";
+    switch (trial.id) {
+        case 2: progressText = `(${trial.hitCount || 0}/${trial.requiredHits})`; break;
+        case 3: progressText = `(破壊数: ${trial.destroyedCount || 0}/${trial.objectsToDestroy})`; break;
+        // ... 他の試練の進捗表示 ...
+        default: break;
+    }
+    this.trialUiText.setText(`十二の試練：試練 ${trial.id}「${trial.name}」\n${trial.conditionText} ${progressText}`);
+}
 
 
     // --- ジエンドタイマー関連メソッド (前回のものを流用) ---
