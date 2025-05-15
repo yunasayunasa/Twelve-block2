@@ -174,6 +174,7 @@ startIntroCutscene() {
     this.isBallLaunched = false;
     this.sound.stopAll();
     this.stopBgm(); // CommonBossSceneのメソッドを呼ぶ
+    const bgmKeyPhase1 = AUDIO_KEYS.BGM_LUCILIUS_PHASE1; // ★constants.jsで定義したキー
 
       // ★★★ 以下を一つずつコメント解除してテスト ★★★
 
