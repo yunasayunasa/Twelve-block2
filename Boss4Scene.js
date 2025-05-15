@@ -75,7 +75,7 @@ export default class Boss4Scene extends CommonBossScene {
     initializeBossData() {
         console.log("--- Boss4Scene initializeBossData (Lucilius Zero) ---");
         this.bossData = {
-            health: Infinity, // 試練中はHP無限
+            health: ∞, // 試練中はHP無限
             finalBattleHp: 5,   // 「決着の刻」のHP
             textureKey: 'boss_lucilius_stand', // ★要アセット
             negativeKey: 'boss_lucilius_negative', // ★要アセット
