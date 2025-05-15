@@ -1,24 +1,13 @@
-// Boss4Scene.js (ルシゼロ戦 - 骨子)
+// Boss4Scene.js
 import CommonBossScene from './CommonBossScene.js';
 import {
-    // 必須に近いもの
-    AUDIO_KEYS,
-    POWERUP_TYPES,
-    TOTAL_BOSSES, // ボス番号表示のため
-    GAMEPLAY_START_DELAY,
-
-    // あると便利なもの、使う可能性が高いもの
-    NORMAL_BALL_SPEED,
-    BALL_SPEED_MODIFIERS,
-    DEFAULT_ATTACK_BRICK_VELOCITY_Y,
-    CUTSCENE_DURATION, // VS表示などで使う可能性
-    POWERUP_ICON_KEYS, // 試練UIでアイテムアイコン表示などするなら
-
-    // 念のため (CommonBossSceneとの兼ね合いやデバッグで参照するかも)
-    // PADDLE_HEIGHT,
-    // MAX_PLAYER_LIVES,
-
+    AUDIO_KEYS, POWERUP_TYPES, TOTAL_BOSSES, GAMEPLAY_START_DELAY,
+    NORMAL_BALL_SPEED, BALL_SPEED_MODIFIERS, DEFAULT_ATTACK_BRICK_VELOCITY_Y,
+    CUTSCENE_DURATION, POWERUP_ICON_KEYS,
+    // (その他必要な定数を constants.js からインポート)
+    // SE_JI_END_BELL, SE_TRIAL_COMPLETE などもAUDIO_KEYS経由で
 } from './constants.js';
+
 
 export default class Boss4Scene extends CommonBossScene {
     constructor() {
@@ -33,82 +22,82 @@ export default class Boss4Scene extends CommonBossScene {
             30 * 1000, 10 * 1000
         ];
         this.playedBellTimings = {};
-        this.jiEndVideoKey = 'gameOverVideo_JiEnd'; // BootSceneでロードする動画キー
+        this.jiEndVideoKey = 'gameOverVideo_JiEnd';
 
-        // --- 試練関連 ---
-        this.trialsData = []; // 各試練の情報（名前、条件、達成状況、ドロップアイテムなど）
-        this.activeTrialIndex = -1; // 現在の試練のインデックス (-1は未開始または選択中)
-        this.trialUiText = null; // 試練表示用テキストオブジェクト (UISceneに依頼も可)
+        this.trialsData = [];
+        this.activeTrialIndex = -1;
+        this.trialUiText = null;
 
-        // --- 「調和と破壊」関連 ---
-        this.currentRoute = null; // 'order', 'chaos', or null (選択前)
+        this.currentRoute = null;
         this.harmonyCrystal = null;
         this.destructionCrystal = null;
         this.isChoiceEventActive = false;
 
-        // --- ルシゼロ本体関連 ---
-        this.isFinalBattleActive = false; // 「決着の刻」フラグ
-        this.lastAttackTime = 0; // 攻撃間隔管理用
-        this.lastWarpTime = 0;   // ワープ間隔管理用
+        this.isFinalBattleActive = false;
+        this.lastAttackTime = 0;
+        this.lastWarpTime = 0;
+        this.isIntroAnimating = false; // 登場演出中フラグ (startIntroCutsceneで管理)
     }
 
-    init(data) {
+   init(data) {
         super.init(data);
         this.isJiEndTimerRunning = false;
         this.playedBellTimings = {};
-        this.activeTrialIndex = -1; // 念のためリセット
+        this.activeTrialIndex = -1;
         this.currentRoute = null;
         this.isChoiceEventActive = false;
         this.isFinalBattleActive = false;
         this.lastAttackTime = 0;
         this.lastWarpTime = 0;
+        this.isIntroAnimating = false;
 
-        // タイマーやクリスタルオブジェクトが残っていれば破棄
         this.jiEndTimerText?.destroy(); this.jiEndTimerText = null;
         this.harmonyCrystal?.destroy(); this.harmonyCrystal = null;
         this.destructionCrystal?.destroy(); this.destructionCrystal = null;
         this.trialUiText?.destroy(); this.trialUiText = null;
-
         console.log("--- Boss4Scene INIT Complete ---");
     }
 
     initializeBossData() {
         console.log("--- Boss4Scene initializeBossData (Lucilius Zero) ---");
         this.bossData = {
-            health: Infinity, // 試練中はHP無限
-            finalBattleHp: 5,   // 「決着の刻」のHP
-            textureKey: 'boss_lucilius_stand', // ★要アセット
-            negativeKey: 'boss_lucilius_negative', // ★要アセット
-            voiceAppear: AUDIO_KEYS.VOICE_LUCILIUS_APPEAR, // ★要定数・アセット
+            health: Infinity,
+            finalBattleHp: 5,
+            textureKey: 'boss_lucilius_stand',
+            negativeKey: 'boss_lucilius_negative',
+            voiceAppear: AUDIO_KEYS.VOICE_LUCILIUS_APPEAR,
             voiceDamage: AUDIO_KEYS.VOICE_LUCILIUS_DAMAGE,
             voiceDefeat: AUDIO_KEYS.VOICE_LUCILIUS_DEFEAT,
-            voiceRandom: [AUDIO_KEYS.VOICE_LUCILIUS_RANDOM_1],
-            bgmKey: AUDIO_KEYS.BGM_LUCILIUS_PHASE1, // ★ルートやフェーズでBGM変えるなら複数用意
-            cutsceneText: 'VS ダークラプチャーゼロ', // 最初のカットシーン用 (もしあれば)
-            widthRatio: 0.25, // 通常時の表示幅
-            // ルシゼロは試練中は中央固定なので移動関連パラメータは最終決戦用
-            moveRangeXRatioFinal: 0.7,
-            moveDurationFinal: 3000,
+            voiceRandom: AUDIO_KEYS.VOICE_LUCILIUS_RANDOM_1 ? [AUDIO_KEYS.VOICE_LUCILIUS_RANDOM_1] : [],
+            bgmKey: AUDIO_KEYS.BGM_LUCILIUS_PHASE1, // 初期BGM
+            // (ルート選択後や最終決戦でBGMを変える場合は、別途ロジックが必要)
+            cutsceneText: 'VS ダークラプチャー・ゼロ', // Commonのカットシーンで使われる場合
+            widthRatio: 0.25,
+            moveRangeXRatioFinal: 0.7, // 最終決戦時の移動範囲
+            moveDurationFinal: 3000,   // 最終決戦時の移動時間
 
             jiEndCountInitialMinutes: 5,
-            jiEndTimerYPosRatio: 0.1, // タイマーのY位置 (画面高さ比)
-            jiEndTimerFontSizeRatio: 1 / 15, // タイマーフォントサイズ (画面幅比)
+            jiEndTimerYPosRatio: 0.1,
+            jiEndTimerFontSizeRatio: 1 / 15,
 
-            // 攻撃パターンパラメータ (秩序/混沌で変わる)
-            attackIntervalOrder: { min: 1500, max: 2500 }, // 秩序ルートの攻撃間隔
-            attackIntervalChaos: { min: 4000, max: 6000 }, // 混沌ルートの攻撃間隔
-            // (弾速、弾数などもルート別に設定可能)
-            warpInterval: 5000, // 通常時のワープ間隔の目安
+            attackIntervalOrder: { min: 1800, max: 2800 }, // 攻撃間隔 (秩序) - 少し速め
+            attackIntervalChaos: { min: 3500, max: 5500 }, // 攻撃間隔 (混沌) - 遅め
+            // (弾速、弾数などもここで定義し、fireRadialAttack/fireTargetedAttackで参照する)
+            radialAttackParamsOrder: { count: 5, speedMultiplier: 1.2 },
+            radialAttackParamsChaos: { count: 3, speedMultiplier: 0.8 },
+            targetedAttackParamsOrder: { chargeTime: 600, speedMultiplier: 1.1 },
+            targetedAttackParamsChaos: { chargeTime: 900, speedMultiplier: 0.9 },
 
-            // 試練データ配列
-            trials: this.defineTrials(), // 別メソッドで試練内容を定義
+            warpInterval: 6000, // ワープ間隔 (ms)
 
-            // 試練達成時の報酬アイテム
+            trials: this.defineTrials(),
             trialRewardItem: POWERUP_TYPES.BIKARA_YANG,
+            // ルシゼロ専用攻撃弾のテクスチャキー
+            projectileTextureKey: 'attack_brick_lucilius',
+            targetProjectileTextureKey: 'attack_brick_lucilius_target',
         };
-
         this.bossVoiceKeys = Array.isArray(this.bossData.voiceRandom) ? this.bossData.voiceRandom : [];
-        this.trialsData = this.bossData.trials; // trialsDataプロパティに格納
+        this.trialsData = this.bossData.trials;
         console.log("Lucilius Zero Specific Data Initialized.");
     }
 
@@ -131,24 +120,27 @@ export default class Boss4Scene extends CommonBossScene {
     }
 
 
+   // ボスオブジェクトの初期設定 (CommonBossSceneから呼ばれる)
     createSpecificBoss() {
-        super.createSpecificBoss(); // this.boss 生成
+        super.createSpecificBoss(); // this.boss が CommonBossScene で生成される
         if (this.boss) {
-            this.boss.setPosition(this.gameWidth / 2, this.gameHeight * 0.2); // 仮：画面上部中央に固定
-            this.boss.setImmovable(true); // 最初は動かない
-            if(this.boss.body) this.boss.body.moves = false;
+            // ルシゼロは試練中は画面上部中央に固定
+            const initialY = this.gameHeight * 0.20; // Y座標 (調整可能)
+            this.boss.setPosition(this.gameWidth / 2, initialY);
+            this.boss.setImmovable(true);
+            if (this.boss.body) this.boss.body.moves = false; // 物理的に動かないように
+            this.boss.setData('targetY', initialY); // finalizeBossAppearanceAndStart で使われる可能性
+            this.boss.setData('targetScale', this.boss.scale); // 同上
 
-
-
-          // --- ▼ ライフ表示の修正 ▼ ---
-        // 試練中はHPを「∞」としてUIに通知
-        this.events.emit('updateBossHp', '∞', '∞');
-        console.log("[Boss4 Create] Boss HP UI explicitly set to ∞.");
-        // --- ▲ ライフ表示の修正 終了 ▲ ---
-            this.events.emit('updateBossNumber', this.currentBossIndex, TOTAL_BOSSES); // TOTAL_BOSSESをimport
+            // UIへの初期HP表示 (試練中は "∞")
+            this.events.emit('updateBossHp', '∞', '∞');
+            this.events.emit('updateBossNumber', this.currentBossIndex, TOTAL_BOSSES);
+            console.log(`[Boss4 Create] Lucilius Zero (Boss ${this.currentBossIndex}) initialized at static position.`);
+        } else {
+            console.error("!!! Boss4Scene: this.boss was not created by super.createSpecificBoss()!");
         }
-        console.log("--- Boss4Scene createSpecificBoss Complete ---");
     }
+
 
     // CommonBossSceneのapplyBossDamageをオーバーライド
 applyBossDamage(bossInstance, damageAmount, source = "Unknown") {
@@ -173,22 +165,53 @@ applyBossDamage(bossInstance, damageAmount, source = "Unknown") {
     }
 }
 
-    // CommonBossSceneのcreateから呼ばれる登場演出
+    // ボス登場演出 (CommonBossSceneのcreateから呼ばれる)
     startIntroCutscene() {
-        console.log("[Boss4Scene] Starting Lucilius Zero intro sequence...");
-        // (専用の登場カットシーンがあればここに実装)
-        // 今回はシンプルに、すぐにジエンドタイマーと試練開始へ
+        console.log("[Boss4Scene] Starting Lucilius Zero intro sequence (custom).");
+        this.isIntroAnimating = true; // 演出中フラグ
         this.playerControlEnabled = false;
         this.isBallLaunched = false;
-        this.sound.stopAll(); // 念のため
-        this.stopBgm();       // 同上
+        this.sound.stopAll(); // 既存の音をクリア
+        this.stopBgm();
 
-        // ボスはcreateSpecificBossで配置済みなので、ここでは何もしないか、短い登場エフェクト
-        this.time.delayedCall(500, () => { // 少し間を置いて
-            this.setupJiEndTimer(); // ジエンドタイマー表示開始 (初期演出含む)
-            this.setupTrialUI();    // 試練UI表示の初期化
-            this.startNextTrial();  // 最初の試練（調和と破壊）を開始
+        // (ここにルシゼロ専用の短い登場アニメーションやSEなどを追加可能)
+        // 例: 画面が暗転し、ルシゼロがゆっくりフェードインするなど。
+        // ボス自体はcreateSpecificBossで非表示・透明になっているので、
+        // finalizeBossAppearanceAndStartで表示される。
+
+        // UIセットアップと最初の試練開始の準備
+        this.time.delayedCall(1200, () => { // 1.2秒ほど待ってから開始 (調整可能)
+            if (this.isGameOver || this.bossDefeated) return; // 既に終了していたら何もしない
+
+            console.log("[Boss4Scene Intro] Delay finished. Setting up UI and preparing for combat.");
+            this.setupJiEndTimer();    // ジエンドタイマーUIとロジック初期化
+            this.setupTrialUI();       // 試練表示UI初期化
+
+            // CommonBossSceneの戦闘開始準備フローを呼び出す
+            // これにより、ボスが表示され、物理が有効になり、startGameplayが呼ばれる
+            this.finalizeBossAppearanceAndStart();
+            this.isIntroAnimating = false; // 演出終了
         }, [], this);
+    }
+
+    // 戦闘開始処理 (CommonBossSceneのfinalizeBossAppearanceAndStartから遅延呼び出しされる)
+    // ここで最初の試練を開始する
+    startGameplay() {
+        console.log("[Boss4Scene] startGameplay override called.");
+
+        // 最初の試練 (ID 1: 調和と破壊の選択) を開始
+        // activeTrialIndex は -1 で初期化されているので、startNextTrial で 0 になる
+        this.startNextTrial();
+
+        // CommonBossSceneのstartGameplayの残り処理を実行
+        // (BGM再生、プレイヤー操作有効化、startSpecificBossMovement呼び出しなど)
+        super.startGameplay();
+
+        // ただし、試練I「調和と破壊」の間はプレイヤー操作を無効にしたい場合がある
+        if (this.activeTrial && this.activeTrial.isChoiceEvent) {
+            this.playerControlEnabled = false; // 選択が終わるまで操作不可
+            console.log("[Boss4Scene startGameplay] Player control DISABLED during choice event.");
+        }
     }
 
     // ジエンドタイマーのセットアップと初期演出
@@ -353,22 +376,31 @@ applyBossDamage(bossInstance, damageAmount, source = "Unknown") {
     }
 
 
-    // ボス本体の移動は試練中はなし、最終決戦でのみ
+     // ボスの移動パターン (CommonBossSceneのstartGameplayから呼ばれる)
     startSpecificBossMovement() {
         if (this.isFinalBattleActive) {
-            console.log("[FinalBattle] Lucilius Zero starts moving!");
-            // CommonBossSceneの汎用移動を呼び出すか、専用の動きを実装
-            // super.startSpecificBossMovement(); // 例: Commonの左右移動
-            // ここでは仮に何もしない (専用の動きをupdateSpecificBossBehaviorで書く想定)
+            console.log("[Boss4Scene FinalBattle] Lucilius Zero starts moving!");
+            // 最終決戦時の移動ロジック (例: CommonBossSceneの左右移動)
+            const moveWidth = this.gameWidth * (this.bossData.moveRangeXRatioFinal || 0.7) / 2;
+            const leftX = this.gameWidth / 2 - moveWidth;
+            const rightX = this.gameWidth / 2 + moveWidth;
+            this.boss.setX(this.gameWidth / 2); // 中央から開始
+
+            const easeFunctions = ['Sine.easeInOut', 'Quad.easeInOut', 'Cubic.easeInOut'];
+            const moveToRight = () => {
+                if (!this.boss?.active || !this.isFinalBattleActive) return;
+                this.bossMoveTween = this.tweens.add({ targets: this.boss, x: rightX, duration: (this.bossData.moveDurationFinal || 3000), ease: Phaser.Utils.Array.GetRandom(easeFunctions), onComplete: moveToLeft });
+            };
+            const moveToLeft = () => {
+                if (!this.boss?.active || !this.isFinalBattleActive) return;
+                this.bossMoveTween = this.tweens.add({ targets: this.boss, x: leftX, duration: (this.bossData.moveDurationFinal || 3000), ease: Phaser.Utils.Array.GetRandom(easeFunctions), onComplete: moveToRight });
+            };
+            moveToRight();
         } else {
-            console.log("[TrialPhase] Lucilius Zero remains stationary.");
-            // ボスは動かないので、既存の移動Tweenがあれば停止
-            if (this.bossMoveTween) {
-                this.tweens.killTweensOf(this.boss);
-                this.bossMoveTween = null;
-            }
-            if (this.boss && this.boss.body) { // 念のため速度を0に
-                this.boss.setVelocity(0,0);
+            console.log("[Boss4Scene TrialPhase] Lucilius Zero remains stationary.");
+            if (this.bossMoveTween) this.tweens.killTweensOf(this.boss); // 既存のTween停止
+            if (this.boss && this.boss.body) {
+                this.boss.setVelocity(0, 0); // 完全に静止
             }
         }
     }
