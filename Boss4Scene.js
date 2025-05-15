@@ -224,14 +224,16 @@ try { if (AUDIO_KEYS.BGM_LUCILIUS_PHASE1) this.sound.play(AUDIO_KEYS.BGM_LUCILIU
     console.log("[Boss4Scene Intro] Fine-grained test point reached.");
     // delayedCallなどはまだコメントアウトのまま
 
-    this.time.delayedCall(cutsceneDuration, () => {
+     this.time.delayedCall(cutsceneDuration, () => {
         if (overlay.scene) overlay.destroy();
+        if (bossImageForCutscene && bossImageForCutscene.scene) { // ★存在とシーン所属を確認
+            bossImageForCutscene.destroy(); // ★カットイン用画像を破棄
+            console.log("[Boss4 Cutscene] Cutscene boss image destroyed.");
+        }
         if (vsText.scene) vsText.destroy();
 
         if (this.isGameOver || this.bossDefeated) return;
         console.log("[Boss4Scene Intro] Custom cutscene finished. Proceeding to finalize boss appearance.");
-        // CommonBossSceneの戦闘開始準備フローを呼び出す
-        // これにより、ボスが表示され、物理が有効になり、startGameplayが呼ばれる
         this.finalizeBossAppearanceAndStart();
         this.isIntroAnimating = false;
     }, [], this);
