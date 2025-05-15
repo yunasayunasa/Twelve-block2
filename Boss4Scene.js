@@ -222,13 +222,31 @@ applyBossDamage(bossInstance, damageAmount, source = "Unknown") {
         // CommonBossSceneのstartGameplayの残り処理を実行
         // (BGM再生、プレイヤー操作有効化、startSpecificBossMovement呼び出しなど)
         super.startGameplay();
-         
+        const uiSetupDelay = 5000; // ★1秒遅らせる (ミリ秒単位で調整可能)
 
-        // ただし、試練I「調和と破壊」の間はプレイヤー操作を無効にしたい場合がある
-        if (this.activeTrial && this.activeTrial.isChoiceEvent) {
-            this.playerControlEnabled = false; // 選択が終わるまで操作不可
-            console.log("[Boss4Scene startGameplay] Player control DISABLED during choice event.");
+    this.time.delayedCall(uiSetupDelay, () => {
+        if (this.isGameOver || this.bossDefeated) return; // 既に終了していたら何もしない
+
+        console.log(`[Boss4Scene startGameplay] Delayed UI setup executing after ${uiSetupDelay}ms.`);
+
+        if (!this.jiEndTimerText) { // まだセットアップされていなければ
+            this.setupJiEndTimer();    // ジエンドタイマー表示とカウント開始
         }
+        if (!this.trialUiText) { // まだセットアップされていなければ
+            this.setupTrialUI();       // 試練表示UI初期化
+        }
+
+        // 最初の試練 (ID 1: 調和と破壊の選択) を開始
+        // (activeTrialIndexが-1の時だけ呼ぶなど、重複呼び出し防止を入れるとより安全)
+        if (this.activeTrialIndex < 0) {
+            this.startNextTrial();
+        }
+
+        // (試練I「調和と破壊」の間のプレイヤー操作制御は startHarmonyAndDestructionChoice で行う想定)
+
+    }, [], this);
+    // --- ▲ ジエンドタイマーと試練UIのセットアップ遅延 終了 ▲ ---
+
     }
 
     // ジエンドタイマーのセットアップと初期演出
@@ -451,9 +469,7 @@ startHarmonyAndDestructionChoice() {
         }
         this.isBallLaunched = false;
     }
-    this.setupJiEndTimer();    // ジエンドタイマーUIとロジック初期化
-          this.setupTrialUI();       // 試練表示UI初期化
-
+    
 }
 
 selectRoute(route, destroyedCrystal = null) {
