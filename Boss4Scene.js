@@ -373,8 +373,8 @@ startHarmonyAndDestructionChoice() {
     // ★プレイヤー操作はこのメソッドの冒頭ではなく、startGameplayで既に有効になっているはず★
     // ★ボールもstartGameplay -> super.startGameplay() -> createBalls で準備されているはず★
     // ★もしボールがなければここで生成するロジックは残しても良いが、通常は不要のはず★
-    // this.playerControlEnabled = true; // CommonのstartGameplayでtrueになる想定
-    // this.isBallLaunched = false;    // CommonのstartGameplayでfalseになる想定
+    this.playerControlEnabled = true; // CommonのstartGameplayでtrueになる想定
+    this.isBallLaunched = false;    // CommonのstartGameplayでfalseになる想定
 
     if (this.trialUiText && this.activeTrial && this.activeTrial.isChoiceEvent) {
         this.trialUiText.setText(`十二の試練：試練 ${this.activeTrial.id}「${this.activeTrial.name}」\n${this.activeTrial.conditionText}`);
