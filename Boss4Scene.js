@@ -216,11 +216,11 @@ startIntroCutscene() {
         if (overlay.scene) overlay.destroy();
         if (vsText.scene) vsText.destroy();
 
-      /*  if (this.isGameOver || this.bossDefeated) return;
+        if (this.isGameOver || this.bossDefeated) return;
         console.log("[Boss4Scene Intro] Custom cutscene finished. Proceeding to finalize boss appearance.");
         // CommonBossSceneの戦闘開始準備フローを呼び出す
         // これにより、ボスが表示され、物理が有効になり、startGameplayが呼ばれる
-        this.finalizeBossAppearanceAndStart();
+       /* this.finalizeBossAppearanceAndStart();
         this.isIntroAnimating = false;
     }, [], this);*/
 }
