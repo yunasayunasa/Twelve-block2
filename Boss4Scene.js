@@ -182,13 +182,13 @@ startIntroCutscene() {
      console.log("Test A: cutsceneDuration =", cutsceneDuration);
 
     // テストB: オーバーレイ生成
-    // const overlay = this.add.rectangle(0, 0, this.gameWidth, this.gameHeight, 0x100020, 0.75)
-    //     .setOrigin(0,0).setDepth(899);
-    // console.log("Test B: overlay created:", overlay);
+     const overlay = this.add.rectangle(0, 0, this.gameWidth, this.gameHeight, 0x100020, 0.75)
+         .setOrigin(0,0).setDepth(899);
+     console.log("Test B: overlay created:", overlay);
 
     // テストC: textContent の準備
-    // const textContent = this.bossData.cutsceneText || "VS DARK RUPTURE ZERO";
-    // console.log("Test C: textContent =", textContent);
+    const textContent = this.bossData.cutsceneText || "VS DARK RUPTURE ZERO";
+     console.log("Test C: textContent =", textContent);
 
     // テストD: calculateDynamicFontSize の呼び出し
     // const fontSize = this.calculateDynamicFontSize(60);
