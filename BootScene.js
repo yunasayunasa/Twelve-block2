@@ -158,6 +158,29 @@ if (AUDIO_KEYS.SE_SLIME_BEAM_FIRE) {
 }
 // --- キングゴールドスライム (Boss3) 関連アセット読み込み終了 ---
 
+// --- ルシゼロ (Boss4) 関連アセット ---
+console.log("Loading Lucilius Zero (Boss4) assets...");
+this.load.image('boss_lucilius_stand', 'assets/boss_lucilius_stand.png');
+this.load.image('boss_lucilius_negative', 'assets/boss_lucilius_negative.png');
+this.load.image('crystal_order', 'assets/crystal_order.png');
+this.load.image('crystal_chaos', 'assets/crystal_chaos.png');
+this.load.image('chaos_fragment', 'assets/chaos_fragment.png');
+this.load.image('abyss_core', 'assets/abyss_core.png');
+this.load.image('void_wall_block', 'assets/void_wall_block.png');
+this.load.image('attack_brick_lucilius', 'assets/attack_brick_lucilius.png');
+this.load.image('attack_brick_lucilius_target', 'assets/attack_brick_lucilius_target.png');
+this.load.image('gameBackground_Boss4', 'assets/gameBackground_Boss4.jpg');
+// (その他必要な画像アセット)
+
+this.load.video('gameOverVideo_JiEnd', 'assets/videos/ji_end_연출.mp4');
+
+// 音声 (AUDIO_KEYS に定義したキーを使ってロード)
+if (AUDIO_KEYS.BGM_LUCILIUS_PHASE1) this.load.audio(AUDIO_KEYS.BGM_LUCILIUS_PHASE1, 'assets/bgm_lucilius_phase1.mp3');
+if (AUDIO_KEYS.VOICE_LUCILIUS_APPEAR) this.load.audio(AUDIO_KEYS.VOICE_LUCILIUS_APPEAR, 'assets/voice_lucilius_appear.mp3');
+// ... 他の音声ファイルも同様にロード ...
+if (AUDIO_KEYS.SE_JI_END_BELL) this.load.audio(AUDIO_KEYS.SE_JI_END_BELL, 'assets/se_ji_end_bell.mp3');
+// --- ルシゼロ (Boss4) 関連アセット読み込み終了 ---
+
         
         console.log("Finished loading audio files setup.");
     }
