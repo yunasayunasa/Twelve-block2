@@ -185,6 +185,18 @@ startIntroCutscene() {
      const overlay = this.add.rectangle(0, 0, this.gameWidth, this.gameHeight, 0x100020, 0.75)
          .setOrigin(0,0).setDepth(899);
      console.log("Test B: overlay created:", overlay);
+       // --- ▼ カットイン用ボス画像の表示 ▼ ---
+    const bossImageForCutscene = this.add.image(
+        this.gameWidth / 2,
+        this.gameHeight * 0.4, // 表示Y位置 (調整可能)
+        this.bossData.textureKey // ルシゼロのテクスチャキー
+    )
+    .setScale(this.bossData.widthRatio * 2.5) // 表示スケール (widthRatioを元に調整)
+    .setOrigin(0.5, 0.5)
+    .setDepth(900); // オーバーレイより手前、テキストより奥
+    console.log("[Boss4 Cutscene] Cutscene boss image created.");
+    // --- ▲ カットイン用ボス画像の表示 終了 ▲ ---
+
 
     // テストC: textContent の準備
     const textContent = this.bossData.cutsceneText || "VS DARK RUPTURE ZERO";
