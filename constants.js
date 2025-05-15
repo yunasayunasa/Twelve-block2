@@ -62,7 +62,7 @@ export const PADDLE_NORMAL_TINT = 0xffff00;
 export const PADDLE_ANILA_TINT = 0xffffff;
 
 // --- ゲームシステム (ボスラッシュ用) ---
-export const TOTAL_BOSSES = 5;
+export const TOTAL_BOSSES = 4;
 export const BAISRAVA_DROP_RATE = 0.015; // バイシュラヴァの特別ドロップは廃止し、通常プールへ
 export const VAJRA_GAUGE_MAX = 100;
 export const VAJRA_GAUGE_INCREMENT = 10;

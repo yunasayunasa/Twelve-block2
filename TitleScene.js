@@ -10,7 +10,7 @@ export default class TitleScene extends Phaser.Scene {
         this.domElements = []; // DOM要素管理用
         this.currentBgm = null; // BGM管理用
         // ▼▼▼ テスト用: 開始するボスシーン番号 (1から TOTAL_BOSSES まで) ▼▼▼
-        this.testStartBossIndex = 3; // ★ ここを変えるだけでテスト対象を変更
+        this.testStartBossIndex = 4; // ★ ここを変えるだけでテスト対象を変更
         // ▲▲▲ テスト用: 開始するボスシーン番号 ▲▲▲
      }
 
