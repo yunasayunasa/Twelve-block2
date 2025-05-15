@@ -175,10 +175,12 @@ this.load.image('gameBackground_Boss4', 'assets/gameBackground_Boss4.jpg');
 this.load.video('gameOverVideo_JiEnd', 'assets/videos/ji_end_연출.mp4');
 
 // 音声 (AUDIO_KEYS に定義したキーを使ってロード)
-if (AUDIO_KEYS.BGM_LUCILIUS_PHASE1) this.load.audio(AUDIO_KEYS.BGM_LUCILIUS_PHASE1, 'assets/bgm_lucilius_phase1.mp3');
-if (AUDIO_KEYS.VOICE_LUCILIUS_APPEAR) this.load.audio(AUDIO_KEYS.VOICE_LUCILIUS_APPEAR, 'assets/voice_lucilius_appear.mp3');
+if (AUDIO_KEYS.BGM_LUCILIUS_PHASE1) {
+    this.load.audio(AUDIO_KEYS.BGM_LUCILIUS_PHASE1, 'assets/bgm_lucilius_phase1.mp3');
+}
+if (AUDIO_KEYS.VOICE_LUCILIUS_APPEAR) {this.load.audio(AUDIO_KEYS.VOICE_LUCILIUS_APPEAR, 'assets/voice_lucilius_appear.mp3');}
 // ... 他の音声ファイルも同様にロード ...
-if (AUDIO_KEYS.SE_JI_END_BELL) this.load.audio(AUDIO_KEYS.SE_JI_END_BELL, 'assets/se_ji_end_bell.mp3');
+if (AUDIO_KEYS.SE_JI_END_BELL) {this.load.audio(AUDIO_KEYS.SE_JI_END_BELL, 'assets/se_ji_end_bell.mp3');}
 // --- ルシゼロ (Boss4) 関連アセット読み込み終了 ---
 
         
