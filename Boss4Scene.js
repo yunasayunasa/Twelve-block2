@@ -220,8 +220,8 @@ startIntroCutscene() {
         console.log("[Boss4Scene Intro] Custom cutscene finished. Proceeding to finalize boss appearance.");
         // CommonBossSceneの戦闘開始準備フローを呼び出す
         // これにより、ボスが表示され、物理が有効になり、startGameplayが呼ばれる
-       /* this.finalizeBossAppearanceAndStart();
-        this.isIntroAnimating = false;*/
+        this.finalizeBossAppearanceAndStart();
+        this.isIntroAnimating = false;
     }, [], this);
 }
 
