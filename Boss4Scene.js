@@ -215,9 +215,7 @@ applyBossDamage(bossInstance, damageAmount, source = "Unknown") {
     startGameplay() {
         console.log("[Boss4Scene] startGameplay override called.");
 
-        // 最初の試練 (ID 1: 調和と破壊の選択) を開始
-        // activeTrialIndex は -1 で初期化されているので、startNextTrial で 0 になる
-        this.startNextTrial();
+       
 
         // CommonBossSceneのstartGameplayの残り処理を実行
         // (BGM再生、プレイヤー操作有効化、startSpecificBossMovement呼び出しなど)
