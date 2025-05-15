@@ -96,6 +96,20 @@ export default class Boss4Scene extends CommonBossScene {
             // ルシゼロ専用攻撃弾のテクスチャキー
             projectileTextureKey: 'attack_brick_lucilius',
             targetProjectileTextureKey: 'attack_brick_lucilius_target',
+            // 放射攻撃パラメータ
+    radialAttackProjectileCount: 5, // 例: 5方向
+    radialAttackAngles: [60, 75, 90, 105, 120], // 例: 下方向広範囲
+    radialAttackProjectileSpeed: DEFAULT_ATTACK_BRICK_VELOCITY_Y + 30,
+    radialAttackProjectileTexture: 'attack_brick_lucilius', // 剣のテクスチャ
+    radialAttackProjectileScale: 0.15, // テクスチャに合わせたスケール
+    radialAttackProjectileSpinRate: 180, // 1秒あたりの回転角度 (度)
+
+    // ターゲット攻撃パラメータ
+    targetedAttackProjectileSpeed: DEFAULT_ATTACK_BRICK_VELOCITY_Y + 50, // 少し速め
+    targetedAttackProjectileTexture: 'attack_brick_lucilius_target', // 剣のテクスチャ (同じでも別でも)
+    targetedAttackProjectileScale: 0.15,
+    targetedAttackProjectileSpinRate: 270, // こちらは少し速く回転させるなど変化をつけても
+
         };
         this.bossVoiceKeys = Array.isArray(this.bossData.voiceRandom) ? this.bossData.voiceRandom : [];
         this.trialsData = this.bossData.trials;
@@ -820,10 +834,104 @@ hitChaosFragment(ball, fragment) {
     }
 
     // 放射攻撃 (仮実装)
-    fireRadialAttack() { /* TODO: 放射状に弾を撃つ */ console.log("[BossAttack] Firing Radial Attack!");}
-    // ターゲット攻撃 (仮実装)
-    fireTargetedAttack() { /* TODO: パドル狙いの弾を撃つ */ console.log("[BossAttack] Firing Targeted Attack!");}
-    // 混沌の欠片召喚 (仮実装)
+    // Boss4Scene.js
+fireRadialAttack() {
+    if (!this.attackBricks || !this.boss || !this.boss.active || this.isGameOver || this.bossDefeated) {
+        return;
+    }
+    console.log(`[BossAttack] Firing Radial Attack (Route: ${this.currentRoute})`);
+    // if (AUDIO_KEYS.SE_LUCILIUS_ATTACK_RADIAL) this.sound.play(AUDIO_KEYS.SE_LUCILIUS_ATTACK_RADIAL);
+
+    const params = this.currentRoute === 'order' ?
+        (this.bossData.radialAttackParamsOrder || {}) : // フォールバック用の空オブジェクト
+        (this.bossData.radialAttackParamsChaos || {});
+    const count = params.count || this.bossData.radialAttackProjectileCount || 5;
+    const speed = (params.speedMultiplier ? (this.bossData.radialAttackProjectileSpeed * params.speedMultiplier) : this.bossData.radialAttackProjectileSpeed) || (DEFAULT_ATTACK_BRICK_VELOCITY_Y + 30);
+    const angles = this.bossData.radialAttackAngles || [75, 90, 105]; // デフォルト角度
+    const texture = this.bossData.radialAttackProjectileTexture || 'attack_brick_lucilius';
+    const scale = this.bossData.radialAttackProjectileScale || 0.15;
+    const spinRate = this.bossData.radialAttackProjectileSpinRate || 0;
+
+    const spawnX = this.boss.x;
+    const spawnY = this.boss.y + (this.boss.displayHeight / 2) * 0.7; // ボス下部から少し
+
+    console.log(`[Radial Attack Params] Count:${count}, Speed:${speed.toFixed(0)}, Angles:${angles.join(',')}`);
+
+    angles.slice(0, count).forEach(angleDeg => { // countの数だけ角度配列から取り出す
+        const projectile = this.attackBricks.create(spawnX, spawnY, texture);
+        if (projectile) {
+            projectile.setScale(scale).setOrigin(0.5, 0.5);
+            if (projectile.body) {
+                this.physics.velocityFromAngle(angleDeg, speed, projectile.body.velocity);
+                projectile.body.setAllowGravity(false);
+                projectile.body.setCollideWorldBounds(true);
+                projectile.body.onWorldBounds = true;
+            }
+            projectile.setData('blockType', 'projectile');
+            projectile.setData('isGuaranteedDropSource', true); // ★確定ドロップ源の印
+            projectile.setDepth(1);
+
+            if (spinRate !== 0) {
+                this.tweens.add({
+                    targets: projectile, angle: 360, duration: (360 / Math.abs(spinRate)) * 1000, repeat: -1, ease: 'Linear'
+                });
+            }
+        }
+    });
+}// ターゲット攻撃 (仮実装)
+    // Boss4Scene.js
+fireTargetedAttack() {
+    if (!this.attackBricks || !this.boss || !this.boss.active || !this.paddle?.active || this.isGameOver || this.bossDefeated) {
+        return;
+    }
+    console.log(`[BossAttack] Firing Targeted Attack (Route: ${this.currentRoute}) - No Prediction Marker`);
+    // if (AUDIO_KEYS.SE_LUCILIUS_ATTACK_TARGET) this.sound.play(AUDIO_KEYS.SE_LUCILIUS_ATTACK_TARGET);
+
+    const params = this.currentRoute === 'order' ?
+        (this.bossData.targetedAttackParamsOrder || {}) :
+        (this.bossData.targetedAttackParamsChaos || {});
+    const speed = (params.speedMultiplier ? (this.bossData.targetedAttackProjectileSpeed * params.speedMultiplier) : this.bossData.targetedAttackProjectileSpeed) || (DEFAULT_ATTACK_BRICK_VELOCITY_Y + 50);
+    // const chargeTime = params.chargeTime || (this.currentRoute === 'order' ? 600 : 900); // 予兆がないのでチャージ時間は不要に
+
+    const texture = this.bossData.targetedAttackProjectileTexture || 'attack_brick_lucilius_target';
+    const scale = this.bossData.targetedAttackProjectileScale || 0.15;
+    const spinRate = this.bossData.targetedAttackProjectileSpinRate || 0;
+
+    const targetX = this.paddle.x; // 発射決定時のパドルX座標
+    const spawnFromBossY = this.boss.y + (this.boss.displayHeight / 2) * 0.7;
+
+    // 予兆マーカーは表示しない
+
+    // 即座に発射 (またはごく短い遅延)
+    // this.time.delayedCall(100, () => { // 0.1秒のディレイなど、調整用
+        if (!this.attackBricks || !this.boss || !this.boss.active || this.isGameOver || this.bossDefeated) return;
+
+        const projectile = this.attackBricks.create(this.boss.x, spawnFromBossY, texture);
+        if (projectile) {
+            projectile.setScale(scale).setOrigin(0.5, 0.5);
+            if (projectile.body) {
+                const angleToTarget = Phaser.Math.Angle.Between(
+                    projectile.x, projectile.y,
+                    targetX, this.gameHeight - 30 // 画面下端より少し手前を狙う
+                );
+                this.physics.velocityFromAngle(Phaser.Math.RadToDeg(angleToTarget), speed, projectile.body.velocity);
+                projectile.body.setAllowGravity(false);
+                projectile.body.setCollideWorldBounds(true);
+                projectile.body.onWorldBounds = true;
+            }
+            projectile.setData('blockType', 'projectile');
+            projectile.setData('isGuaranteedDropSource', true); // ★確定ドロップ源の印
+            projectile.setDepth(1);
+
+            if (spinRate !== 0) {
+                this.tweens.add({
+                    targets: projectile, angle: projectile.angle + 360, duration: (360 / Math.abs(spinRate)) * 1000, repeat: -1, ease: 'Linear'
+                });
+            }
+            console.log(`[Targeted Attack] Projectile fired towards X:${targetX.toFixed(0)} at Speed:${speed.toFixed(0)}`);
+        }
+    // }, [], this);
+}// 混沌の欠片召喚 (仮実装)
     spawnChaosFragments(count) { /* TODO */ console.log(`[Trial] Spawning ${count} Chaos Fragments.`);}
     // 虚無の壁召喚 (仮実装)
     spawnVoidWall() { /* TODO */ console.log("[Trial] Spawning Void Wall.");}
