@@ -191,8 +191,8 @@ startIntroCutscene() {
      console.log("Test C: textContent =", textContent);
 
     // テストD: calculateDynamicFontSize の呼び出し
-    // const fontSize = this.calculateDynamicFontSize(60);
-    // console.log("Test D: fontSize =", fontSize);
+     const fontSize = this.calculateDynamicFontSize(60);
+    console.log("Test D: fontSize =", fontSize);
 
     // テストE: textStyle の準備
     // const textStyle = { fontSize: `${fontSize}px`, fill: '#E0E0E0', fontFamily: 'serif', align: 'center', stroke: '#111111', strokeThickness: Math.max(4, fontSize * 0.07) };
