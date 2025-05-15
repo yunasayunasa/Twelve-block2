@@ -205,9 +205,7 @@ applyBossDamage(bossInstance, damageAmount, source = "Unknown") {
             super.startIntroCutscene();
             this.finalizeBossAppearanceAndStart();
             this.isIntroAnimating = false; // 演出終了
-             this.setupJiEndTimer();    // ジエンドタイマーUIとロジック初期化
-          this.setupTrialUI();       // 試練表示UI初期化
-
+             
     
         }, [], this);
     }
@@ -453,6 +451,9 @@ startHarmonyAndDestructionChoice() {
         }
         this.isBallLaunched = false;
     }
+    this.setupJiEndTimer();    // ジエンドタイマーUIとロジック初期化
+          this.setupTrialUI();       // 試練表示UI初期化
+
 }
 
 selectRoute(route, destroyedCrystal = null) {
