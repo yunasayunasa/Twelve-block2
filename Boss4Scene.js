@@ -204,7 +204,7 @@ startIntroCutscene() {
      console.log("Test F: vsText created:", vsText);
 
     // テストG: SE_CUTSCENE_START の再生
-    // try { if (AUDIO_KEYS.SE_CUTSCENE_START) this.sound.play(AUDIO_KEYS.SE_CUTSCENE_START); console.log("Test G: Played SE_CUTSCENE_START"); } catch(e) { console.error("Error G:", e); }
+     try { if (AUDIO_KEYS.SE_CUTSCENE_START) this.sound.play(AUDIO_KEYS.SE_CUTSCENE_START); console.log("Test G: Played SE_CUTSCENE_START"); } catch(e) { console.error("Error G:", e); }
 
     // テストH: voiceAppear の再生
     // if (this.bossData.voiceAppear) try { this.sound.play(this.bossData.voiceAppear); console.log("Test H: Played voiceAppear"); } catch(e) { console.error("Error H:", e); }
