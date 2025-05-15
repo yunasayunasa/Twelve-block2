@@ -199,9 +199,9 @@ startIntroCutscene() {
      console.log("Test E: textStyle prepared.");
 
     // テストF: VSテキスト生成
-    // const vsText = this.add.text(this.gameWidth / 2, this.gameHeight / 2, textContent, textStyle)
-    //     .setOrigin(0.5).setDepth(900);
-    // console.log("Test F: vsText created:", vsText);
+     const vsText = this.add.text(this.gameWidth / 2, this.gameHeight / 2, textContent, textStyle)
+         .setOrigin(0.5).setDepth(900);
+     console.log("Test F: vsText created:", vsText);
 
     // テストG: SE_CUTSCENE_START の再生
     // try { if (AUDIO_KEYS.SE_CUTSCENE_START) this.sound.play(AUDIO_KEYS.SE_CUTSCENE_START); console.log("Test G: Played SE_CUTSCENE_START"); } catch(e) { console.error("Error G:", e); }
