@@ -162,8 +162,8 @@ if (AUDIO_KEYS.SE_SLIME_BEAM_FIRE) {
 console.log("Loading Lucilius Zero (Boss4) assets...");
 this.load.image('boss_lucilius_stand', 'assets/boss_lucilius_stand.png');
 this.load.image('boss_lucilius_negative', 'assets/boss_lucilius_negative.png');
-this.load.image('crystal_order', 'assets/crystal_order.png');
-this.load.image('crystal_chaos', 'assets/crystal_chaos.png');
+this.load.image('crystal_order', 'assets/attack_brick_lucilius.png');
+this.load.image('crystal_chaos', 'assets/attack_brick_lucilius_target.png');
 this.load.image('chaos_fragment', 'assets/chaos_fragment.png');
 this.load.image('abyss_core', 'assets/abyss_core.png');
 this.load.image('void_wall_block', 'assets/void_wall_block.png');

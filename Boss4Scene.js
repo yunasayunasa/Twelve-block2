@@ -323,43 +323,118 @@ applyBossDamage(bossInstance, damageAmount, source = "Unknown") {
 
 
     // 「調和と破壊」の選択イベントを開始
-  startHarmonyAndDestructionChoice() {
-    this.isChoiceEventActive = true;
-    this.playerControlEnabled = false; // 選択中はボールを打てないようにする (または打てるがクリスタルに当てる必要がある)
-    this.trialUiText.setText("十二の試練：試練 I「調和と破壊の選択」\n調和か混沌、どちらかを選べ");
-    console.log("[ChoiceEvent] Presenting Harmony/Destruction choice. Waiting for player input.");
+ // Boss4Scene.js
 
-    const crystalY = this.gameHeight * 0.45; // 表示Y位置
-    const crystalWidth = this.gameWidth * 0.15; // 仮の幅
-    const crystalHeight = crystalWidth * 1.5;   // 仮の高さ
-    const crystalScale = 1.0; // スケールは画像に合わせて
+// (constructor, init, initializeBossData, createSpecificBoss などは既存のものを想定)
+// (defineTrials で trial ID 1 が isChoiceEvent: true になっていること)
 
-    // 秩序のクリスタル
-    if (this.harmonyCrystal) this.harmonyCrystal.destroy();
-    this.harmonyCrystal = this.physics.add.image(this.gameWidth * 0.3, crystalY, 'crystal_order') // ★要アセットキー
-        .setScale(crystalScale).setImmovable(true).setDepth(5);
-    // this.harmonyCrystal.body.setAllowGravity(false); // 必要なら
-    this.physics.add.collider(this.balls, this.harmonyCrystal, () => this.selectRoute('order', this.harmonyCrystal), null, this);
-    // (クリックでも選択できるようにするなら .setInteractive().on('pointerdown', ...))
+startHarmonyAndDestructionChoice() {
+    this.isChoiceEventActive = true; // 選択イベント中フラグを立てる
+    this.playerControlEnabled = true; // ★ボールを操作してクリスタルを破壊できるようにする
+    this.isBallLaunched = false;    // 新しいボールは未発射状態 (もしボールがなければ生成する処理も考慮)
 
-    // 混沌のクリスタル
-    if (this.destructionCrystal) this.destructionCrystal.destroy();
-    this.destructionCrystal = this.physics.add.image(this.gameWidth * 0.7, crystalY, 'crystal_chaos') // ★要アセットキー
-        .setScale(crystalScale).setImmovable(true).setDepth(5);
-    // this.destructionCrystal.body.setAllowGravity(false);
-    this.physics.add.collider(this.balls, this.destructionCrystal, () => this.selectRoute('chaos', this.destructionCrystal), null, this);
+    // 試練UIを更新 (このメソッドが呼ばれる前に startNextTrial で設定されているはずだが念のため)
+    if (this.trialUiText && this.activeTrial && this.activeTrial.isChoiceEvent) {
+        let displayText = `十二の試練：試練 ${this.activeTrial.id}「${this.activeTrial.name}」\n`;
+        displayText += `${this.activeTrial.conditionText}`; // "調和か混沌、どちらかを選べ"
+        this.trialUiText.setText(displayText);
+    } else {
+        console.warn("[ChoiceEvent] Trial UI or activeTrial data not properly set for choice event.");
+    }
 
-    // (オプション) 選択の制限時間タイマー
-    // this.choiceTimer = this.time.delayedCall(15000, () => {
-    //     if (this.isChoiceEventActive) {
-    //         console.log("[ChoiceEvent] Time up. Defaulting route (e.g., neutral or random).");
-    //         this.selectRoute('neutral'); // 時間切れの場合の処理
+    console.log("[ChoiceEvent] Presenting Harmony and Destruction choice. Player needs to destroy a crystal.");
+
+    // クリスタルの表示設定
+    const crystalY = this.gameHeight * 0.40; // 画面の少し上中央寄り (調整可能)
+    const crystalScale = 0.25;                // クリスタルの表示スケール (元画像サイズによる)
+    const crystalDepth = 5;                   // ボスや他のUI要素より手前、ボールが当たるように
+
+    // --- 秩序のクリスタル (例: 青色) ---
+    if (this.harmonyCrystal) this.harmonyCrystal.destroy(); // 既存があれば破棄
+    try {
+        this.harmonyCrystal = this.physics.add.image(this.gameWidth * 0.35, crystalY, 'crystal_order')
+            .setScale(crystalScale)
+            .setImmovable(true) // ボールが当たっても動かないように
+            .setDepth(crystalDepth)
+            .setData('crystalType', 'order'); // どのクリスタルか識別用データ
+
+        if (this.harmonyCrystal.body) {
+            this.harmonyCrystal.body.setAllowGravity(false); // 重力無効
+            this.harmonyCrystal.body.setCollideWorldBounds(false); // 画面端で消えたりしない
+            // (必要なら当たり判定サイズ調整 this.harmonyCrystal.body.setSize(...))
+        } else {
+            console.error("[ChoiceEvent] Failed to create physics body for Harmony Crystal.");
+        }
+        // ボールと秩序クリスタルの衝突設定
+        this.physics.add.collider(
+            this.balls,
+            this.harmonyCrystal,
+            (ball, crystal) => { // 衝突コールバック
+                console.log("[ChoiceEvent] Ball hit Harmony Crystal.");
+                this.selectRoute('order', crystal);
+            },
+            null, // processCallback はここでは不要
+            this  // context
+        );
+        console.log("[ChoiceEvent] Harmony Crystal created and collider set.");
+    } catch (e) {
+        console.error("[ChoiceEvent] Error creating Harmony Crystal:", e);
+    }
+
+
+    // --- 混沌のクリスタル (例: 赤色) ---
+    if (this.destructionCrystal) this.destructionCrystal.destroy(); // 既存があれば破棄
+    try {
+        this.destructionCrystal = this.physics.add.image(this.gameWidth * 0.65, crystalY, 'crystal_chaos')
+            .setScale(crystalScale)
+            .setImmovable(true)
+            .setDepth(crystalDepth)
+            .setData('crystalType', 'chaos');
+
+        if (this.destructionCrystal.body) {
+            this.destructionCrystal.body.setAllowGravity(false);
+            this.destructionCrystal.body.setCollideWorldBounds(false);
+        } else {
+            console.error("[ChoiceEvent] Failed to create physics body for Destruction Crystal.");
+        }
+        // ボールと混沌クリスタルの衝突設定
+        this.physics.add.collider(
+            this.balls,
+            this.destructionCrystal,
+            (ball, crystal) => { // 衝突コールバック
+                console.log("[ChoiceEvent] Ball hit Destruction Crystal.");
+                this.selectRoute('chaos', crystal);
+            },
+            null,
+            this
+        );
+        console.log("[ChoiceEvent] Destruction Crystal created and collider set.");
+    } catch (e) {
+        console.error("[ChoiceEvent] Error creating Destruction Crystal:", e);
+    }
+
+
+    // (オプション) プレイヤーに選択を促すメッセージやタイマー表示
+    // 例: 画面上部に「ボールを当てて道を選べ！」など
+    // 例: 制限時間を設ける場合
+    // const choiceTimeLimit = 15000; // 15秒
+    // this.choiceTimer = this.time.delayedCall(choiceTimeLimit, () => {
+    //     if (this.isChoiceEventActive) { // まだ選択されていなければ
+    //         console.log("[ChoiceEvent] Time up for choice. Defaulting route (e.g., neutral or random).");
+    //         this.selectRoute('neutral'); // 時間切れの場合の処理（'neutral'は仮。何もしないか、ランダムか）
     //     }
     // }, [], this);
 
-    // ★注意★: この時点ではまだ playerControlEnabled = false のまま。
-    // selectRoute が呼ばれた後、次の試練が始まる前に true に戻す必要がある。
-    // → startNextTrial の中で、isChoiceEvent でない試練なら true にする。
+    // ボールがなければ生成 (プレイヤーが操作できるように)
+    if (this.balls && this.balls.countActive(true) === 0) {
+        console.log("[ChoiceEvent] No active balls, creating one.");
+        if (this.paddle && this.paddle.active) {
+            this.createAndAddBall(this.paddle.x, this.paddle.y - (this.paddle.displayHeight / 2) - (this.gameWidth * (BALL_RADIUS_RATIO || 0.05)));
+        } else {
+            this.createAndAddBall(this.gameWidth / 2, this.gameHeight * 0.7);
+        }
+        this.isBallLaunched = false;
+    }
 }
 
 selectRoute(route, destroyedCrystal = null) {
