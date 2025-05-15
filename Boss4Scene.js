@@ -240,20 +240,56 @@ try { if (AUDIO_KEYS.BGM_LUCILIUS_PHASE1) this.sound.play(AUDIO_KEYS.BGM_LUCILIU
 }
 
 
-    // startGameplay: Commonの処理後、UIセットアップと最初の試練開始を遅延実行
+  // startGameplay (オーバーライド): Commonの処理を呼びつつ、ルシゼロ専用の初期化
 startGameplay() {
     console.log("[Boss4Scene] startGameplay override called.");
-    super.startGameplay(); // BGM再生, playerControlEnabled=true (Commonで), startSpecificBossMovement (Boss4の静止処理)
 
-    const uiSetupDelay = 500; // 0.5秒遅らせる (調整可能)
-    this.time.delayedCall(uiSetupDelay, () => {
-        if (this.isGameOver || this.bossDefeated) return;
-        console.log(`[Boss4Scene startGameplay] Delayed UI setup executing after ${uiSetupDelay}ms.`);
-        if (!this.jiEndTimerText) this.setupJiEndTimer();
-        if (!this.trialUiText) this.setupTrialUI();
-        if (this.activeTrialIndex < 0) this.startNextTrial(); // 最初の試練へ
-    }, [], this);
+    // ★★★ ジエンドタイマーと試練UIをここでセットアップ ★★★
+    // (super.startGameplay() より前にセットアップすることで、
+    //  プレイヤーが操作可能になる瞬間にUIも準備完了している)
+    if (!this.jiEndTimerText) this.setupJiEndTimer();
+    if (!this.trialUiText) this.setupTrialUI();
+
+    // ★★★ 最初の試練 (調和と破壊) をここで開始 ★★★
+    // (activeTrialIndexが-1の時だけ呼ぶなど、重複呼び出し防止)
+    if (this.activeTrialIndex < 0) {
+        this.startNextTrial(); // これが startHarmonyAndDestructionChoice を呼び出す
+    }
+    // この時点で this.isChoiceEventActive が true になり、
+    // playerControlEnabled はまだ CommonBossScene の startGameplay で
+    // true になっていないか、あるいはこの直後に true になる。
+
+    // CommonBossSceneの主要な戦闘開始処理を実行
+    // これによりBGM再生、playerControlEnabled=true、startSpecificBossMovementなどが呼ばれる
+    super.startGameplay();
+
+    // ★★★ startHarmonyAndDestructionChoice でプレイヤー操作を確実に有効化 ★★★
+    // (super.startGameplay() で true になっているはずだが、念のため＆ボール準備のため)
+    if (this.activeTrial && this.activeTrial.isChoiceEvent) {
+        // startHarmonyAndDestructionChoice の中で playerControlEnabled = true と
+        // ボールの準備 (生成またはリセット) を行う。
+        // super.startGameplay() が呼ばれた後なので、paddle は存在するはず。
+        console.log("[Boss4Scene startGameplay] Choice event is active. Ensuring player can act.");
+        this.playerControlEnabled = true; // Commonで設定済みのはずだが明示
+        this.isBallLaunched = false;    // Commonで設定済みのはずだが明示
+        this.prepareBallForChoice();   // ボールを準備する専用ヘルパー呼び出し
+    }
+
+    console.log(`[Boss4Scene startGameplay] Exiting. playerControlEnabled: ${this.playerControlEnabled}`);
 }
+
+// ボールを調和と破壊の選択のために準備するヘルパーメソッド (新規)
+prepareBallForChoice() {
+    if (this.balls && this.balls.countActive(true) === 0) {
+        console.log("[PrepareBallForChoice] No active balls, creating one.");
+        this.createAndAddBallToPaddle();
+    } else if (this.balls) {
+        console.log("[PrepareBallForChoice] Resetting existing balls to paddle.");
+        this.resetAllBallsToPaddle();
+    }
+    this.isBallLaunched = false; // 確実にする
+}
+
 
     // ジエンドタイマーのセットアップと初期演出
     setupJiEndTimer() {
