@@ -626,6 +626,14 @@ hitChaosFragment(ball, fragment) {
 
     // updateメソッド (ジエンドタイマー更新など)
     update(time, delta) {
+        if (this.boss && this.boss.active) { // ボスが存在しアクティブなら
+    console.log(`Boss Update - Visible: ${this.boss.visible}, Alpha: ${this.boss.alpha}, Depth: ${this.boss.depth}, X: ${this.boss.x.toFixed(0)}, Y: ${this.boss.y.toFixed(0)}`);
+    // this.boss.setAlpha(1); // ★強制的にアルファを1にしてみる (テスト用)
+}
+if (this.backgroundObject && this.backgroundObject.active) { // 背景オブジェクトの変数名に合わせてください
+    console.log(`Background Update - Visible: ${this.backgroundObject.visible}, Alpha: ${this.backgroundObject.alpha}, Depth: ${this.backgroundObject.depth}`);
+    // this.backgroundObject.setAlpha(1); // ★テスト用
+}
         super.update(time, delta); // CommonBossSceneのupdateを呼ぶ (ボス行動など)
 
         if (this.isJiEndTimerRunning && !this.isGameOver && !this.bossDefeated) {
