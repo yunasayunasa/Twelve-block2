@@ -220,8 +220,8 @@ applyBossDamage(bossInstance, damageAmount, source = "Unknown") {
         // CommonBossSceneのstartGameplayの残り処理を実行
         // (BGM再生、プレイヤー操作有効化、startSpecificBossMovement呼び出しなど)
         super.startGameplay();
-          // this.setupJiEndTimer();    // ジエンドタイマーUIとロジック初期化
-         //   this.setupTrialUI();       // 試練表示UI初期化
+          this.setupJiEndTimer();    // ジエンドタイマーUIとロジック初期化
+          this.setupTrialUI();       // 試練表示UI初期化
 
     
 
