@@ -208,6 +208,20 @@ applyBossDamage(bossInstance, damageAmount, source = "Unknown") {
         // CommonBossSceneのstartGameplayの残り処理を実行
         // (BGM再生、プレイヤー操作有効化、startSpecificBossMovement呼び出しなど)
         super.startGameplay();
+         this.stopBgm(); // 念のため既存のBGMを止める (CommonBossSceneのメソッド)
+        const bgmKeyPhase1 = AUDIO_KEYS.BGM_LUCILIUS_PHASE1; // ★constants.jsで定義したキー
+        if (bgmKeyPhase1 && this.cache.audio.has(bgmKeyPhase1)) {
+            console.log(`[Boss4 BGM] Playing Phase 1 BGM: ${bgmKeyPhase1}`);
+            this.currentBgm = this.sound.add(bgmKeyPhase1, { loop: true, volume: 0.45 });
+            try {
+                this.currentBgm.play();
+            } catch (e) {
+                console.error(`[Boss4 BGM] Error playing ${bgmKeyPhase1}:`, e);
+            }
+        } else {
+            console.warn(`[Boss4 BGM] BGM key "${bgmKeyPhase1}" not found or not loaded.`);
+        }
+    
 
         // ただし、試練I「調和と破壊」の間はプレイヤー操作を無効にしたい場合がある
         if (this.activeTrial && this.activeTrial.isChoiceEvent) {
