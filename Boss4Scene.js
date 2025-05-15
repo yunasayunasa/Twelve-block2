@@ -84,7 +84,7 @@ export default class Boss4Scene extends CommonBossScene {
             voiceDefeat: AUDIO_KEYS.VOICE_LUCILIUS_DEFEAT,
             voiceRandom: [AUDIO_KEYS.VOICE_LUCILIUS_RANDOM_1],
             bgmKey: AUDIO_KEYS.BGM_LUCILIUS_PHASE1, // ★ルートやフェーズでBGM変えるなら複数用意
-            cutsceneText: 'VS ルシファーゼロ', // 最初のカットシーン用 (もしあれば)
+            cutsceneText: 'VS ダークラプチャーゼロ', // 最初のカットシーン用 (もしあれば)
             widthRatio: 0.25, // 通常時の表示幅
             // ルシゼロは試練中は中央固定なので移動関連パラメータは最終決戦用
             moveRangeXRatioFinal: 0.7,
@@ -115,18 +115,18 @@ export default class Boss4Scene extends CommonBossScene {
     // 試練内容を定義するヘルパーメソッド
     defineTrials() {
         return [
-            { id: 1, name: "調和と破壊の選択", conditionText: "調和か混沌、どちらかを選べ", targetItem: null, completed: false, isChoiceEvent: true },
+            { id: 1, name: "絶対否定と永遠拒絶", conditionText: "絶対否定か永遠拒絶、どちらかを選べ", targetItem: null, completed: false, isChoiceEvent: true },
             { id: 2, name: "原初の契約", conditionText: "ルシファー本体にボールを5回当てる。(0/5)", targetItem: POWERUP_TYPES.ANCHIRA, completed: false, hitCount: 0, requiredHits: 5 },
-            { id: 3, name: "混沌の残滓を掃討せよ", conditionText: "混沌の欠片を全て破壊せよ。(0/5)", targetItemRandom: [POWERUP_TYPES.MAKIRA, POWERUP_TYPES.BAISRAVA], completed: false, objectsToDestroy: 5, destroyedCount: 0, /* ...欠片生成ロジックなど... */ },
+            { id: 3, name: "混沌の残滓", conditionText: "混沌の欠片を全て破壊せよ。(0/5)", targetItemRandom: [POWERUP_TYPES.MAKIRA, POWERUP_TYPES.BAISRAVA], completed: false, objectsToDestroy: 5, destroyedCount: 0, /* ...欠片生成ロジックなど... */ },
             { id: 4, name: "天穿つ最終奥義", conditionText: "ヴァジラ奥義を1回発動せよ。", targetItem: POWERUP_TYPES.VAJRA, completed: false, ougiUsed: false },
             { id: 5, name: "星光の追撃", conditionText: "クビラ効果中に本体にボールを3回当てる。(0/3)", targetItem: POWERUP_TYPES.KUBIRA, completed: false, hitCountKubira: 0, requiredHitsKubira: 3 },
-            { id: 6, name: "楽園追放 ～神罰の洗礼～", conditionText: "全画面攻撃「パラダイス・ロスト」を受けよ。", targetItem: null, anilaDropLocation: null, completed: false, paradiseLostTriggered: false }, // anilaDropLocation はドロップ時に設定
+            { id: 6, name: "楽園追放", conditionText: "「パラダイス・ロスト」を受けよ。", targetItem: null, anilaDropLocation: null, completed: false, paradiseLostTriggered: false }, // anilaDropLocation はドロップ時に設定
             { id: 7, name: "三宝の導き", conditionText: "指定の三種の神器を集めよ。(0/3)", targetItemsToCollect: [POWERUP_TYPES.BIKARA_YANG, POWERUP_TYPES.BADRA, POWERUP_TYPES.MAKORA], collectedItems: [], targetItem: null, completed: false }, // targetItemは進行中に設定
-            { id: 8, name: "深淵より来る核を狙え", conditionText: "「アビス・コア」にボールを1回当てよ。", targetItem: POWERUP_TYPES.SINDARA, completed: false, coreHit: false, /* ...コア出現ロジック... */ },
+            { id: 8, name: "深淵より来る核金", conditionText: "「アビス・コア」にボールを1回当てよ。", targetItem: POWERUP_TYPES.SINDARA, completed: false, coreHit: false, /* ...コア出現ロジック... */ },
             { id: 9, name: "時の超越、歪む流れの中で", conditionText: "速度変化フィールド内で本体にボールを3回当てる。(0/3)", targetItemAlternate: [POWERUP_TYPES.HAILA, POWERUP_TYPES.SHATORA], completed: false, hitCountTimeField: 0, requiredHitsTimeField: 3, /* ...フィールド展開ロジック... */ },
             { id: 10, name: "連鎖する星々の輝き", conditionText: "本体にボールを連続3回当てる。(0/3)", targetItem: POWERUP_TYPES.INDARA, completed: false, consecutiveHits: 0, requiredConsecutiveHits: 3 },
-            { id: 11, name: "虚無の壁を打ち破れ", conditionText: "虚無の壁の奥の本体にボールを1回当てよ。", targetItem: POWERUP_TYPES.BIKARA_YIN, completed: false, wallBreachedAndHit: false, /* ...壁生成ロジック... */ },
-            { id: 12, name: "終焉の刻 ～決着を付ける～", conditionText: "ルシファーを撃破せよ！", targetItem: null, completed: false, isFinalBattle: true }
+            { id: 11, name: "虚無の壁", conditionText: "虚無の壁の奥の本体にボールを1回当てよ。", targetItem: POWERUP_TYPES.BIKARA_YIN, completed: false, wallBreachedAndHit: false, /* ...壁生成ロジック... */ },
+            { id: 12, name: "終焉の刻 ", conditionText: "決着を付けろ", targetItem: null, completed: false, isFinalBattle: true }
         ];
     }
 
@@ -170,7 +170,7 @@ export default class Boss4Scene extends CommonBossScene {
         this.jiEndTimeRemaining = initialTime;
 
         const timerFontSize = Math.floor(this.gameWidth * (this.bossData.jiEndTimerFontSizeRatio || 1/15));
-        const timerTextStyle = { fontSize: `${timerFontSize}px`, fill: '#ffffff', fontFamily: 'sans-serif', align: 'center', stroke: '#000000', strokeThickness: Math.max(2, timerFontSize * 0.05) };
+        const timerTextStyle = { fontSize: `${timerFontSize}px`, fill: '#ffffff', fontFamily: 'serif', align: 'center', stroke: '#000000', strokeThickness: Math.max(2, timerFontSize * 0.05) };
 
         this.jiEndTimerText = this.add.text(
             this.gameWidth / 2, this.gameHeight * (this.bossData.jiEndTimerYPosRatio || 0.1),
@@ -197,7 +197,7 @@ export default class Boss4Scene extends CommonBossScene {
         // UISceneに依頼するか、Boss4Sceneで直接描画するか
         // ここではBoss4Sceneで直接描画する例 (UISceneと連携する方が望ましい場合もある)
         const trialFontSize = Math.floor(this.gameWidth / 20);
-        const trialTextStyle = { fontSize: `${trialFontSize}px`, fill: '#ffffff', fontFamily: 'sans-serif', align: 'center', lineSpacing: trialFontSize * 0.2, stroke: '#000000', strokeThickness: Math.max(1, trialFontSize*0.03)};
+        const trialTextStyle = { fontSize: `${trialFontSize}px`, fill: '#ffffff', fontFamily: 'serif', align: 'center', lineSpacing: trialFontSize * 0.2, stroke: '#000000', strokeThickness: Math.max(1, trialFontSize*0.03)};
         this.trialUiText = this.add.text(
             this.gameWidth / 2,
             (this.uiScene?.livesText?.y || this.gameHeight * 0.05) + 70, // ボスHPバーの下あたり (調整)
@@ -471,7 +471,7 @@ hitChaosFragment(ball, fragment) {
 
 
     // --- ジエンドタイマー関連メソッド (前回のものを流用) ---
-    formatTime(milliseconds) { /* ... */ return `ジ・エンドまで 残り ${String(Math.floor(milliseconds/60000)).padStart(2,'0')}:${String(Math.floor((milliseconds%60000)/1000)).padStart(2,'0')}:${String(Math.floor((milliseconds%1000)/10)).padStart(2,'0')}`; }
+    formatTime(milliseconds) { /* ... */ return `ジ・エンドまで… ${String(Math.floor(milliseconds/60000)).padStart(2,'0')}:${String(Math.floor((milliseconds%60000)/1000)).padStart(2,'0')}:${String(Math.floor((milliseconds%1000)/10)).padStart(2,'0')}`; }
     playBellSound() { /* ... */ try { if(AUDIO_KEYS.SE_JI_END_BELL) this.sound.play(AUDIO_KEYS.SE_JI_END_BELL); } catch(e){} }
     triggerJiEndGameOver() { /* ... (動画再生とsuper.gameOver()) ... */
         if (this.isGameOver) return; this.isGameOver = true; this.playerControlEnabled = false;
