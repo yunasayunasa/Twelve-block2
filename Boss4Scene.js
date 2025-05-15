@@ -470,15 +470,27 @@ startHarmonyAndDestructionChoice() {
     this.harmonyCrystal = this.physics.add.image(this.gameWidth * 0.3, crystalY, 'crystal_order')
         .setScale(crystalScale).setImmovable(true).setDepth(crystalDepth).setData('crystalType', 'order').setActive(true).setVisible(true);
     if (this.harmonyCrystal.body) this.harmonyCrystal.body.setAllowGravity(false);
-    this.physics.add.collider(this.balls, this.harmonyCrystal, crystalHitCallback, (b,c)=>c.active, this);
-
+    this.physics.add.collider(this.balls, this.harmonyCrystal,     (ball, crystal) => { // ★アロー関数に変更★
+        console.log("[ChoiceEvent] Ball hit Harmony Crystal (Arrow CB). this is:", this);
+        this.shatterCrystal(crystal); // シーンの shatterCrystal を呼ぶ
+        this.selectRoute('order', crystal);
+    },
+    (ball, crystal) => crystal.active,
+    this // コンテキスト指定は残しても良いが、アロー関数なら不要になることも
+);
     // 混沌のクリスタル
     if (this.destructionCrystal) this.destructionCrystal.destroy();
     this.destructionCrystal = this.physics.add.image(this.gameWidth * 0.7, crystalY, 'crystal_chaos')
         .setScale(crystalScale).setImmovable(true).setDepth(crystalDepth).setData('crystalType', 'chaos').setActive(true).setVisible(true);
     if (this.destructionCrystal.body) this.destructionCrystal.body.setAllowGravity(false);
-    this.physics.add.collider(this.balls, this.destructionCrystal, crystalHitCallback, (b,c)=>c.active, this);
-
+    this.physics.add.collider(this.balls, this.destructionCrystal,     (ball, crystal) => { // ★アロー関数に変更★
+        console.log("[ChoiceEvent] Ball hit Harmony Crystal (Arrow CB). this is:", this);
+        this.shatterCrystal(crystal); // シーンの shatterCrystal を呼ぶ
+        this.selectRoute('order', crystal);
+    },
+    (ball, crystal) => crystal.active,
+    this // コンテキスト指定は残しても良いが、アロー関数なら不要になることも
+);
     // プレイヤー操作はCommonのstartGameplayで有効になっているはず
     // ボールがなければここで生成 (念のため)
     if (this.balls && this.balls.countActive(true) === 0) {
