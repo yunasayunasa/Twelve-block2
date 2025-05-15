@@ -176,7 +176,7 @@ startIntroCutscene() {
     this.stopBgm(); // CommonBossSceneのメソッドを呼ぶ
 
     // --- ▼ シンプルなVSカットイン表示 ▼ ---
- /*   const cutsceneDuration = CUTSCENE_DURATION || 1800;
+    const cutsceneDuration = CUTSCENE_DURATION || 1800;
     const overlay = this.add.rectangle(0, 0, this.gameWidth, this.gameHeight, 0x100020, 0.75) // 少し紫がかった暗幕
         .setOrigin(0,0).setDepth(899);
     const textContent = this.bossData.cutsceneText || "TRIAL OF THE ABYSS"; // ボス名でも試練の総称でも
@@ -188,7 +188,7 @@ startIntroCutscene() {
     if (AUDIO_KEYS.SE_CUTSCENE_START) this.sound.play(AUDIO_KEYS.SE_CUTSCENE_START);
     if (this.bossData.voiceAppear) this.sound.play(this.bossData.voiceAppear); // 登場ボイス
 
-    this.time.delayedCall(cutsceneDuration, () => {
+  /*  this.time.delayedCall(cutsceneDuration, () => {
         if (overlay.scene) overlay.destroy();
         if (vsText.scene) vsText.destroy();
 
