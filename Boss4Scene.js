@@ -150,9 +150,7 @@ export default class Boss4Scene extends CommonBossScene {
         console.log("--- Boss4Scene createSpecificBoss Complete ---");
     }
 
-    // Boss4Scene.js
-
-// CommonBossSceneのapplyBossDamageをオーバーライド
+    // CommonBossSceneのapplyBossDamageをオーバーライド
 applyBossDamage(bossInstance, damageAmount, source = "Unknown") {
     if (!bossInstance || !bossInstance.active) return;
 
@@ -174,95 +172,6 @@ applyBossDamage(bossInstance, damageAmount, source = "Unknown") {
         // ただし、ボールの反射自体は hitBoss で行われる。
     }
 }
-
-// CommonBossSceneのhitBossをオーバーライド (試練中のワープと、決着の刻の通常のヒット処理)
-hitBoss(boss, ball) {
-    if (!boss || !ball || !ball.body || !boss.active) return;
-
-    if (this.isFinalBattleActive) {
-        // 「決着の刻」は、CommonBossSceneの通常のヒット処理
-        // (ダメージ計算、反射、インダラ解除など)
-        console.log("[Boss4 hitBoss - FinalBattle] Standard boss hit.");
-        super.hitBoss(boss, ball);
-    } else {
-        // 試練中は、ダメージは通らないがボールは反射させ、ボスはワープする。
-        console.log("[Boss4 hitBoss - TrialPhase] Ball hit, reflecting and warping.");
-
-        // ボール反射ロジック (CommonBossSceneのhitBossから持ってくるか、専用の簡易反射)
-        // ここではCommonBossSceneの反射ロジックの一部を参考に簡易的に実装
-        let speedMultiplier = 1.0;
-        if (ball.getData('isFast') === true && BALL_SPEED_MODIFIERS && POWERUP_TYPES) {
-            speedMultiplier = BALL_SPEED_MODIFIERS[POWERUP_TYPES.SHATORA] || 1.0;
-        } else if (ball.getData('isSlow') === true && BALL_SPEED_MODIFIERS && POWERUP_TYPES) {
-            speedMultiplier = BALL_SPEED_MODIFIERS[POWERUP_TYPES.HAILA] || 1.0;
-        }
-        const targetSpeed = (NORMAL_BALL_SPEED || 380) * speedMultiplier;
-
-        // ボス中心からボールへの角度で反射させるのが自然
-        const reflectAngleRad = Phaser.Math.Angle.Between(boss.x, boss.y, ball.x, ball.y);
-        const reflectAngleDeg = Phaser.Math.RadToDeg(reflectAngleRad) + 180; // 反対方向へ
-
-        try {
-            this.physics.velocityFromAngle(reflectAngleDeg, targetSpeed, ball.body.velocity);
-        } catch (e) {
-            console.error("[Boss4 hitBoss - TrialPhase] Error setting ball velocity for reflection:", e);
-        }
-
-        // (オプション) ボールヒット時のSE（効いていない感じの音）
-        // try { if (AUDIO_KEYS.SE_LUCILIUS_INVULNERABLE_HIT) this.sound.play(AUDIO_KEYS.SE_LUCILIUS_INVULNERABLE_HIT); } catch(e){}
-
-
-        // 試練達成判定 (ボールがボスに当たることが条件の試練)
-        if (this.activeTrial && !this.activeTrial.completed) {
-            // 試練II「原初の契約」
-            if (this.activeTrial.id === 2) {
-                this.activeTrial.hitCount = (this.activeTrial.hitCount || 0) + 1;
-                this.updateTrialProgressUI(this.activeTrial);
-                if (this.activeTrial.hitCount >= this.activeTrial.requiredHits) {
-                    this.completeCurrentTrial();
-                }
-            }
-            // 試練V「星光の追撃」 (クビラ効果中かどうかの判定はプレイヤーのフラグか、ボールに付与されたデータで)
-            if (this.activeTrial.id === 5 && this.isPlayerKubiraActive()) { // isPlayerKubiraActive() は仮のメソッド
-                this.activeTrial.hitCountKubira = (this.activeTrial.hitCountKubira || 0) + 1;
-                this.updateTrialProgressUI(this.activeTrial);
-                if (this.activeTrial.hitCountKubira >= this.activeTrial.requiredHitsKubira) {
-                    this.completeCurrentTrial();
-                }
-            }
-            // 試練IX「時の超越」(速度変化フィールドで当てる)
-            if (this.activeTrial.id === 9 && this.isTimeFieldActive()) { // isTimeFieldActive() は仮のメソッド
-                this.activeTrial.hitCountTimeField = (this.activeTrial.hitCountTimeField || 0) + 1;
-                this.updateTrialProgressUI(this.activeTrial);
-                if (this.activeTrial.hitCountTimeField >= this.activeTrial.requiredHitsTimeField) {
-                    this.completeCurrentTrial();
-                }
-            }
-            // 試練X「連鎖する星々の輝き」(連続ヒット)
-            if (this.activeTrial.id === 10) {
-                this.activeTrial.consecutiveHits = (this.activeTrial.consecutiveHits || 0) + 1;
-                // (ボールロストで consecutiveHits をリセットする処理が別途必要)
-                this.updateTrialProgressUI(this.activeTrial);
-                if (this.activeTrial.consecutiveHits >= this.activeTrial.requiredConsecutiveHits) {
-                    this.completeCurrentTrial();
-                }
-            }
-        }
-
-        // ボスをワープさせる
-        this.warpBoss();
-    }
-}
-
-// isPlayerKubiraActive() や isTimeFieldActive() は、
-// Boss4Scene のプロパティや状態に応じて true/false を返すヘルパーメソッドとして実装します。
-// 例:
-// isPlayerKubiraActive() {
-//     return this.playerKubiraTimer && this.playerKubiraTimer.getProgress() < 1;
-// }
-// isTimeFieldActive() {
-//     return this.timeFieldVisual && this.timeFieldVisual.active;
-// }
 
     // CommonBossSceneのcreateから呼ばれる登場演出
     startIntroCutscene() {
@@ -507,34 +416,94 @@ hitBoss(boss, ball) {
         }
     }
 
-    hitBoss(boss, ball) {
-    super.hitBoss(boss, ball); // まず親クラスの通常のボスヒット処理を実行
+   // CommonBossSceneのhitBossをオーバーライド (試練中のワープと、決着の刻の通常のヒット処理)
+hitBoss(boss, ball) {
+    if (!boss || !ball || !ball.body || !boss.active) return;
 
-    if (this.activeTrial && !this.activeTrial.completed && this.activeTrial.id === 2) { // 試練IIか？
-        this.activeTrial.hitCount = (this.activeTrial.hitCount || 0) + 1;
-        this.updateTrialProgressUI(this.activeTrial); // UI更新 (例: "3/5")
-        if (this.activeTrial.hitCount >= this.activeTrial.requiredHits) {
-            this.completeCurrentTrial();
+    if (this.isFinalBattleActive) {
+        // 「決着の刻」は、CommonBossSceneの通常のヒット処理
+        // (ダメージ計算、反射、インダラ解除など)
+        console.log("[Boss4 hitBoss - FinalBattle] Standard boss hit.");
+        super.hitBoss(boss, ball);
+    } else {
+        // 試練中は、ダメージは通らないがボールは反射させ、ボスはワープする。
+        console.log("[Boss4 hitBoss - TrialPhase] Ball hit, reflecting and warping.");
+
+        // ボール反射ロジック (CommonBossSceneのhitBossから持ってくるか、専用の簡易反射)
+        // ここではCommonBossSceneの反射ロジックの一部を参考に簡易的に実装
+        let speedMultiplier = 1.0;
+        if (ball.getData('isFast') === true && BALL_SPEED_MODIFIERS && POWERUP_TYPES) {
+            speedMultiplier = BALL_SPEED_MODIFIERS[POWERUP_TYPES.SHATORA] || 1.0;
+        } else if (ball.getData('isSlow') === true && BALL_SPEED_MODIFIERS && POWERUP_TYPES) {
+            speedMultiplier = BALL_SPEED_MODIFIERS[POWERUP_TYPES.HAILA] || 1.0;
         }
-    }
-    // 他にも「ボスにボールが当たること」が条件の試練があれば、ここで判定を追加
-    // 例: 試練V「星光の追撃」（クビラ効果中にヒット）
-    if (this.activeTrial && !this.activeTrial.completed && this.activeTrial.id === 5) {
-        if (ball.getData('isKubiraActive')) { // クビラはボールダメージアップなので、ボールにフラグがない想定。プレイヤーのクビラ状態を見る必要がある
-             // or this.isPlayerKubiraActive のようなフラグで判断
-            // ここでは仮に、ボールがクビラ状態を持つ（CommonBossSceneでそのように設定している）とする
-            this.activeTrial.hitCountKubira = (this.activeTrial.hitCountKubira || 0) + 1;
-            this.updateTrialProgressUI(this.activeTrial);
-            if (this.activeTrial.hitCountKubira >= this.activeTrial.requiredHitsKubira) {
-                this.completeCurrentTrial();
+        const targetSpeed = (NORMAL_BALL_SPEED || 380) * speedMultiplier;
+
+        // ボス中心からボールへの角度で反射させるのが自然
+        const reflectAngleRad = Phaser.Math.Angle.Between(boss.x, boss.y, ball.x, ball.y);
+        const reflectAngleDeg = Phaser.Math.RadToDeg(reflectAngleRad) + 180; // 反対方向へ
+
+        try {
+            this.physics.velocityFromAngle(reflectAngleDeg, targetSpeed, ball.body.velocity);
+        } catch (e) {
+            console.error("[Boss4 hitBoss - TrialPhase] Error setting ball velocity for reflection:", e);
+        }
+
+        // (オプション) ボールヒット時のSE（効いていない感じの音）
+        // try { if (AUDIO_KEYS.SE_LUCILIUS_INVULNERABLE_HIT) this.sound.play(AUDIO_KEYS.SE_LUCILIUS_INVULNERABLE_HIT); } catch(e){}
+
+
+        // 試練達成判定 (ボールがボスに当たることが条件の試練)
+        if (this.activeTrial && !this.activeTrial.completed) {
+            // 試練II「原初の契約」
+            if (this.activeTrial.id === 2) {
+                this.activeTrial.hitCount = (this.activeTrial.hitCount || 0) + 1;
+                this.updateTrialProgressUI(this.activeTrial);
+                if (this.activeTrial.hitCount >= this.activeTrial.requiredHits) {
+                    this.completeCurrentTrial();
+                }
+            }
+            // 試練V「星光の追撃」 (クビラ効果中かどうかの判定はプレイヤーのフラグか、ボールに付与されたデータで)
+            if (this.activeTrial.id === 5 && this.isPlayerKubiraActive()) { // isPlayerKubiraActive() は仮のメソッド
+                this.activeTrial.hitCountKubira = (this.activeTrial.hitCountKubira || 0) + 1;
+                this.updateTrialProgressUI(this.activeTrial);
+                if (this.activeTrial.hitCountKubira >= this.activeTrial.requiredHitsKubira) {
+                    this.completeCurrentTrial();
+                }
+            }
+            // 試練IX「時の超越」(速度変化フィールドで当てる)
+            if (this.activeTrial.id === 9 && this.isTimeFieldActive()) { // isTimeFieldActive() は仮のメソッド
+                this.activeTrial.hitCountTimeField = (this.activeTrial.hitCountTimeField || 0) + 1;
+                this.updateTrialProgressUI(this.activeTrial);
+                if (this.activeTrial.hitCountTimeField >= this.activeTrial.requiredHitsTimeField) {
+                    this.completeCurrentTrial();
+                }
+            }
+            // 試練X「連鎖する星々の輝き」(連続ヒット)
+            if (this.activeTrial.id === 10) {
+                this.activeTrial.consecutiveHits = (this.activeTrial.consecutiveHits || 0) + 1;
+                // (ボールロストで consecutiveHits をリセットする処理が別途必要)
+                this.updateTrialProgressUI(this.activeTrial);
+                if (this.activeTrial.consecutiveHits >= this.activeTrial.requiredConsecutiveHits) {
+                    this.completeCurrentTrial();
+                }
             }
         }
-    }
-    // ワープ処理 (ボールヒット時)
-    if (!this.isFinalBattleActive) {
+
+        // ボスをワープさせる
         this.warpBoss();
     }
 }
+
+// isPlayerKubiraActive() や isTimeFieldActive() は、
+// Boss4Scene のプロパティや状態に応じて true/false を返すヘルパーメソッドとして実装します。
+// 例:
+// isPlayerKubiraActive() {
+//     return this.playerKubiraTimer && this.playerKubiraTimer.getProgress() < 1;
+// }
+// isTimeFieldActive() {
+//     return this.timeFieldVisual && this.timeFieldVisual.active;
+// }
 
 spawnChaosFragments(count) {
     // this.chaosFragmentsGroup = this.physics.add.group(); // 専用グループ
