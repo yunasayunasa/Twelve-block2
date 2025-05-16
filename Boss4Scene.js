@@ -556,24 +556,34 @@ resetAllBallsToPaddle() {
 
 
 // selectRoute: ルートを設定し、次の試練へ
-selectRoute(route) { // destroyedCrystal引数は不要に
-    if (!this.isChoiceEventActive) return; // 重複呼び出し防止
-
-    console.log(`[ChoiceEvent] Player selected route: ${route}`);
+selectRoute(route) {
+    if (!this.isChoiceEventActive) return;
+    console.log(`[ChoiceEvent] Player selected route via Text Button: ${route}`);
     this.currentRoute = route;
-    this.isChoiceEventActive = false; // 選択イベント終了
+    this.isChoiceEventActive = false;
 
-    // (破壊されなかった方のクリスタルは、shatterCrystalが両方呼ばれることで対応済みのはず)
-    // (あるいは、ここで明示的に両方destroyしても良い)
-    if(this.harmonyCrystal?.scene) this.harmonyCrystal.destroy();
-    if(this.destructionCrystal?.scene) this.destructionCrystal.destroy();
-    this.harmonyCrystal = null;
-    this.destructionCrystal = null;
+    // 表示したボタンとオーバーレイを破棄
+    if (this.choiceOverlay && this.choiceOverlay.scene) this.choiceOverlay.destroy();
+    this.choiceButtons.forEach(button => {
+        if (button && button.scene) button.destroy();
+    });
+    this.choiceOverlay = null;
+    this.choiceButtons = [];
 
+    // ボール操作を再開させる準備
+    if(this.balls?.getFirstAlive()?.body) {
+        this.balls.getChildren().forEach(ball => {
+            if (ball.active && ball.body) {
+                // ボールの速度を元に戻すか、再発射を促す
+                // ここでは、CommonBossSceneのstartGameplayでplayerControlEnabled=trueになるので、
+                // isBallLaunched=false にしておけば、プレイヤーの次のタップで発射される
+            }
+        });
+    }
+    // this.playerControlEnabled = true; // ★これは CommonBossScene の startGameplay で行われる想定
+    // this.isBallLaunched = false;    // ★同上
 
-    // 少し間を置いてから次の試練へ
-    this.time.delayedCall(800, () => { // 破壊演出を見せるため少し長めに
-        console.log("[ChoiceEvent] Proceeding to next trial after selection.");
+    this.time.delayedCall(300, () => {
         this.startNextTrial();
     }, [], this);
 }
