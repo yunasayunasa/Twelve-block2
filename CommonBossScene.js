@@ -1416,6 +1416,7 @@ if (this.isMakiraActive && this.balls && this.familiars && this.familiars.countA
 
     // CommonBossScene.js 内の gameOver メソッド
 gameOver() {
+    console.log(">>> CommonBossScene gameOver() - Entered <<<");
     if (this.isGameOver) return; // 既に処理中なら重複実行を防ぐ
     console.log(">>> Entering CommonBossScene gameOver() <<<");
     this.isGameOver = true;
