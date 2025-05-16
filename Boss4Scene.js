@@ -711,7 +711,7 @@ shatterCrystal(crystal) {
     }
 
     // ボスの攻撃パターンとワープ - lastAttackTime の更新を確認
-updateSpecificBossBehavior(time, delta) {
+
    updateSpecificBossBehavior(time, delta) {
     // ★★★ ここに詳細なログを追加 ★★★
     // console.log(
