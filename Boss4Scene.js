@@ -557,18 +557,26 @@ resetAllBallsToPaddle() {
 
 // selectRoute: ルートを設定し、次の試練へ
 selectRoute(route) {
+    console.log("[SelectRoute] Method START. Route:", route, "isChoiceEventActive:", this.isChoiceEventActive);
     if (!this.isChoiceEventActive) return;
     console.log(`[ChoiceEvent] Player selected route via Text Button: ${route}`);
     this.currentRoute = route;
     this.isChoiceEventActive = false;
 
     // 表示したボタンとオーバーレイを破棄
-    if (this.choiceOverlay && this.choiceOverlay.scene) this.choiceOverlay.destroy();
-    this.choiceButtons.forEach(button => {
-        if (button && button.scene) button.destroy();
-    });
+   if (this.choiceOverlay && this.choiceOverlay.scene) { // ?.演算子でより安全に
+    console.log("[SelectRoute] Destroying overlay...");
+    this.choiceOverlay?.destroy(); // ?.で安全に
     this.choiceOverlay = null;
-    this.choiceButtons = [];
+    console.log("[SelectRoute] Overlay destroyed.");
+}
+this.choiceButtons.forEach(button => {
+    if (button && button.scene) { // ?.演算子
+        button.destroy();
+    }
+});
+this.choiceButtons = []; // ★配列を空にする
+console.log("[ChoiceEvent] Choice buttons destroyed.");
 
     // ボール操作を再開させる準備
     if(this.balls?.getFirstAlive()?.body) {
@@ -583,9 +591,8 @@ selectRoute(route) {
     // this.playerControlEnabled = true; // ★これは CommonBossScene の startGameplay で行われる想定
     // this.isBallLaunched = false;    // ★同上
 
-    this.time.delayedCall(300, () => {
-        this.startNextTrial();
-    }, [], this);
+    console.log("[SelectRoute] Method END. Proceeding to startNextTrial soon.");
+    this.time.delayedCall(300, () => { this.startNextTrial(); }, [], this);
 }
 
 
