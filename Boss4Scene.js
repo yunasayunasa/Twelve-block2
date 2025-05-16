@@ -714,19 +714,19 @@ shatterCrystal(crystal) {
 
    updateSpecificBossBehavior(time, delta) {
     // ★★★ ここに詳細なログを追加 ★★★
-    // console.log(
-    //     `[UpdateSpecificBossBehavior Tick] Time: ${time.toFixed(0)}`,
-    //     `isIntroAnimating: ${this.isIntroAnimating}`,
-    //     `playerControlEnabled: ${this.playerControlEnabled}`,
-    //     `bossActive: ${this.boss?.active}`,
-    //     `bossDefeated: ${this.bossDefeated}`,
-    //     `isGameOver: ${this.isGameOver}`,
-    //     `isChoiceEventActive: ${this.isChoiceEventActive}`,
-    //     `isFinalBattleActive: ${this.isFinalBattleActive}`,
-    //     `activeTrialIndex: ${this.activeTrialIndex}`,
-    //     `currentRoute: ${this.currentRoute}`,
-    //     `lastAttackTime: ${this.lastAttackTime.toFixed(0)}`
-    // );
+     console.log(
+         `[UpdateSpecificBossBehavior Tick] Time: ${time.toFixed(0)}`,
+        `isIntroAnimating: ${this.isIntroAnimating}`,
+        `playerControlEnabled: ${this.playerControlEnabled}`,
+         `bossActive: ${this.boss?.active}`,
+         `bossDefeated: ${this.bossDefeated}`,
+         `isGameOver: ${this.isGameOver}`,
+        `isChoiceEventActive: ${this.isChoiceEventActive}`,
+         `isFinalBattleActive: ${this.isFinalBattleActive}`,
+        `activeTrialIndex: ${this.activeTrialIndex}`,
+         `currentRoute: ${this.currentRoute}`,
+         `lastAttackTime: ${this.lastAttackTime.toFixed(0)}`
+     );
     // ★★★-------------------------★★★
 
     // --- ガード処理 ---
