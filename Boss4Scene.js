@@ -430,7 +430,13 @@ prepareBallForChoice() {
             this.isBallLaunched = false; // ボールは再発射待ち
             if (!this.currentBgm || !this.currentBgm.isPlaying) this.playBossBgm();
             console.log("[TrialLogic] Player control ENABLED for current trial.");
+            
         }
+         // ★★★ ここで攻撃・ワープタイマーをリセット ★★★
+        this.lastAttackTime = this.time.now; // 現在の時間をセット
+        this.lastWarpTime = this.time.now;   // 現在の時間をセット
+        console.log(`[TrialLogic] Attack/Warp timers reset for Trial ${currentTrial.id}. lastAttackTime: ${this.lastAttackTime.toFixed(0)}`);
+        // ★★★------------------------------------★★★
     }
 }
 
@@ -557,6 +563,7 @@ resetAllBallsToPaddle() {
 
 // selectRoute: ルートを設定し、次の試練へ
 selectRoute(route) {
+    console.count("selectRoute called");
     console.log("[SelectRoute] Method START. Route:", route, "isChoiceEventActive:", this.isChoiceEventActive);
     if (!this.isChoiceEventActive) return;
     console.log(`[ChoiceEvent] Player selected route via Text Button: ${route}`);
@@ -720,12 +727,12 @@ selectRoute(route, destroyedCrystalOriginal = null) { // 引数名変更
         }
 
         // ワープ処理 (試練XII「決着の刻」以外)
-        if (!this.isFinalBattleActive && time > this.lastWarpTime + (this.bossData.warpInterval || 5000)) {
+      /*  if (!this.isFinalBattleActive && time > this.lastWarpTime + (this.bossData.warpInterval || 5000)) {
             // (ボールヒット時と攻撃直後にもワープするロジックは別途 hitBoss や攻撃メソッド内に追加)
             // ここでは時間経過による定期ワープの例
             this.warpBoss();
             this.lastWarpTime = time;
-        }
+        }*/
 
         // 攻撃処理 (試練I「調和と破壊」以降、かつ「決着の刻」ではない場合)
         if (this.activeTrialIndex > 0 && !this.isFinalBattleActive) {
