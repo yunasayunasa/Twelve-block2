@@ -245,7 +245,7 @@ startIntroCutscene() {
     const cutsceneBossTexture = this.bossData.textureKeyForCutscene || this.bossData.textureKey; // 専用がなければ本体流用
     const bossImage = this.add.image(this.gameWidth / 2, this.gameHeight * 0.45, cutsceneBossTexture)
         .setOrigin(0.5, 0.5)
-        .setScale(this.bossData.widthRatio * 2.8) // スケール調整 (widthRatio基準)
+        .setScale(this.bossData.widthRatio ) // スケール調整 (widthRatio基準)
         .setDepth(900);
     console.log(`[Boss4 Cutscene] Displaying cutscene boss image: ${cutsceneBossTexture}`);
 
