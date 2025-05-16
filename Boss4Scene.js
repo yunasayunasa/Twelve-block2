@@ -713,21 +713,7 @@ shatterCrystal(crystal) {
     // ボスの攻撃パターンとワープ - lastAttackTime の更新を確認
 
    updateSpecificBossBehavior(time, delta) {
-    // ★★★ ここに詳細なログを追加 ★★★
-     console.log(
-         `[UpdateSpecificBossBehavior Tick] Time: ${time.toFixed(0)}`,
-        `isIntroAnimating: ${this.isIntroAnimating}`,
-        `playerControlEnabled: ${this.playerControlEnabled}`,
-         `bossActive: ${this.boss?.active}`,
-         `bossDefeated: ${this.bossDefeated}`,
-         `isGameOver: ${this.isGameOver}`,
-        `isChoiceEventActive: ${this.isChoiceEventActive}`,
-         `isFinalBattleActive: ${this.isFinalBattleActive}`,
-        `activeTrialIndex: ${this.activeTrialIndex}`,
-         `currentRoute: ${this.currentRoute}`,
-         `lastAttackTime: ${this.lastAttackTime.toFixed(0)}`
-     );
-    // ★★★-------------------------★★★
+  
 
     // --- ガード処理 ---
     if (this.isIntroAnimating || !this.playerControlEnabled || !this.boss || !this.boss.active ||

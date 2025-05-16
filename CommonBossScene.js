@@ -686,10 +686,15 @@ handleBallOverlapBossEject(ball, boss) { // ballはgameObject1, bossはgameObjec
      // startGameplay: 戦闘開始処理に加え、遅延してコライダーを設定
      startGameplay() {
         console.log("[Gameplay Start] Enabling player control.");
-        this.playerControlEnabled = true;
-        if (this.boss?.body) {
-            this.boss.body.enable = true; // 念のため有効化
-        } else { console.warn("[Gameplay Start] Boss body missing!"); }
+       this.playerControlEnabled = true;
+    this.isBallLaunched = false; // ボールもリセット
+    // ★★★ 登場演出フラグをここで確実にfalseにする ★★★
+    if (this.isIntroAnimating !== undefined) { // プロパティが存在すれば
+        this.isIntroAnimating = false;
+        console.log(`[${this.scene.key} Gameplay Start] isIntroAnimating set to false.`);
+    }
+    // ★★★-----------------------------------------★★★
+
         this.startSpecificBossMovement();
         this.startRandomVoiceTimer();
 
@@ -1058,10 +1063,6 @@ if (this.isMakiraActive && this.balls && this.familiars && this.familiars.countA
     
    
 
-    startGameplay() {
-        console.log("[Intro] Enabling player control. Boss fight start!"); this.playerControlEnabled = true;
-        if (this.boss?.body) this.boss.body.enable = true; this.startSpecificBossMovement(); this.startRandomVoiceTimer();
-    }
     // defeatBoss
     defeatBoss(bossObject) {
         if (this.bossDefeated) return;
