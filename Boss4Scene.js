@@ -1114,67 +1114,55 @@ updateTrialProgressUI(trial) {
     formatTime(milliseconds) { /* ... */ return `ジ・エンドまで… ${String(Math.floor(milliseconds/60000)).padStart(2,'0')}:${String(Math.floor((milliseconds%60000)/1000)).padStart(2,'0')}:${String(Math.floor((milliseconds%1000)/10)).padStart(2,'0')}`; }
     playBellSound() { /* ... */ try { if(AUDIO_KEYS.SE_JI_END_BELL) this.sound.play(AUDIO_KEYS.SE_JI_END_BELL); } catch(e){} }
     // Boss4Scene.js の triggerJiEndGameOver メソッド (再掲・確認)
+// Boss4Scene.js の triggerJiEndGameOver メソッド (代替案1「世界終焉」風の骨子)
 triggerJiEndGameOver() {
-    if (this.isGameOver) return; // 既にゲームオーバー処理中なら何もしない
-    console.log("[JiEndTimer] JI END! Triggering game over video sequence.");
+    if (this.isGameOver) return;
+    console.log("[JiEndTimer] JI END! Triggering custom game over sequence.");
     this.isGameOver = true;
-    this.playerControlEnabled = false; // プレイヤー操作を完全に無効化
-    if (this.physics.world.running) this.physics.pause(); // 物理演算を停止
-    this.stopAllBossTimers(); // ボス関連のタイマーを全て停止 (攻撃、ワープ、試練など)
+    this.playerControlEnabled = false;
+    if (this.physics.world.running) this.physics.pause();
+    this.stopAllBossTimers();
+    this.sound.stopAll();
+    if (this.currentBgm) this.currentBgm = null;
 
-    // BGMや他のSEを停止
-    this.sound.stopAll(); // または個別に this.stopBgm() など
-    if (this.currentBgm) this.currentBgm = null; // currentBgm参照クリア
+    // UIを隠す
+    this.uiScene?.scene.setVisible(false);
+    if (this.jiEndTimerText) this.jiEndTimerText.setVisible(false);
+    if (this.trialUiText) this.trialUiText.setVisible(false);
 
-    const videoKey = this.jiEndVideoKey || 'gameOverVideo_JiEnd'; // initializeBossDataで設定したキー
+    // --- ▼ 世界終焉風演出 ▼ ---
+    // 1. 画面暗転
+    const overlay = this.add.rectangle(0, 0, this.gameWidth, this.gameHeight, 0x000000, 0)
+        .setOrigin(0,0).setDepth(9990); // 最前面に近い
+    this.tweens.add({ targets: overlay, alpha: 0.8, duration: 2000, ease: 'Linear' });
 
-    if (this.cache.video.has(videoKey)) {
-        console.log(`[JiEndGameOver] Playing video: ${videoKey}`);
-        // UI要素を隠す
-        this.uiScene?.scene.setVisible(false); // UIScene全体を非表示
-        if (this.jiEndTimerText) this.jiEndTimerText.setVisible(false);
-        if (this.trialUiText) this.trialUiText.setVisible(false);
-        // (その他ゲーム内のUIがあればここで非表示)
-
-        const video = this.add.video(
-            this.gameWidth / 2,
-            this.gameHeight / 2,
-            videoKey
-        )
-        .setOrigin(0.5, 0.5)
-        .setDepth(9999) // 最前面に表示
-        .setInteractive(); // (もしクリックでスキップさせたい場合など)
-
-        // (オプション) 動画のサイズ調整 (画面にフィットさせるなど)
-        video.setDisplaySize(this.gameWidth, this.gameHeight);
-
-        video.play(false); // ループなしで再生
-
-        video.on('complete', () => {
-            console.log("[JiEndGameOver] Game over video finished.");
-            if (video.scene) video.destroy(); // ビデオオブジェクトを破棄
-            // 通常のゲームオーバー処理へ (CommonBossSceneのgameOverなど)
-            // (例: GAME OVERの文字を表示し、タイトルへ戻るボタンを表示)
-            super.gameOver(); // これがCommonBossSceneのテキスト表示や入力待ちを行う
-        }, this);
-
-        video.on('error', (vid, error) => { // 引数にvidとerrorが渡ってくる
-            console.error(`[JiEndGameOver] Video playback error for key "${videoKey}":`, error);
-            // 動画再生エラーの場合は、直接通常のゲームオーバー処理へ
-            if (video.scene) video.destroy(); // エラーでもオブジェクトは破棄
-            super.gameOver();
-        }, this);
-
-    } else {
-        console.error(`[JiEndGameOver] Video key "${videoKey}" not found in cache. Skipping video, proceeding to standard game over.`);
-        // UIが非表示のままかもしれないので、表示に戻すか、
-        // CommonBossSceneのgameOverが適切にUIを再表示することを期待
-        this.uiScene?.scene.setVisible(true); // 例: UIを再表示
-        if (this.jiEndTimerText) this.jiEndTimerText.setVisible(true); // これらはもう不要かも
-        if (this.trialUiText) this.trialUiText.setVisible(true);
-
-        super.gameOver(); // 動画がない場合は通常のゲームオーバー処理
+    // 2. ボスや背景の演出 (任意)
+    if (this.boss) {
+        this.tweens.add({ targets: this.boss, tint: 0xff0000, duration: 1000, ease: 'Linear' }); // 赤く染まる
+        // this.boss.play('lucilius_end_animation'); // 専用アニメーションがあれば
     }
+    // (背景が歪むなどのエフェクト)
+
+    // 3. プレイヤー側の消滅演出 (任意)
+    if (this.paddle) this.tweens.add({ targets: this.paddle, alpha: 0, duration: 500, delay: 1000 });
+    this.balls?.getChildren().forEach(ball => {
+        if(ball.active) this.tweens.add({ targets: ball, alpha: 0, scale: 0, duration: 500, delay: 1200 });
+    });
+
+    // 4. 「JI・END」テキスト表示
+    this.time.delayedCall(2500, () => { // 暗転や他の演出がある程度進んでから
+        const endText = this.add.text(this.gameWidth / 2, this.gameHeight / 2, "JI・END", {
+            fontSize: `${this.gameWidth / 8}px`, fill: '#ff0000', fontFamily: 'serif',
+            stroke: '#660000', strokeThickness: 10, align: 'center'
+        }).setOrigin(0.5).setDepth(9999); // 最前面
+
+        this.time.delayedCall(3000, () => { // さらに数秒後
+            if (endText.scene) endText.destroy();
+            if (overlay.scene) overlay.destroy(); // 念のため
+            super.gameOver(); // CommonBossSceneの通常のゲームオーバー処理へ
+        }, [], this);
+    }, [], this);
+    // --- ▲ 世界終焉風演出 終了 ▲ ---
 }
     stopAllBossTimers() { /* ... (このシーンのタイマーを全て止める) ... */
         this.radialAttackTimer?.remove(); this.targetedAttackTimer?.remove();
