@@ -84,10 +84,10 @@ export default class Boss4Scene extends CommonBossScene {
             attackIntervalOrder: { min: 3500, max: 5500 }, // 攻撃間隔 (秩序) - 少し速め
             attackIntervalChaos: { min: 7000, max: 11000 }, // 攻撃間隔 (混沌) - 遅め
             // (弾速、弾数などもここで定義し、fireRadialAttack/fireTargetedAttackで参照する)
-            radialAttackParamsOrder: { count: 5, speedMultiplier: 1.2 },
-            radialAttackParamsChaos: { count: 3, speedMultiplier: 0.8 },
-            targetedAttackParamsOrder: { chargeTime: 600, speedMultiplier: 1.1 },
-            targetedAttackParamsChaos: { chargeTime: 900, speedMultiplier: 0.9 },
+            radialAttackParamsOrder: { count: 5, speedMultiplier: 1.0 },
+            radialAttackParamsChaos: { count: 3, speedMultiplier: 0.5 },
+            targetedAttackParamsOrder: { chargeTime: 600, speedMultiplier: 1.0 },
+            targetedAttackParamsChaos: { chargeTime: 900, speedMultiplier: 0.7 },
 
             warpYRange: { minRatio: 0.15, maxRatio: 0.25 }, // ワープ先のY座標範囲 (画面高さ比)
     warpDelayAfterAttack: 300, // 攻撃後のワープ開始までの遅延 (ms)
