@@ -77,7 +77,7 @@ export default class Boss4Scene extends CommonBossScene {
             moveRangeXRatioFinal: 0.7, // 最終決戦時の移動範囲
             moveDurationFinal: 3000,   // 最終決戦時の移動時間
 
-            jiEndCountInitialMinutes: 5,
+            jiEndCountInitialMinutes: 0.3,
             jiEndTimerYPosRatio: 0.1,
             jiEndTimerFontSizeRatio: 1 / 15,
 
@@ -1146,7 +1146,7 @@ triggerJiEndGameOver() {
         .setInteractive(); // (もしクリックでスキップさせたい場合など)
 
         // (オプション) 動画のサイズ調整 (画面にフィットさせるなど)
-        // video.setDisplaySize(this.gameWidth, this.gameHeight);
+        video.setDisplaySize(this.gameWidth, this.gameHeight);
 
         video.play(false); // ループなしで再生
 
