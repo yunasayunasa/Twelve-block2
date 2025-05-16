@@ -524,18 +524,37 @@ startHarmonyAndDestructionChoice() {
         });
 
         // --- ▼▼▼ pointerdown の設定はここに1つだけ ▼▼▼ ---
-        buttonText.on('pointerdown', (pointer, localX, localY, event) => {
+         buttonText.on('pointerdown', (pointer, localX, localY, event) => {
+            // ★★★ isChoiceEventActive でガードし、先にフラグを下ろす ★★★
+            if (!this.isChoiceEventActive) {
+                console.log("[ChoiceButton] Choice already made, ignoring further clicks.");
+                return;
+            }
+            // isChoiceEventActive を false にするのは selectRoute の責務でも良いが、
+            // ここで一度無効化の意思を示すのもあり。
+            // ただし、selectRoute が呼ばれないケースも考慮すると、
+            // やはり selectRoute の中でフラグ管理するのが一貫する。
+
+            // ★★★ ここでガードするなら selectRoute には渡さない ★★★
+            // if (!this.isChoiceEventActive) return; // このガードはselectRoute内に任せる
+
             console.log(`Choice button "${choice.text}" clicked. Selecting route: ${choice.route}`);
+            event.stopPropagation();
 
-            event.stopPropagation(); // ★★★ イベントの伝播を停止 ★★★
+            // 他のボタンのインタラクションを無効化 (視覚的なフィードバックも兼ねて)
+            this.choiceButtons.forEach(btn => {
+                if (btn && btn.input && btn !== buttonText) { // 自分自身以外
+                     btn.disableInteractive();
+                     // btn.setAlpha(0.5); // 選択されなかった方を少し暗くするなど
+                }
+            });
+            if (this.choiceOverlay?.input) { // ?.で安全に
+                this.choiceOverlay.disableInteractive();
+            }
+            buttonText.disableInteractive(); // 押されたボタンも無効化
 
-            // isChoiceEventActive のチェックは selectRoute の中で行っているので、ここでは不要
-            // if (this.isChoiceEventActive) { // 二重実行防止
-                 this.selectRoute(choice.route);
-            // }
+            this.selectRoute(choice.route);
         });
-        // --- ▲▲▲ pointerdown の設定終了 ▲▲▲ ---
-
         this.choiceButtons.push(buttonText);
     });
 }
@@ -558,44 +577,45 @@ resetAllBallsToPaddle() {
 
 
 // selectRoute: ルートを設定し、次の試練へ
-selectRoute(route) {
-    console.count("selectRoute called");
-    console.log("[SelectRoute] Method START. Route:", route, "isChoiceEventActive:", this.isChoiceEventActive);
-    if (!this.isChoiceEventActive) return;
-    console.log(`[ChoiceEvent] Player selected route via Text Button: ${route}`);
+ selectRoute(route) {
+    console.log("[SelectRoute] Method START. Current isChoiceEventActive:", this.isChoiceEventActive, "Route:", route);
+    if (!this.isChoiceEventActive) { // ★重複実行防止ガード★
+        console.log("[SelectRoute] Aborting: Choice event already inactive or route already selected.");
+        return;
+    }
+    this.isChoiceEventActive = false; // ★★★選択処理に入ったらすぐにフラグをfalseに★★★
     this.currentRoute = route;
-    this.isChoiceEventActive = false;
+    console.log(`[SelectRoute] Route set to: ${this.currentRoute}. isChoiceEventActive is now: ${this.isChoiceEventActive}`);
 
-    // 表示したボタンとオーバーレイを破棄
-   if (this.choiceOverlay && this.choiceOverlay.scene) { // ?.演算子でより安全に
-    console.log("[SelectRoute] Destroying overlay...");
-    this.choiceOverlay?.destroy(); // ?.で安全に
-    this.choiceOverlay = null;
-    console.log("[SelectRoute] Overlay destroyed.");
-}
-this.choiceButtons.forEach(button => {
-    if (button && button.scene) { // ?.演算子
-        button.destroy();
+    // UI破棄
+    console.log("[SelectRoute] Destroying choice UI elements...");
+    if (this.choiceOverlay && this.choiceOverlay.scene) {
+        this.choiceOverlay.destroy();
+        this.choiceOverlay = null;
+        console.log("[SelectRoute] Overlay destroyed.");
+    } else {
+        console.log("[SelectRoute] Overlay was already null or not in scene.");
     }
-});
-this.choiceButtons = []; // ★配列を空にする
-console.log("[ChoiceEvent] Choice buttons destroyed.");
 
-    // ボール操作を再開させる準備
-    if(this.balls?.getFirstAlive()?.body) {
-        this.balls.getChildren().forEach(ball => {
-            if (ball.active && ball.body) {
-                // ボールの速度を元に戻すか、再発射を促す
-                // ここでは、CommonBossSceneのstartGameplayでplayerControlEnabled=trueになるので、
-                // isBallLaunched=false にしておけば、プレイヤーの次のタップで発射される
-            }
-        });
-    }
-    // this.playerControlEnabled = true; // ★これは CommonBossScene の startGameplay で行われる想定
-    // this.isBallLaunched = false;    // ★同上
+    this.choiceButtons.forEach((button, index) => {
+        if (button && button.scene) {
+            button.destroy();
+            console.log(`[SelectRoute] Button ${index} destroyed.`);
+        } else {
+            // console.log(`[SelectRoute] Button ${index} was already null or not in scene.`);
+        }
+    });
+    this.choiceButtons = [];
+    console.log("[SelectRoute] Choice buttons array cleared.");
 
-    console.log("[SelectRoute] Method END. Proceeding to startNextTrial soon.");
-    this.time.delayedCall(300, () => { this.startNextTrial(); }, [], this);
+    // ボールの状態はstartGameplayでリセット済み、playerControlEnabledもtrueのはず
+    // isBallLaunchedはfalseのはず
+
+    console.log("[SelectRoute] Method END. Scheduling startNextTrial.");
+    this.time.delayedCall(300, () => {
+        console.log("[SelectRoute DelayedCall] Now calling startNextTrial.");
+        this.startNextTrial();
+    }, [], this);
 }
 
 
