@@ -502,46 +502,42 @@ startHarmonyAndDestructionChoice() {
     const buttonYStep = this.gameHeight * 0.25; // ボタン間の縦の間隔
     let startButtonY = this.gameHeight / 2 - (choices.length - 1) * buttonYStep / 2; // 最初のボタンのY座標 (中央揃え)
 
-    choices.forEach((choice, index) => {
+   choices.forEach((choice, index) => {
         const buttonText = this.add.text(
-            this.gameWidth / 2,         // X座標: 画面中央
-            startButtonY + (index * buttonYStep), // Y座標
+            this.gameWidth / 2,
+            startButtonY + (index * buttonYStep),
             choice.text,
-            { ...buttonBaseStyle, fill: '#DDDDDD' } // 通常時の文字色
+            { ...buttonBaseStyle, fill: '#DDDDDD' }
         )
-        .setOrigin(0.5)             // 原点: テキストの中央
-        .setInteractive({ useHandCursor: true }) // カーソルを手に
-        .setPadding(20, 20, 20, 20) // ★クリック範囲を文字より少し広げる
-        .setDepth(1000);            // 暗幕より手前
+        .setOrigin(0.5)
+        .setInteractive({ useHandCursor: true })
+        .setPadding(20, 20, 20, 20)
+        .setDepth(1000);
 
-        // ★横いっぱいにするための処理★
-        // テキストオブジェクト自体の幅は内容によるので、
-        // 透明なインタラクティブゾーンを別途作成するか、
-        // setDisplayWidth を使うが、アスペクト比が崩れる可能性あり。
-        // ここでは、setPaddingでクリック範囲を広げつつ、
-        // 見た目はテキスト幅のまま、中央揃えで対応。
-        // 真に「横いっぱい」にするなら、背景を持つボタン画像かDOM要素が適している。
-        // 文字だけを横いっぱいに引き伸ばすのは難しい。
-        // 代わりに、テキストの左右に装飾的なラインを入れるなどを検討。
-
-        // 今回は「横いっぱいの"クリックエリア"を持つ」という解釈で、
-        // setFixedSize でテキストオブジェクトのインタラクションエリアを広げます。
-        buttonText.setFixedSize(this.gameWidth * 0.8, buttonFontSize * 1.8); // 幅を画面の80%, 高さはフォントの1.8倍
-        // buttonText.input.hitArea.setTo(0, 0, buttonText.width, buttonText.height); // これでクリック範囲がFixedSizeに合う
+        buttonText.setFixedSize(this.gameWidth * 0.8, buttonFontSize * 1.8);
 
         buttonText.on('pointerover', () => {
-            buttonText.setStyle({ fill: '#FFFF99' }); // ホバー時の文字色 (例: 薄い黄色)
+            buttonText.setStyle({ fill: '#FFFF99' });
         });
         buttonText.on('pointerout', () => {
-            buttonText.setStyle({ fill: '#DDDDDD' }); // 通常時の文字色
+            buttonText.setStyle({ fill: '#DDDDDD' });
         });
-        buttonText.on('pointerdown', () => {
+
+        // --- ▼▼▼ pointerdown の設定はここに1つだけ ▼▼▼ ---
+        buttonText.on('pointerdown', (pointer, localX, localY, event) => {
             console.log(`Choice button "${choice.text}" clicked. Selecting route: ${choice.route}`);
-            this.selectRoute(choice.route);
+
+            event.stopPropagation(); // ★★★ イベントの伝播を停止 ★★★
+
+            // isChoiceEventActive のチェックは selectRoute の中で行っているので、ここでは不要
+            // if (this.isChoiceEventActive) { // 二重実行防止
+                 this.selectRoute(choice.route);
+            // }
         });
+        // --- ▲▲▲ pointerdown の設定終了 ▲▲▲ ---
+
         this.choiceButtons.push(buttonText);
     });
-    // --- ▲ テキストボタン表示処理 終了 ▲ ---
 }
 
 
