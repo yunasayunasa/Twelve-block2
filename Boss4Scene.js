@@ -190,72 +190,95 @@ applyBossDamage(bossInstance, damageAmount, source = "Unknown") {
 
 // (constructor, init, initializeBossData, defineTrials, createSpecificBoss, applyBossDamage は前回提示のものをベースに)
 
+// Boss4Scene.js
+
+// (constructor, init, initializeBossData, defineTrials, createSpecificBoss, applyBossDamage などは変更なしの想定)
+
 // CommonBossSceneのcreateから呼ばれる登場演出をオーバーライド
+// 目的: ルシゼロ専用のカットイン内容にしつつ、Commonのフュージョン演出フローに繋げる
 startIntroCutscene() {
-    console.log("[Boss4Scene] Overriding startIntroCutscene for Lucilius Zero's custom intro.");
+    console.log("[Boss4Scene] Overriding startIntroCutscene for Lucilius Zero's specific cutscene content.");
     this.isIntroAnimating = true;
     this.playerControlEnabled = false;
     this.isBallLaunched = false;
-    this.sound.stopAll();
-    this.stopBgm(); // CommonBossSceneのメソッドを呼んでBGMを止める
+    // this.sound.stopAll(); // CommonBossSceneのstartIntroCutsceneで呼ばれるなら不要
+    // this.stopBgm();       // 同上
 
-    // --- ▼ Boss4Scene 専用のシンプルなVSカットイン表示 ▼ ---
-    const cutsceneDuration = CUTSCENE_DURATION || 1800; // constants.js から
+    // --- ▼ Boss4Scene 専用のカットイン内容を bossData 経由で設定するイメージ ▼ ---
+    // CommonBossSceneのstartIntroCutsceneがthis.bossDataを参照して描画すると仮定。
+    // もしCommonのstartIntroCutsceneが固定のテキストや画像を使っているなら、
+    // このオーバーライドメソッド内でCommonとほぼ同じ描画処理を書く必要がある。
+
+    // ここでは、CommonBossSceneのstartIntroCutsceneが以下を行うと仮定して、
+    // 単にsuperを呼ぶか、あるいはbossDataを適切に設定した上でsuperを呼ぶ。
+    // 1. this.sound.play(AUDIO_KEYS.SE_CUTSCENE_START)
+    // 2. 暗幕表示 (this.add.rectangle)
+    // 3. ボス画像表示 (this.add.image(..., this.bossData.textureKeyForCutscene || this.bossData.textureKey, ...))
+    // 4. VSテキスト表示 (this.add.text(..., this.bossData.cutsceneText, ...))
+    // 5. delayedCall で上記要素を破棄し、this.startFusionIntro() を呼び出す
+
+    // Boss4SceneのinitializeBossDataで以下が設定されていること:
+    // this.bossData.textureKey = 'boss_lucilius_stand'; // フュージョン演出や最終表示用
+    // this.bossData.cutsceneText = 'VS ダークラプチャー・ゼロ';
+    // (オプション) this.bossData.textureKeyForCutscene = 'boss_lucilius_cutscene_image'; // カットイン専用画像キー
+
+    // --- ▼ 選択肢A: Commonのカットインをそのまま使う (bossDataで内容制御) ▼ ---
+    // この場合、Boss4Sceneでのこのメソッドのオーバーライドはほぼ不要になるか、
+    // bossDataの特定項目の上書き程度で済む。
+    // super.startIntroCutscene();
+
+    // --- ▼ 選択肢B: Boss4Sceneでカットインを完全に自前描画し、Commonのフュージョンへ繋ぐ ▼ ---
+    // (これが「カットインのボス立ち絵が出ない」問題の直接的な解決になる)
+    console.log("[Boss4Scene] Implementing custom cutscene draw, then calling Common's startFusionIntro.");
+
+    try { if (AUDIO_KEYS.SE_CUTSCENE_START) this.sound.play(AUDIO_KEYS.SE_CUTSCENE_START); 
+        
+        
+    } catch(e) {}
+
+     this.sound.play(AUDIO_KEYS.SE_CUTSCENE_START); 
+
     const overlay = this.add.rectangle(0, 0, this.gameWidth, this.gameHeight, 0x100020, 0.75)
         .setOrigin(0,0).setDepth(899);
-    const textContent = this.bossData.cutsceneText || "TRIAL OF THE ABYSS";
-    const fontSize = this.calculateDynamicFontSize(65); // Commonのヘルパー
-    const textStyle = {
-        fontSize: `${fontSize}px`, fill: '#E0E0E0', fontFamily: 'serif',
-        align: 'center', stroke: '#100010', strokeThickness: Math.max(4, fontSize * 0.07)
-    };
-    const vsText = this.add.text(this.gameWidth / 2, this.gameHeight / 2, textContent, textStyle)
-        .setOrigin(0.5).setDepth(900);
 
-    // カットイン開始SE
-    if (AUDIO_KEYS.SE_CUTSCENE_START) {
-        try { this.sound.play(AUDIO_KEYS.SE_CUTSCENE_START); } catch(e) {}
-    }
-    // ★ルシゼロ登場ボイスは、finalizeBossAppearanceAndStartの直前か、startFusionIntroを模倣するならそのタイミング★
-    // ここでは、finalizeBossAppearanceAndStart の中でボスが表示される直前に再生することを想定
-    // (CommonBossSceneのstartFusionIntroで voiceAppear を再生しているので、それに倣う)
+    // ★★★ カットイン用のボス画像を表示 ★★★
+    const cutsceneBossTexture = this.bossData.textureKeyForCutscene || this.bossData.textureKey; // 専用がなければ本体流用
+    const bossImage = this.add.image(this.gameWidth / 2, this.gameHeight * 0.45, cutsceneBossTexture)
+        .setOrigin(0.5, 0.5)
+        .setScale(this.bossData.widthRatio * 2.8) // スケール調整 (widthRatio基準)
+        .setDepth(900);
+    console.log(`[Boss4 Cutscene] Displaying cutscene boss image: ${cutsceneBossTexture}`);
 
-    console.log("[Boss4Scene Cutscene] Displaying custom VS text and overlay for Lucilius Zero.");
-    // --- ▲ Boss4Scene 専用のシンプルなカットイン表示 終了 ▲ ---
+    const textContent = this.bossData.cutsceneText || `VS ${this.currentBossIndex}`;
+    const fontSize = this.calculateDynamicFontSize(60);
+    const textStyle = { fontSize: `${fontSize}px`, fill: '#E0E0E0', fontFamily: 'serif', align: 'center', stroke: '#100010', strokeThickness: Math.max(4, fontSize * 0.07)};
+    const vsText = this.add.text(this.gameWidth / 2, bossImage.getBounds().bottom + (this.gameHeight * 0.03), textContent, textStyle)
+        .setOrigin(0.5, 0).setDepth(901);
 
-    // カットイン表示後、フュージョン演出をスキップし、直接ボス表示確定と戦闘準備へ
-    this.time.delayedCall(cutsceneDuration, () => {
-        // カットイン用オブジェクトを安全に破棄
-        if (overlay && overlay.scene) overlay.destroy();
-        if (vsText && vsText.scene) vsText.destroy();
+    // ルシゼロ登場ボイスは startFusionIntro で Common のロジックで再生される想定
+    // もしカットインと同時に鳴らしたいならここで再生
+    // if (this.bossData.voiceAppear) try { this.sound.play(this.bossData.voiceAppear); } catch(e) {}
+
+    const cutsceneDurationToUse = CUTSCENE_DURATION || 1800;
+    this.time.delayedCall(cutsceneDurationToUse, () => {
+        if (overlay?.scene) overlay.destroy();
+        if (bossImage?.scene) bossImage.destroy(); // ★カットイン用ボス画像を破棄
+        if (vsText?.scene) vsText.destroy();
 
         if (this.isGameOver || this.bossDefeated) return;
 
-        console.log("[Boss4Scene Intro] Custom cutscene finished. Skipping Fusion, proceeding to finalize boss appearance.");
-
-        // ★★★ CommonBossSceneのstartFusionIntroがやっていることの一部をここで実行 ★★★
-        // 1. ボス戦BGM再生開始
-        this.playBossBgm(); // CommonBossSceneのメソッド
-        // 2. ボス固有の登場ボイスを再生
-        if (this.bossData.voiceAppear && typeof this.bossData.voiceAppear === 'string') {
-            try { this.sound.play(this.bossData.voiceAppear); } catch(e) {}
-        }
-        // 3. (もしあれば) 登場時の共通インパクトSEなど
-        if (AUDIO_KEYS.SE_FLASH_IMPACT_COMMON) { // CommonのstartFusionIntroで使っているSE
-            try { this.sound.play(AUDIO_KEYS.SE_FLASH_IMPACT_COMMON); 
-                try { if (AUDIO_KEYS.BGM_LUCILIUS_PHASE1) this.sound.play(AUDIO_KEYS.BGM_LUCILIUS_PHASE1); console.log("Test G: Played SBGM_LUCILIUS_PHASE1"); } catch(e) { console.error("Error G:", e); }
-
-            } catch(e) {}
-        }
-        // ★★★-----------------------------------------------------------------★★★
-
-        // ★★★ CommonBossScene の finalizeBossAppearanceAndStart を呼び出す ★★★
-        // これにより、ボスが表示され、物理ボディが有効になり、コライダーが設定され、
-        // 最終的に (Boss4Sceneでオーバーライドされた) startGameplay が遅延呼び出しされる。
-        this.finalizeBossAppearanceAndStart();
-        this.isIntroAnimating = false;
+        console.log("[Boss4Scene Cutscene] Custom cutscene part done. Now calling CommonBossScene's startFusionIntro.");
+        // ★★★ CommonBossScene のフュージョン演出（メイン登場演出）を呼び出す ★★★
+        this.startFusionIntro(); // これが最終的に finalizeBossAppearanceAndStart を呼ぶ
+        // this.isIntroAnimating は Common のフローで管理されるか、startGameplay で false にする
     }, [], this);
 }
+
+
+// startGameplay (オーバーライド版 - 前回提示の通り)
+// finalizeBossAppearanceAndStart は CommonBossScene のものをそのまま使用するので、Boss4Sceneではオーバーライド不要
+// startSpecificBossMovement (オーバーライド版 - 前回提示の通り、試練中は静止、最終決戦で移動)
+// (その他の Boss4Scene 固有メソッド)
 
 // startGameplay (オーバーライド版 - 前回提示の通り)
 // finalizeBossAppearanceAndStart は CommonBossScene のものをそのまま使用するので、Boss4Sceneではオーバーライド不要
