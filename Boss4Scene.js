@@ -394,51 +394,97 @@ prepareBallForChoice() {
         console.log("[TrialUI] Setup complete.");
     }
 
-    // 次の試練を開始する (または現在の試練のUIを更新)
-    startNextTrial() {
-        this.activeTrialIndex++;
-        if (this.activeTrialIndex >= this.trialsData.length) {
-            console.error("[TrialLogic] Attempted to start trial beyond a_vailable trials.");
-            // 本来は「決着の刻」の前に全ての試練が終わるはず
-            this.triggerJiEndGameOver(); // 予期せぬエラーとしてゲームオーバー
-            return;
-        }
+    // 次の試練を開始する (または現在の試練のUIを更新) - 攻撃タイマーリセット追加
+startNextTrial() {
+    this.activeTrialIndex++;
+    if (this.activeTrialIndex >= this.trialsData.length) {
+        console.error("[TrialLogic] Attempted to start trial beyond available trials.");
+        this.triggerJiEndGameOver();
+        return;
+    }
 
-        const currentTrial = this.trialsData[this.activeTrialIndex];
-        this.activeTrial = currentTrial; // CommonBossSceneのプロパティにも設定 (getOverrideDropItemで参照のため)
+    const currentTrial = this.trialsData[this.activeTrialIndex];
+    this.activeTrial = currentTrial;
 
-        console.log(`[TrialLogic] Starting Trial ${currentTrial.id}: ${currentTrial.name}`);
-        if (this.trialUiText && this.trialUiText.active) {
-            let displayText = `十二の試練：試練 ${currentTrial.id}「${currentTrial.name}」\n`;
-            displayText += `${currentTrial.conditionText}`;
-            this.trialUiText.setText(displayText);
-        }
+    console.log(`[TrialLogic] Starting Trial ${currentTrial.id}: ${currentTrial.name}`);
+    if (this.trialUiText && this.trialUiText.active) {
+        let displayText = `十二の試練：試練 ${currentTrial.id}「${currentTrial.name}」\n`;
+        displayText += `${currentTrial.conditionText}`;
+        // 進捗表示も初期化 (updateTrialProgressUIで現在の進捗を表示するようにする)
+        if (this.trialUiText) this.updateTrialProgressUI(currentTrial);
+        else this.trialUiText.setText(displayText); // フォールバック
+    }
 
-        if (currentTrial.isChoiceEvent) {
+    if (currentTrial.isChoiceEvent) { // 試練I: 調和と破壊
         this.startHarmonyAndDestructionChoice();
-        this.playerControlEnabled = false; // 選択イベント中は操作不可のまま
-    } else if (currentTrial.isFinalBattle) {
+        this.playerControlEnabled = false; // 選択中はボール操作をさせない想定だったが、選択UIではtrueにする
+        console.log("[TrialLogic] Player control will be handled by startHarmonyAndDestructionChoice.");
+    } else if (currentTrial.isFinalBattle) { // 試練XII: 決着の刻
         this.startFinalBattle();
-        this.playerControlEnabled = true; // 最終決戦は操作可能
-        if (!this.currentBgm || !this.currentBgm.isPlaying) this.playBossBgm(); // 最終決戦BGM
-    } else {
-        // 通常の試練開始
-        this.setupCurrentTrialEnvironment(currentTrial);
-        // ★★★ 選択イベント後、または最初の通常試練からプレイヤー操作を有効化 ★★★
-        if (!this.playerControlEnabled) { // まだ操作不可なら
+        this.playerControlEnabled = true;
+        // 最終決戦用BGMの再生 (startFinalBattle内でも良い)
+        const finalBgmKey = this.bossData.bgmKeyFinalBattle || AUDIO_KEYS.BGM_LUCILIUS_FINAL_BATTLE; // bossDataに定義
+        if (finalBgmKey) this.playSpecificBgm(finalBgmKey); // playSpecificBgmはBGMを切り替えるヘルパーと仮定
+        else if (!this.currentBgm || !this.currentBgm.isPlaying) this.playBossBgm();
+    } else { // 通常の試練 (試練II ～ XI)
+        this.setupCurrentTrialEnvironment(currentTrial); // 試練ごとのオブジェクト配置など
+
+        // プレイヤー操作を確実に有効化
+        if (!this.playerControlEnabled) {
             this.playerControlEnabled = true;
-            this.isBallLaunched = false; // ボールは再発射待ち
-            if (!this.currentBgm || !this.currentBgm.isPlaying) this.playBossBgm();
             console.log("[TrialLogic] Player control ENABLED for current trial.");
-            
         }
-         // ★★★ ここで攻撃・ワープタイマーをリセット ★★★
-        this.lastAttackTime = this.time.now; // 現在の時間をセット
-        this.lastWarpTime = this.time.now;   // 現在の時間をセット
-        console.log(`[TrialLogic] Attack/Warp timers reset for Trial ${currentTrial.id}. lastAttackTime: ${this.lastAttackTime.toFixed(0)}`);
-        // ★★★------------------------------------★★★
+        this.isBallLaunched = false; // ボールは常に再発射待ちから開始
+
+        // ボールがなければ生成、あればパドル上へリセット
+        this.prepareBallForTrial(); // 新しいヘルパーメソッド
+
+        // ★★★ 攻撃・ワープタイマーを現在の時間でリセット ★★★
+        this.lastAttackTime = this.time.now;
+        this.lastWarpTime = this.time.now;
+        console.log(`[TrialLogic] Attack/Warp timers reset for Trial ${currentTrial.id}. lastAttackTime: ${this.lastAttackTime.toFixed(0)}, lastWarpTime: ${this.lastWarpTime.toFixed(0)}`);
+        // ★★★---------------------------------------------★★★
+
+        // BGMが流れていなければ再生 (ルートによってBGMを変えるならここで判定)
+        let bgmToPlay = this.bossData.bgmKey; // デフォルト
+        if (this.currentRoute === 'order' && this.bossData.bgmKeyOrder) {
+            bgmToPlay = this.bossData.bgmKeyOrder;
+        } else if (this.currentRoute === 'chaos' && this.bossData.bgmKeyChaos) {
+            bgmToPlay = this.bossData.bgmKeyChaos;
+        }
+        if (bgmToPlay && (!this.currentBgm || this.currentBgm.key !== bgmToPlay || !this.currentBgm.isPlaying)) {
+            this.playSpecificBgm(bgmToPlay); // playSpecificBgmは指定キーのBGMを再生/切り替え
+        } else if (!this.currentBgm || !this.currentBgm.isPlaying) {
+            this.playBossBgm(); // フォールバック
+        }
     }
 }
+// 新しいヘルパーメソッド: 試練開始時にボールを準備する
+prepareBallForTrial() {
+    if (this.balls && this.balls.countActive(true) === 0) {
+        console.log("[PrepareBallForTrial] No active balls, creating one.");
+        this.createAndAddBallToPaddle();
+    } else if (this.balls) {
+        console.log("[PrepareBallForTrial] Resetting existing balls to paddle.");
+        this.resetAllBallsToPaddle();
+    }
+    this.isBallLaunched = false;
+}
+// (createAndAddBallToPaddle, resetAllBallsToPaddle は前回定義したものを想定)
+
+// playSpecificBgm ヘルパーメソッド (BGM切り替え用)
+playSpecificBgm(bgmKey) {
+    this.stopBgm(); // 現在のBGMを停止
+    if (bgmKey && this.cache.audio.has(bgmKey)) {
+        console.log(`[BGM] Playing specific BGM: ${bgmKey}`);
+        this.currentBgm = this.sound.add(bgmKey, { loop: true, volume: 0.45 });
+        try { this.currentBgm.play(); } catch (e) { console.error(`Error playing BGM ${bgmKey}:`, e); }
+    } else {
+        console.warn(`[BGM] Specific BGM key "${bgmKey}" not found or not loaded. Playing default.`);
+        this.playBossBgm(); // デフォルトBGMを再生
+    }
+}
+
 
     // 現在の試練に応じた環境設定 (専用オブジェクト召喚など)
     setupCurrentTrialEnvironment(trial) {
@@ -664,47 +710,62 @@ shatterCrystal(crystal) {
         }
     }
 
-    // ボスの攻撃パターンとワープ
-    updateSpecificBossBehavior(time, delta) {
-        if (this.isIntroAnimating || !this.playerControlEnabled || !this.boss || !this.boss.active || this.bossDefeated || this.isGameOver || this.isChoiceEventActive) {
-            return;
-        }
-
-        // ワープ処理 (試練XII「決着の刻」以外)
-      /*  if (!this.isFinalBattleActive && time > this.lastWarpTime + (this.bossData.warpInterval || 5000)) {
-            // (ボールヒット時と攻撃直後にもワープするロジックは別途 hitBoss や攻撃メソッド内に追加)
-            // ここでは時間経過による定期ワープの例
-            this.warpBoss();
-            this.lastWarpTime = time;
-        }*/
-
-        // 攻撃処理 (試練I「調和と破壊」以降、かつ「決着の刻」ではない場合)
-        if (this.activeTrialIndex > 0 && !this.isFinalBattleActive) {
-            const attackIntervalConfig = this.currentRoute === 'order' ? this.bossData.attackIntervalOrder : this.bossData.attackIntervalChaos;
-            const interval = Phaser.Math.Between(attackIntervalConfig.min, attackIntervalConfig.max);
-
-               if (time > this.lastAttackTime + interval) {
-                if (Phaser.Math.Between(0, 1) === 0) {
-                    this.fireRadialAttack();
-                } else {
-                    this.fireTargetedAttack();
-                }
-                this.lastAttackTime = time; // 攻撃実行時刻を記録
-                // 攻撃後に少し遅れてワープ
-                this.time.delayedCall(this.bossData.warpDelayAfterAttack || 300, this.warpBoss, [], this);
-            }
-        }
-
-        // 「決着の刻」のボスAIはここに記述
+    // ボスの攻撃パターンとワープ - lastAttackTime の更新を確認
+updateSpecificBossBehavior(time, delta) {
+    // --- ガード処理 ---
+    if (this.isIntroAnimating || !this.playerControlEnabled || !this.boss || !this.boss.active ||
+        this.bossDefeated || this.isGameOver || this.isChoiceEventActive || this.isFinalBattleActive) {
+        // 最終決戦中のAIは別途ここで呼び出すか、別のメソッドに分ける
         if (this.isFinalBattleActive) {
-            // (最終決戦用の特別な攻撃パターンや動き)
+            this.updateFinalBattleBossAI(time, delta); // 仮の最終決戦AI呼び出し
         }
+        return;
+    }
 
-        // 各試練の達成条件チェック (例)
-        if (this.activeTrial && !this.activeTrial.completed) {
-           
+    // --- 時間経過によるワープ (試練中のみ) ---
+    // (前回「不要」とのことだったので、もし使うならコメント解除)
+    /*
+    if (time > this.lastWarpTime + (this.bossData.warpInterval || 7000)) {
+        console.log("[UpdateBossBehavior] Triggering warp by time.");
+        this.warpBoss();
+        // this.lastWarpTime = time; // warpBossメソッド内で更新するのが良い
+    }
+    */
+
+    // --- 攻撃処理 (試練中: activeTrialIndex が 1 以上、つまり試練II以降) ---
+    // activeTrialIndex は 0 から始まるので、試練IIはインデックス 1
+    if (this.activeTrialIndex >= 1) { // 試練ID 2 (原初の契約) 以降
+        const attackIntervalConfig = this.currentRoute === 'order' ?
+            (this.bossData.attackIntervalOrder || {min:1800, max:2800}) :
+            (this.bossData.attackIntervalChaos || {min:3500, max:5500});
+        const interval = Phaser.Math.Between(attackIntervalConfig.min, attackIntervalConfig.max);
+
+        // デバッグログ (条件確認用)
+        // console.log(`[Attack Check] time: ${time.toFixed(0)}, lastAttack: ${this.lastAttackTime.toFixed(0)}, interval: ${interval}, diff: ${(time - (this.lastAttackTime + interval)).toFixed(0)}`);
+
+        if (time > this.lastAttackTime + interval) {
+            if (Phaser.Math.Between(0, 1) === 0) {
+                this.fireRadialAttack();
+            } else {
+                this.fireTargetedAttack();
+            }
+            this.lastAttackTime = time; // ★★★ 攻撃実行後に lastAttackTime を更新 ★★★
+            console.log(`[Attack] Attack executed. Next attack possible after ${interval}ms. Updated lastAttackTime: ${this.lastAttackTime.toFixed(0)}`);
+
+            // 攻撃後に少し遅れてワープ
+            this.time.delayedCall(this.bossData.warpDelayAfterAttack || 300, this.warpBoss, [], this);
         }
     }
+}
+
+// (オプション) 最終決戦用のボスAIメソッド
+updateFinalBattleBossAI(time, delta) {
+    // ここに「決着の刻」のルシファーの動きや攻撃パターンを記述
+    // 例: super.updateSpecificBossBehavior(time, delta); // CommonBossSceneの汎用的な動きや攻撃を使う場合
+    //     または、専用の攻撃タイマーや移動ロジック
+    console.log("[FinalBattleAI] Updating final battle AI (placeholder)...");
+    // (時間経過ワープや、専用の最終攻撃など)
+}
 
    // CommonBossSceneのhitBossをオーバーライド (試練中のワープと、決着の刻の通常のヒット処理)
 // Boss4Scene.js
