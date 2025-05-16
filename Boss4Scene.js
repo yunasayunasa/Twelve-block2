@@ -774,7 +774,11 @@ hitBoss(boss, ball) {
     console.log("[Boss4 hitBoss - TrialPhase] Ball hit, reflecting.");
 
     // ボール反射ロジック
+    const escapeAngleRad = Phaser.Math.Angle.Between(boss.x, boss.y, ball.x, ball.y); // ボス中心からボールへの角度
+const escapeAngleDeg = Phaser.Math.RadToDeg(escapeAngleRad);
     let speedMultiplier = 1.0;
+    const baseReflectSpeed = (NORMAL_BALL_SPEED || 380) * 0.8; // 反射時は少し減速させるなど調整
+const targetReflectSpeed = baseReflectSpeed * speedMultiplier;
     if (ball.getData('isFast') === true && BALL_SPEED_MODIFIERS && POWERUP_TYPES) {
         speedMultiplier = BALL_SPEED_MODIFIERS[POWERUP_TYPES.SHATORA] || 1.0;
     } else if (ball.getData('isSlow') === true && BALL_SPEED_MODIFIERS && POWERUP_TYPES) {
@@ -784,10 +788,11 @@ hitBoss(boss, ball) {
     const reflectAngleRad = Phaser.Math.Angle.Between(boss.x, boss.y, ball.x, ball.y);
     const reflectAngleDeg = Phaser.Math.RadToDeg(reflectAngleRad) + 180;
     try {
-        this.physics.velocityFromAngle(reflectAngleDeg, targetSpeed, ball.body.velocity);
-    } catch (e) {
-        console.error("[Boss4 hitBoss - TrialPhase] Error setting ball velocity for reflection:", e);
-    }
+        this.physics.velocityFromAngle(escapeAngleDeg, targetReflectSpeed, ball.body.velocity);
+    console.log(`[Boss4 hitBoss - TrialPhase] Ball reflected. Angle: ${escapeAngleDeg.toFixed(1)}, Speed: ${targetReflectSpeed.toFixed(1)}`);
+} catch (e) {
+    console.error("[Boss4 hitBoss - TrialPhase] Error setting ball velocity for reflection:", e);
+}
 
     // 試練達成判定 (ボールがボスに当たることが条件の試練)
     if (this.activeTrial && !this.activeTrial.completed) {
