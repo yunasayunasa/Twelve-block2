@@ -712,25 +712,40 @@ shatterCrystal(crystal) {
 
     // ボスの攻撃パターンとワープ - lastAttackTime の更新を確認
 updateSpecificBossBehavior(time, delta) {
+   updateSpecificBossBehavior(time, delta) {
+    // ★★★ ここに詳細なログを追加 ★★★
+    // console.log(
+    //     `[UpdateSpecificBossBehavior Tick] Time: ${time.toFixed(0)}`,
+    //     `isIntroAnimating: ${this.isIntroAnimating}`,
+    //     `playerControlEnabled: ${this.playerControlEnabled}`,
+    //     `bossActive: ${this.boss?.active}`,
+    //     `bossDefeated: ${this.bossDefeated}`,
+    //     `isGameOver: ${this.isGameOver}`,
+    //     `isChoiceEventActive: ${this.isChoiceEventActive}`,
+    //     `isFinalBattleActive: ${this.isFinalBattleActive}`,
+    //     `activeTrialIndex: ${this.activeTrialIndex}`,
+    //     `currentRoute: ${this.currentRoute}`,
+    //     `lastAttackTime: ${this.lastAttackTime.toFixed(0)}`
+    // );
+    // ★★★-------------------------★★★
+
     // --- ガード処理 ---
     if (this.isIntroAnimating || !this.playerControlEnabled || !this.boss || !this.boss.active ||
         this.bossDefeated || this.isGameOver || this.isChoiceEventActive || this.isFinalBattleActive) {
-        // 最終決戦中のAIは別途ここで呼び出すか、別のメソッドに分ける
-        if (this.isFinalBattleActive) {
-            this.updateFinalBattleBossAI(time, delta); // 仮の最終決戦AI呼び出し
+
+        // どの条件でガードされたかログで確認 (任意)
+        if (this.isIntroAnimating) console.log("[UpdateSpecific] Guarded by isIntroAnimating");
+        else if (!this.playerControlEnabled) console.log("[UpdateSpecific] Guarded by !playerControlEnabled");
+        else if (!this.boss || !this.boss.active) console.log("[UpdateSpecific] Guarded by !boss or !boss.active");
+        else if (this.bossDefeated) console.log("[UpdateSpecific] Guarded by bossDefeated");
+        else if (this.isGameOver) console.log("[UpdateSpecific] Guarded by isGameOver");
+        else if (this.isChoiceEventActive) console.log("[UpdateSpecific] Guarded by isChoiceEventActive");
+        else if (this.isFinalBattleActive && this.activeTrialIndex < (this.trialsData.length -1) ) { // 最終決戦だが、まだ試練中という矛盾状態を避ける
+             // 最終決戦のAI呼び出しはここ
+             this.updateFinalBattleBossAI(time, delta);
         }
         return;
     }
-
-    // --- 時間経過によるワープ (試練中のみ) ---
-    // (前回「不要」とのことだったので、もし使うならコメント解除)
-    /*
-    if (time > this.lastWarpTime + (this.bossData.warpInterval || 7000)) {
-        console.log("[UpdateBossBehavior] Triggering warp by time.");
-        this.warpBoss();
-        // this.lastWarpTime = time; // warpBossメソッド内で更新するのが良い
-    }
-    */
 
     // --- 攻撃処理 (試練中: activeTrialIndex が 1 以上、つまり試練II以降) ---
     // activeTrialIndex は 0 から始まるので、試練IIはインデックス 1
@@ -741,7 +756,7 @@ updateSpecificBossBehavior(time, delta) {
         const interval = Phaser.Math.Between(attackIntervalConfig.min, attackIntervalConfig.max);
 
         // デバッグログ (条件確認用)
-        // console.log(`[Attack Check] time: ${time.toFixed(0)}, lastAttack: ${this.lastAttackTime.toFixed(0)}, interval: ${interval}, diff: ${(time - (this.lastAttackTime + interval)).toFixed(0)}`);
+         console.log(`[Attack Check] time: ${time.toFixed(0)}, lastAttack: ${this.lastAttackTime.toFixed(0)}, interval: ${interval}, diff: ${(time - (this.lastAttackTime + interval)).toFixed(0)}`);
 
         if (time > this.lastAttackTime + interval) {
             if (Phaser.Math.Between(0, 1) === 0) {
