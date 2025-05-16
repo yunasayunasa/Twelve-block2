@@ -545,7 +545,6 @@ resetAllBallsToPaddle() {
 }
 
 
-shatterCrystal
 
 // selectRoute: ルートを設定し、次の試練へ
 selectRoute(route) { // destroyedCrystal引数は不要に
