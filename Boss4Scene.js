@@ -454,81 +454,90 @@ prepareBallForChoice() {
 // startHarmonyAndDestructionChoice: クリスタル表示と衝突設定
 startHarmonyAndDestructionChoice() {
     this.isChoiceEventActive = true;
-    // ★プレイヤー操作はこのメソッドの冒頭ではなく、startGameplayで既に有効になっているはず★
-    // ★ボールもstartGameplay -> super.startGameplay() -> createBalls で準備されているはず★
-    // ★もしボールがなければここで生成するロジックは残しても良いが、通常は不要のはず★
-    this.playerControlEnabled = true; // CommonのstartGameplayでtrueになる想定
-    this.isBallLaunched = false;    // CommonのstartGameplayでfalseになる想定
-     // ボールがなければ生成、あればパドル上にリセット
-    if (this.balls && this.balls.countActive(true) === 0) {
-        console.log("[ChoiceEvent] No active balls, creating one for choice.");
-        this.createAndAddBallToPaddle(); // パドル上にボールを生成するヘルパー
-    } else if (this.balls) {
-        console.log("[ChoiceEvent] Resetting existing balls to paddle for choice.");
-        this.resetAllBallsToPaddle(); // 全ボールをパドル上に戻すヘルパー
+    this.playerControlEnabled = false; // UI選択中はゲーム操作を止める
+    this.isBallLaunched = true;      // ボールも動かないように (あるいは非表示)
+    if(this.balls?.getFirstAlive()?.body) { // ボールが存在すれば動きを止める
+        this.balls.getChildren().forEach(ball => ball.body.stop());
     }
+
 
     if (this.trialUiText && this.activeTrial && this.activeTrial.isChoiceEvent) {
         this.trialUiText.setText(`十二の試練：試練 ${this.activeTrial.id}「${this.activeTrial.name}」\n${this.activeTrial.conditionText}`);
     }
-    console.log("[ChoiceEvent] Presenting Harmony and Destruction choice. Player needs to destroy a crystal.");
+    console.log("[ChoiceEvent] Presenting Harmony and Destruction choice via Text Buttons.");
 
-    const crystalY = this.gameHeight * 0.5; // Y位置調整
-    const crystalScale = 0.28; // スケール調整
-    const crystalDepth = 10;  // ボールより手前、ボスより手前
-
-    const crystalHitCallback = (ball, crystal) => {
-        if (!this.isChoiceEventActive || !crystal.active) return; // イベント中かつクリスタルがアクティブな場合のみ
-        
-        const route = crystal.getData('crystalType');
-        console.log(`[ChoiceEvent] Ball hit ${route} Crystal.`);
-
-        // 両方のクリスタルを破壊演出（shatterCrystal内でdestroyも行う）
-        this.shatterCrystal(this.harmonyCrystal);
-        this.shatterCrystal(this.destructionCrystal);
-        // colliderも不要になるので破棄できるとベストだが、シーン終了まで残っても大きな問題はない
-        // (あるいは、shatterCrystal内でcolliderもdisableする)
-
-        this.selectRoute(route); // ルート選択処理（クリスタルオブジェクトは渡さない）
+    // --- ▼ テキストボタンのスタイル定義 ▼ ---
+    const buttonFontSize = Math.floor(this.gameWidth / 12); // 画面幅に応じた大きめのフォント
+    const buttonBaseStyle = {
+        fontSize: `${buttonFontSize}px`,
+        fontFamily: 'serif', // 明朝体など、雰囲気に合わせて
+        // fill: '#FFFFFF',    // 文字色 (アクティブ時)
+        // stroke: '#000000',  // 縁取り色 (アクティブ時)
+        // strokeThickness: buttonFontSize * 0.08,
+        align: 'center',
+        // backgroundColor: 'rgba(0,0,0,0.0)', // 背景を完全に透明に
+        // padding: { y: buttonFontSize * 0.3 }, // 上下の余白でクリック範囲を調整
     };
+    // ホバー時のスタイル（任意）
+    // const buttonHoverStyle = { fill: '#FFD700' }; // 例: 金色に光る
 
-    // 秩序のクリスタル
-    if (this.harmonyCrystal) this.harmonyCrystal.destroy();
-    this.harmonyCrystal = this.physics.add.image(this.gameWidth * 0.3, crystalY, 'crystal_order')
-        .setScale(crystalScale).setImmovable(true).setDepth(crystalDepth).setData('crystalType', 'order').setActive(true).setVisible(true);
-    if (this.harmonyCrystal.body) this.harmonyCrystal.body.setAllowGravity(false);
-    this.physics.add.collider(this.balls, this.harmonyCrystal,     (ball, crystal) => { // ★アロー関数に変更★
-        console.log("[ChoiceEvent] Ball hit Harmony Crystal (Arrow CB). this is:", this);
-        this.shatterCrystal(crystal); // シーンの shatterCrystal を呼ぶ
-        this.selectRoute('order', crystal);
-    },
-    (ball, crystal) => crystal.active,
-    this // コンテキスト指定は残しても良いが、アロー関数なら不要になることも
-);
-    // 混沌のクリスタル
-    if (this.destructionCrystal) this.destructionCrystal.destroy();
-    this.destructionCrystal = this.physics.add.image(this.gameWidth * 0.7, crystalY, 'crystal_chaos')
-        .setScale(crystalScale).setImmovable(true).setDepth(crystalDepth).setData('crystalType', 'chaos').setActive(true).setVisible(true);
-    if (this.destructionCrystal.body) this.destructionCrystal.body.setAllowGravity(false);
-    this.physics.add.collider(this.balls, this.destructionCrystal,     (ball, crystal) => { // ★アロー関数に変更★
-        console.log("[ChoiceEvent] Ball hit Harmony Crystal (Arrow CB). this is:", this);
-        this.shatterCrystal(crystal); // シーンの shatterCrystal を呼ぶ
-        this.selectRoute('order', crystal);
-    },
-    (ball, crystal) => crystal.active,
-    this // コンテキスト指定は残しても良いが、アロー関数なら不要になることも
-);
-    // プレイヤー操作はCommonのstartGameplayで有効になっているはず
-    // ボールがなければここで生成 (念のため)
-    if (this.balls && this.balls.countActive(true) === 0) {
-        this.createAndAddBallToPaddle(); // パドル上にボールを生成するヘルパーを想定
-        this.isBallLaunched = false;
-    } else { // 既にボールがある場合はパドル上に戻して未発射に
-        this.resetAllBallsToPaddle(); // 全ボールをパドル上に戻すヘルパーを想定
-        this.isBallLaunched = false;
-    }
-    console.log("[ChoiceEvent] Crystals displayed. Waiting for player to hit one.");
+    // --- ▼ 選択肢のテキストと対応するルート ▼ ---
+    const choices = [
+        { text: "絶対否定", route: "order", description: "(秩序の道：時は緩やかに、敵は猛る)" }, // 説明はログ用
+        { text: "永遠拒絶", route: "chaos", description: "(混沌の道：時は加速し、敵は沈黙)" }
+    ];
+
+    // 画面を覆う半透明の暗幕 (ボタンを目立たせるため、任意)
+    this.choiceOverlay = this.add.rectangle(0, 0, this.gameWidth, this.gameHeight, 0x000000, 0.5)
+        .setOrigin(0,0).setDepth(999).setInteractive(); // 他のクリックをブロック
+
+    this.choiceButtons = []; // ボタンオブジェクトを保持する配列
+
+    const buttonYStep = this.gameHeight * 0.25; // ボタン間の縦の間隔
+    let startButtonY = this.gameHeight / 2 - (choices.length - 1) * buttonYStep / 2; // 最初のボタンのY座標 (中央揃え)
+
+    choices.forEach((choice, index) => {
+        const buttonText = this.add.text(
+            this.gameWidth / 2,         // X座標: 画面中央
+            startButtonY + (index * buttonYStep), // Y座標
+            choice.text,
+            { ...buttonBaseStyle, fill: '#DDDDDD' } // 通常時の文字色
+        )
+        .setOrigin(0.5)             // 原点: テキストの中央
+        .setInteractive({ useHandCursor: true }) // カーソルを手に
+        .setPadding(20, 20, 20, 20) // ★クリック範囲を文字より少し広げる
+        .setDepth(1000);            // 暗幕より手前
+
+        // ★横いっぱいにするための処理★
+        // テキストオブジェクト自体の幅は内容によるので、
+        // 透明なインタラクティブゾーンを別途作成するか、
+        // setDisplayWidth を使うが、アスペクト比が崩れる可能性あり。
+        // ここでは、setPaddingでクリック範囲を広げつつ、
+        // 見た目はテキスト幅のまま、中央揃えで対応。
+        // 真に「横いっぱい」にするなら、背景を持つボタン画像かDOM要素が適している。
+        // 文字だけを横いっぱいに引き伸ばすのは難しい。
+        // 代わりに、テキストの左右に装飾的なラインを入れるなどを検討。
+
+        // 今回は「横いっぱいの"クリックエリア"を持つ」という解釈で、
+        // setFixedSize でテキストオブジェクトのインタラクションエリアを広げます。
+        buttonText.setFixedSize(this.gameWidth * 0.8, buttonFontSize * 1.8); // 幅を画面の80%, 高さはフォントの1.8倍
+        // buttonText.input.hitArea.setTo(0, 0, buttonText.width, buttonText.height); // これでクリック範囲がFixedSizeに合う
+
+        buttonText.on('pointerover', () => {
+            buttonText.setStyle({ fill: '#FFFF99' }); // ホバー時の文字色 (例: 薄い黄色)
+        });
+        buttonText.on('pointerout', () => {
+            buttonText.setStyle({ fill: '#DDDDDD' }); // 通常時の文字色
+        });
+        buttonText.on('pointerdown', () => {
+            console.log(`Choice button "${choice.text}" clicked. Selecting route: ${choice.route}`);
+            this.selectRoute(choice.route);
+        });
+        this.choiceButtons.push(buttonText);
+    });
+    // --- ▲ テキストボタン表示処理 終了 ▲ ---
 }
+
 
 // createAndAddBallToPaddle と resetAllBallsToPaddle はCommonBossSceneにあるか、ここで定義するヘルパー
 createAndAddBallToPaddle() {
