@@ -1414,46 +1414,60 @@ if (this.isMakiraActive && this.balls && this.familiars && this.familiars.countA
         this.setColliders();
     }
 
-      // CommonBossScene.js 内の gameOver メソッド
-      gameOver() {
-        if (this.isGameOver) return;
-        console.log(">>> Entering gameOver() <<<");
-        this.isGameOver = true;
-        this.playerControlEnabled = false;
+    // CommonBossScene.js 内の gameOver メソッド
+gameOver() {
+    if (this.isGameOver) return; // 既に処理中なら重複実行を防ぐ
+    console.log(">>> Entering CommonBossScene gameOver() <<<");
+    this.isGameOver = true;
+    this.playerControlEnabled = false;
 
-        console.log("[gameOver] Checking gameOverText object:", this.gameOverText);
-        if (this.gameOverText) {
-            console.log(`[gameOver] gameOverText visible before setVisible: ${this.gameOverText.visible}, active: ${this.gameOverText.active}, depth: ${this.gameOverText.depth}`);
-            try {
-                this.gameOverText.setVisible(true);
-                console.log(`[gameOver] gameOverText.setVisible(true) called. Now visible: ${this.gameOverText.visible}`);
-            } catch (e) { console.error("!!! ERROR setting gameOverText visible:", e); }
-        } else { console.error("!!! ERROR: this.gameOverText is null or undefined in gameOver() !!!"); }
-
-        try { if (this.physics.world.running) this.physics.pause(); } catch(e) { console.error("Error pausing physics:", e); }
-        this.balls?.children.each(ball => { if(ball.active) ball.setVelocity(0,0).setActive(false); });
-        this.bossMoveTween?.pause(); // Tween は pause できる
-
-        // ★★★ タイマーイベントの停止（削除） ★★★
-        if (this.attackBrickTimer) {
-             try {
-                 this.attackBrickTimer.remove(); // pause() ではなく remove()
-                 this.attackBrickTimer = null; // 参照もクリア
-                 console.log("[gameOver] Attack brick timer removed.");
-             } catch (e) { console.error("!!! ERROR removing attackBrickTimer:", e); }
+    // ゲームオーバーテキストの表示
+    console.log("[Common GameOver] Checking gameOverText object:", this.gameOverText);
+    if (this.gameOverText) {
+        console.log(`[Common GameOver] gameOverText visible before setVisible: ${this.gameOverText.visible}, active: ${this.gameOverText.active}, depth: ${this.gameOverText.depth}`);
+        try {
+            // テキスト内容もここで設定するのが良いかもしれない
+            // this.gameOverText.setText("全滅した...\nタップで最初から"); // createGameOverTextと同様の内容
+            this.gameOverText.setVisible(true).setDepth(10001); // ★最前面に表示されるように深度を上げる
+            console.log(`[Common GameOver] gameOverText.setVisible(true) called. Now visible: ${this.gameOverText.visible}`);
+        } catch (e) {
+            console.error("!!! ERROR setting gameOverText visible:", e);
         }
-        if (this.randomVoiceTimer) {
-             try {
-                 this.randomVoiceTimer.remove(); // こちらも remove()
-                 this.randomVoiceTimer = null;
-                 console.log("[gameOver] Random voice timer removed.");
-             } catch (e) { console.error("!!! ERROR removing randomVoiceTimer:", e); }
-        }
-        // 他にも remove() すべきタイマーがあればここに追加 (パワーアップタイマーなどは loseLife で解除済みのはず)
-        // ★★★-----------------------------★★★
-
-        console.log("<<< Exiting gameOver() >>>");
+    } else {
+        console.error("!!! ERROR: this.gameOverText is null or undefined in Common gameOver() !!!");
+        // フォールバックとして、画面中央に簡単なテキストを出すなども検討できる
+        // this.add.text(this.gameWidth / 2, this.gameHeight / 2, 'GAME OVER\nTap to retry', { /* style */ }).setOrigin(0.5).setDepth(10001);
     }
+
+    // 物理演算やゲームオブジェクトの停止
+    try {
+        if (this.physics.world.running) this.physics.pause();
+    } catch(e) { console.error("Error pausing physics in Common gameOver:", e); }
+
+    this.balls?.getChildren().forEach(ball => {
+        if(ball.active) ball.setVelocity(0,0).setActive(false).setVisible(false); // 見えなくもする
+    });
+    this.bossMoveTween?.stop(); // stop() の方が確実かも
+    this.attackBricks?.getChildren().forEach(brick => brick.destroy()); // 攻撃ブロックも全て消すなど
+
+    // 各種タイマーの停止 (Boss4Scene側でも呼んでいるが、Commonでも確実に止める)
+    this.attackBrickTimer?.remove(); this.attackBrickTimer = null;
+    this.randomVoiceTimer?.remove(); this.randomVoiceTimer = null;
+    // (その他、CommonBossSceneが管理しているタイマーがあればここで停止)
+    console.log("[Common GameOver] Timers stopped.");
+
+    // ★★★ プレイヤーの入力を待ってタイトルへ戻る処理を追加 ★★★
+    console.log("[Common GameOver] Setting up input listener to return to title.");
+    // 他の入力が残っている可能性があるので、一度クリアしてから設定するのも手
+    // this.input.removeAllListeners('pointerdown');
+    this.input.once('pointerdown', () => {
+        console.log("[Common GameOver] Pointerdown detected, calling returnToTitle.");
+        this.returnToTitle();
+    }, this);
+    // ★★★----------------------------------------------------★★★
+
+    console.log("<<< Exiting CommonBossScene gameOver() >>>");
+}
     triggerGameClear() {
         console.log("GAME CLEAR SEQUENCE TRIGGERED!"); this.stopBgm(); this.sound.play(AUDIO_KEYS.SE_STAGE_CLEAR);
         this.gameClearText?.setText(`会議終了！\nお疲れ様でした！\n\n残りライフ: ${this.lives}\nハチャメチャ度: ${this.chaosSettings.count} / ${this.chaosSettings.ratePercent}%\n\nタップでタイトルへ`).setVisible(true);
