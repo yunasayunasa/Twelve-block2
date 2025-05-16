@@ -1075,7 +1075,39 @@ fireTargetedAttack() {
             console.log(`[Targeted Attack] Projectile fired towards X:${targetX.toFixed(0)} at Speed:${speed.toFixed(0)}`);
         }
     // }, [], this);
-}// 混沌の欠片召喚 (仮実装)
+}
+
+// Boss4Scene.js
+completeCurrentTrial() {
+    if (this.activeTrial && !this.activeTrial.completed) { // (A)
+        console.log(`[TrialLogic] Trial ${this.activeTrial.id}「${this.activeTrial.name}」 COMPLETED!`);
+        this.activeTrial.completed = true;
+
+        // ★★★ 試練クリア時に画面内の全ての敵の弾を消す ★★★
+        if (this.attackBricks) { // attackBricks は CommonBossScene のプロパティ
+            console.log("[Trial Complete] Clearing all active attack bricks.");
+            this.attackBricks.clear(true, true); // グループ内の全ての子を破棄し、グループからも削除
+        }
+        // ★★★-----------------------------------------★★★
+
+        // 報酬：ビカラ陽ドロップ
+        if (this.bossData.trialRewardItem && this.boss && this.boss.active) { // (B)
+            console.log(`[Trial Reward] Dropping ${this.bossData.trialRewardItem}`);
+            this.dropSpecificPowerUp(this.boss.x, this.boss.y + this.boss.displayHeight/2, this.bossData.trialRewardItem);
+        }
+        // (試練達成SEなど)
+        // if (AUDIO_KEYS.SE_TRIAL_SUCCESS) try { this.sound.play(AUDIO_KEYS.SE_TRIAL_SUCCESS); } catch(e){}
+
+        // 次の試練へ
+        const nextTrialDelay = 1000; // 1秒後 (調整可能)
+        console.log(`[Trial Complete] Scheduling next trial in ${nextTrialDelay}ms.`);
+        this.time.delayedCall(nextTrialDelay, this.startNextTrial, [], this); // (C)
+    } else {
+        console.warn("[TrialLogic] completeCurrentTrial called but no active trial or trial already completed.");
+    }
+}
+
+// 混沌の欠片召喚 (仮実装)
     spawnChaosFragments(count) { /* TODO */ console.log(`[Trial] Spawning ${count} Chaos Fragments.`);}
     // 虚無の壁召喚 (仮実装)
     spawnVoidWall() { /* TODO */ console.log("[Trial] Spawning Void Wall.");}
