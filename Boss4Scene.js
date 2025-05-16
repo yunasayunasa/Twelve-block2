@@ -81,8 +81,8 @@ export default class Boss4Scene extends CommonBossScene {
             jiEndTimerYPosRatio: 0.1,
             jiEndTimerFontSizeRatio: 1 / 15,
 
-            attackIntervalOrder: { min: 1800, max: 2800 }, // 攻撃間隔 (秩序) - 少し速め
-            attackIntervalChaos: { min: 3500, max: 5500 }, // 攻撃間隔 (混沌) - 遅め
+            attackIntervalOrder: { min: 3500, max: 5500 }, // 攻撃間隔 (秩序) - 少し速め
+            attackIntervalChaos: { min: 7000, max: 11000 }, // 攻撃間隔 (混沌) - 遅め
             // (弾速、弾数などもここで定義し、fireRadialAttack/fireTargetedAttackで参照する)
             radialAttackParamsOrder: { count: 5, speedMultiplier: 1.2 },
             radialAttackParamsChaos: { count: 3, speedMultiplier: 0.8 },
