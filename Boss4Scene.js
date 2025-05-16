@@ -578,61 +578,39 @@ resetAllBallsToPaddle() {
 
 // selectRoute: ルートを設定し、次の試練へ
  // Boss4Scene.js - selectRoute メソッド修正案 (Tweenでフェードアウト)
+// Boss4Scene.js - selectRoute メソッド修正案
 selectRoute(route) {
     if (!this.isChoiceEventActive) return;
-    this.isChoiceEventActive = false; // ★すぐにフラグを下ろす
+    this.isChoiceEventActive = false;
     this.currentRoute = route;
-    console.log(`[SelectRoute] Route set to: ${this.currentRoute}. Fading out choice UI...`);
+    console.log(`[SelectRoute] Route set to: ${this.currentRoute}. isChoiceEventActive is now: ${this.isChoiceEventActive}`);
 
-    let tweensToComplete = 0;
-    const onUITweenComplete = () => {
-        tweensToComplete--;
-        if (tweensToComplete <= 0) {
-            console.log("[SelectRoute] All UI fade out tweens completed. Proceeding to startNextTrial.");
-            // 破棄はTweenのonCompleteで行うので、ここでは参照クリアのみ
-            this.choiceOverlay = null;
-            this.choiceButtons = [];
-            this.startNextTrial(); // ★全てのUIアニメーションが終わってから次の試練へ
-        }
-    };
-
-    if (this.choiceOverlay && this.choiceOverlay.active) {
-        tweensToComplete++;
-        this.tweens.add({
-            targets: this.choiceOverlay,
-            alpha: 0,
-            duration: 250, // 0.25秒でフェードアウト
-            ease: 'Linear',
-            onComplete: () => {
-                this.choiceOverlay?.destroy(); // ?.で安全に
-                onUITweenComplete();
-            }
-        });
+    console.log("[SelectRoute] Hiding and destroying choice UI elements...");
+    if (this.choiceOverlay) {
+        this.choiceOverlay.setVisible(false); // ★まず非表示に
+        if (this.choiceOverlay.scene) this.choiceOverlay.destroy();
+        this.choiceOverlay = null;
+        console.log("[SelectRoute] Overlay hidden and destroyed.");
     }
 
-    this.choiceButtons.forEach((button) => {
-        if (button && button.active) {
-            tweensToComplete++;
-            this.tweens.add({
-                targets: button,
-                alpha: 0,
-                duration: 250,
-                ease: 'Linear',
-                onComplete: () => {
-                    button?.destroy();
-                    onUITweenComplete();
-                }
-            });
+    this.choiceButtons.forEach((button, index) => {
+        if (button) {
+            button.setVisible(false); // ★まず非表示に
+            if (button.scene) button.destroy();
+            console.log(`[SelectRoute] Button ${index} hidden and destroyed.`);
         }
     });
+    this.choiceButtons = [];
+    console.log("[SelectRoute] Choice buttons array cleared.");
 
-    // もし即座に全てのUIが破棄されてtweensToCompleteが0のままなら、直接次の試練へ
-    if (tweensToComplete === 0) {
-        console.log("[SelectRoute] No active UI elements to fade out. Proceeding to startNextTrial directly.");
+    // 次の試練への遅延を少し延ばす
+    const nextTrialDelay = 500; // 0.5秒 (調整可能)
+    console.log(`[SelectRoute] Method END. Scheduling startNextTrial in ${nextTrialDelay}ms.`);
+    this.time.delayedCall(nextTrialDelay, () => {
+        console.log("[SelectRoute DelayedCall] Now calling startNextTrial.");
         this.startNextTrial();
-    }
+    }, [], this);
 }
-
 
 // クリスタル破壊の共通処理 (演出など)
 shatterCrystal(crystal) {
