@@ -1114,7 +1114,7 @@ updateTrialProgressUI(trial) {
     formatTime(milliseconds) { /* ... */ return `ジ・エンドまで… ${String(Math.floor(milliseconds/60000)).padStart(2,'0')}:${String(Math.floor((milliseconds%60000)/1000)).padStart(2,'0')}:${String(Math.floor((milliseconds%1000)/10)).padStart(2,'0')}`; }
     playBellSound() { /* ... */ try { if(AUDIO_KEYS.SE_JI_END_BELL) this.sound.play(AUDIO_KEYS.SE_JI_END_BELL); } catch(e){} }
     // Boss4Scene.js の triggerJiEndGameOver メソッド (再掲・確認)
-// Boss4Scene.js の triggerJiEndGameOver メソッド (代替案1「世界終焉」風の骨子)
+/// Boss4Scene.js の triggerJiEndGameOver メソッド (修正案)
 triggerJiEndGameOver() {
     if (this.isGameOver) return;
     console.log("[JiEndTimer] JI END! Triggering custom game over sequence.");
@@ -1125,41 +1125,58 @@ triggerJiEndGameOver() {
     this.sound.stopAll();
     if (this.currentBgm) this.currentBgm = null;
 
-    // UIを隠す
     this.uiScene?.scene.setVisible(false);
     if (this.jiEndTimerText) this.jiEndTimerText.setVisible(false);
     if (this.trialUiText) this.trialUiText.setVisible(false);
 
     // --- ▼ 世界終焉風演出 ▼ ---
-    // 1. 画面暗転
+    // 1. 画面暗転 (これはすぐ実行)
     const overlay = this.add.rectangle(0, 0, this.gameWidth, this.gameHeight, 0x000000, 0)
-        .setOrigin(0,0).setDepth(9990); // 最前面に近い
+        .setOrigin(0,0).setDepth(9990);
     this.tweens.add({ targets: overlay, alpha: 0.8, duration: 2000, ease: 'Linear' });
 
-    // 2. ボスや背景の演出 (任意)
+    // 2. ボスや背景の演出 (これもすぐ実行)
     if (this.boss) {
-        this.tweens.add({ targets: this.boss, tint: 0xff0000, duration: 1000, ease: 'Linear' }); // 赤く染まる
-        // this.boss.play('lucilius_end_animation'); // 専用アニメーションがあれば
+        this.tweens.add({ targets: this.boss, tint: 0xff0000, duration: 1000, ease: 'Linear' });
     }
-    // (背景が歪むなどのエフェクト)
-
-    // 3. プレイヤー側の消滅演出 (任意)
     if (this.paddle) this.tweens.add({ targets: this.paddle, alpha: 0, duration: 500, delay: 1000 });
     this.balls?.getChildren().forEach(ball => {
         if(ball.active) this.tweens.add({ targets: ball, alpha: 0, scale: 0, duration: 500, delay: 1200 });
     });
 
-    // 4. 「JI・END」テキスト表示
-    this.time.delayedCall(2500, () => { // 暗転や他の演出がある程度進んでから
-        const endText = this.add.text(this.gameWidth / 2, this.gameHeight / 2, "THE・END", {
-            fontSize: `${this.gameWidth / 8}px`, fill: '#ff0000', fontFamily: 'serif',
-            stroke: '#660000', strokeThickness: 10, align: 'center'
-        }).setOrigin(0.5).setDepth(9999); // 最前面
+    // 3. 「JI・END」テキスト表示 (少し遅れて)
+    const jiEndTextDelay = 2500; // 暗転や他の演出がある程度進むのを待つ
+    console.log(`[JiEndGameOver] Scheduling JI・END text display in ${jiEndTextDelay}ms.`);
 
-        this.time.delayedCall(3000, () => { // さらに数秒後
-            if (endText.scene) endText.destroy();
-            if (overlay.scene) overlay.destroy(); // 念のため
-            super.gameOver(); // CommonBossSceneの通常のゲームオーバー処理へ
+    this.time.delayedCall(jiEndTextDelay, () => {
+        if (this.scene.key !== 'Boss4Scene' || !this.scene.isActive()) { // シーンがまだアクティブか確認
+            console.warn("[JiEndGameOver] Scene no longer active when trying to show JI・END text. Aborting further GFX.");
+            // この時点で super.gameOver() を呼んでしまうか、何もしないか
+            // super.gameOver(); // 強制的に終了させる場合
+            return;
+        }
+        console.log("[JiEndGameOver] Displaying JI・END text now.");
+        const endText = this.add.text(this.gameWidth / 2, this.gameHeight / 2, "THE・END", {
+            fontSize: `${this.gameWidth / 8}px`, fill: '#cc0000', fontFamily: 'serif', // 色を少し調整
+            stroke: '#550000', strokeThickness: 10, align: 'center'
+        }).setOrigin(0.5).setDepth(9999);
+
+        // 4. JI・END 表示後、さらに遅れて通常のゲームオーバー処理へ
+        const finalGameOverDelay = 3000; // JI・END テキストを3秒間表示
+        console.log(`[JiEndGameOver] JI・END text displayed. Scheduling final game over in ${finalGameOverDelay}ms.`);
+
+        this.time.delayedCall(finalGameOverDelay, () => {
+            if (this.scene.key !== 'Boss4Scene' || !this.scene.isActive()) { // 再度シーンの状態確認
+                console.warn("[JiEndGameOver] Scene no longer active when trying to call super.gameOver().");
+                return;
+            }
+            console.log("[JiEndGameOver] Cleaning up JI・END GFX and calling super.gameOver().");
+            if (endText && endText.scene) endText.destroy();
+            if (overlay && overlay.scene) overlay.destroy(); // overlayもここで破棄
+            
+            // ★★★ super.gameOver() の呼び出し ★★★
+            super.gameOver();
+            console.log("[JiEndGameOver] super.gameOver() called.");
         }, [], this);
     }, [], this);
     // --- ▲ 世界終焉風演出 終了 ▲ ---
