@@ -172,7 +172,7 @@ this.load.image('attack_brick_lucilius_target', 'assets/attack_brick_lucilius_ta
 this.load.image('gameBackground_Boss4', 'assets/gameBackground_Boss4.jpg');
 // (その他必要な画像アセット)
 
-this.load.video('gameOverVideo_JiEnd', 'assets/videos/ji_end_연출.mp4');
+this.load.video('gameOverVideo_JiEnd', 'assets/ji_end.mp4');
 
 // 音声 (AUDIO_KEYS に定義したキーを使ってロード)
 if (AUDIO_KEYS.BGM_LUCILIUS_PHASE1) {

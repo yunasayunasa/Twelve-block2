@@ -82,10 +82,10 @@ export default class Boss4Scene extends CommonBossScene {
             jiEndTimerFontSizeRatio: 1 / 15,
 
             attackIntervalOrder: { min: 3500, max: 5500 }, // 攻撃間隔 (秩序) - 少し速め
-            attackIntervalChaos: { min: 7000, max: 11000 }, // 攻撃間隔 (混沌) - 遅め
+            attackIntervalChaos: { min: 10000, max: 21000 }, // 攻撃間隔 (混沌) - 遅め
             // (弾速、弾数などもここで定義し、fireRadialAttack/fireTargetedAttackで参照する)
-            radialAttackParamsOrder: { count: 5, speedMultiplier: 1.0 },
-            radialAttackParamsChaos: { count: 3, speedMultiplier: 0.5 },
+            radialAttackParamsOrder: { count: 3, speedMultiplier: 1.0 },
+            radialAttackParamsChaos: { count: 5, speedMultiplier: 0.5 },
             targetedAttackParamsOrder: { chargeTime: 600, speedMultiplier: 1.0 },
             targetedAttackParamsChaos: { chargeTime: 900, speedMultiplier: 0.7 },
 
@@ -124,16 +124,16 @@ export default class Boss4Scene extends CommonBossScene {
     // 試練内容を定義するヘルパーメソッド
     defineTrials() {
         return [
-            { id: 1, name: "絶対否定と永遠拒絶", conditionText: "絶対否定か永遠拒絶、どちらかを選べ", targetItem: null, completed: false, isChoiceEvent: true },
+            { id: 1, name: "運命の岐路", conditionText: "滅びへの道を選べ", targetItem: null, completed: false, isChoiceEvent: true },
             { id: 2, name: "原初の契約", conditionText: "ルシファー本体にボールを5回当てる。", targetItem: POWERUP_TYPES.ANCHIRA, completed: false, hitCount: 0, requiredHits: 5 },
-            { id: 3, name: "混沌の残滓", conditionText: "混沌の欠片を全て破壊せよ。(0/5)", targetItemRandom: [POWERUP_TYPES.MAKIRA, POWERUP_TYPES.BAISRAVA], completed: false, objectsToDestroy: 5, destroyedCount: 0, /* ...欠片生成ロジックなど... */ },
+            { id: 3, name: "混沌の残滓", conditionText: "混沌の欠片を全て破壊せよ。", targetItemRandom: [POWERUP_TYPES.MAKIRA, POWERUP_TYPES.BAISRAVA], completed: false, objectsToDestroy: 5, destroyedCount: 0, /* ...欠片生成ロジックなど... */ },
             { id: 4, name: "天穿つ最終奥義", conditionText: "ヴァジラ奥義を1回発動せよ。", targetItem: POWERUP_TYPES.VAJRA, completed: false, ougiUsed: false },
-            { id: 5, name: "星光の追撃", conditionText: "クビラ効果中に本体にボールを3回当てる。(0/3)", targetItem: POWERUP_TYPES.KUBIRA, completed: false, hitCountKubira: 0, requiredHitsKubira: 3 },
+            { id: 5, name: "星光の追撃", conditionText: "クビラ効果中に本体にボールを3回当てる。", targetItem: POWERUP_TYPES.KUBIRA, completed: false, hitCountKubira: 0, requiredHitsKubira: 3 },
             { id: 6, name: "楽園追放", conditionText: "「パラダイス・ロスト」を受けよ。", targetItem: null, anilaDropLocation: null, completed: false, paradiseLostTriggered: false }, // anilaDropLocation はドロップ時に設定
-            { id: 7, name: "三宝の導き", conditionText: "指定の三種の神器を集めよ。(0/3)", targetItemsToCollect: [POWERUP_TYPES.BIKARA_YANG, POWERUP_TYPES.BADRA, POWERUP_TYPES.MAKORA], collectedItems: [], targetItem: null, completed: false }, // targetItemは進行中に設定
+            { id: 7, name: "三宝の導き", conditionText: "指定の三種の神器を集めよ。", targetItemsToCollect: [POWERUP_TYPES.BIKARA_YANG, POWERUP_TYPES.BADRA, POWERUP_TYPES.MAKORA], collectedItems: [], targetItem: null, completed: false }, // targetItemは進行中に設定
             { id: 8, name: "深淵より来る核金", conditionText: "「アビス・コア」にボールを1回当てよ。", targetItem: POWERUP_TYPES.SINDARA, completed: false, coreHit: false, /* ...コア出現ロジック... */ },
             { id: 9, name: "時の超越、歪む流れの中で", conditionText: "速度変化フィールド内で本体にボールを3回当てる。(0/3)", targetItemAlternate: [POWERUP_TYPES.HAILA, POWERUP_TYPES.SHATORA], completed: false, hitCountTimeField: 0, requiredHitsTimeField: 3, /* ...フィールド展開ロジック... */ },
-            { id: 10, name: "連鎖する星々の輝き", conditionText: "本体にボールを連続3回当てる。(0/3)", targetItem: POWERUP_TYPES.INDARA, completed: false, consecutiveHits: 0, requiredConsecutiveHits: 3 },
+            { id: 10, name: "連鎖する星々の輝き", conditionText: "本体にボールを連続3回当てる。", targetItem: POWERUP_TYPES.INDARA, completed: false, consecutiveHits: 0, requiredConsecutiveHits: 3 },
             { id: 11, name: "虚無の壁", conditionText: "虚無の壁の奥の本体にボールを1回当てよ。", targetItem: POWERUP_TYPES.BIKARA_YIN, completed: false, wallBreachedAndHit: false, /* ...壁生成ロジック... */ },
             { id: 12, name: "終焉の刻 ", conditionText: "決着を付けろ", targetItem: null, completed: false, isFinalBattle: true }
         ];
@@ -720,17 +720,17 @@ shatterCrystal(crystal) {
         this.bossDefeated || this.isGameOver || this.isChoiceEventActive || this.isFinalBattleActive) {
 
         // どの条件でガードされたかログで確認 (任意)
-        if (this.isIntroAnimating) console.log("[UpdateSpecific] Guarded by isIntroAnimating");
-        else if (!this.playerControlEnabled) console.log("[UpdateSpecific] Guarded by !playerControlEnabled");
-        else if (!this.boss || !this.boss.active) console.log("[UpdateSpecific] Guarded by !boss or !boss.active");
-        else if (this.bossDefeated) console.log("[UpdateSpecific] Guarded by bossDefeated");
-        else if (this.isGameOver) console.log("[UpdateSpecific] Guarded by isGameOver");
-        else if (this.isChoiceEventActive) console.log("[UpdateSpecific] Guarded by isChoiceEventActive");
-        else if (this.isFinalBattleActive && this.activeTrialIndex < (this.trialsData.length -1) ) { // 最終決戦だが、まだ試練中という矛盾状態を避ける
+     /*  if (this.isIntroAnimating) //console.log("[UpdateSpecific] Guarded by isIntroAnimating");
+        else if (!this.playerControlEnabled) //console.log("[UpdateSpecific] Guarded by !playerControlEnabled");
+        else if (!this.boss || !this.boss.active) //console.log("[UpdateSpecific] Guarded by !boss or !boss.active");
+        else if (this.bossDefeated)//console.log("[UpdateSpecific] Guarded by bossDefeated");
+        else if (this.isGameOver)//console.log("[UpdateSpecific] Guarded by isGameOver");
+        else if (this.isChoiceEventActive) //console.log("[UpdateSpecific] Guarded by isChoiceEventActive");
+        else if (this.isFinalBattleActive && this.activeTrialIndex < (this.trialsData.length -1) ) { //: 最終決戦だが、まだ試練中という矛盾状態を避ける
              // 最終決戦のAI呼び出しはここ
              this.updateFinalBattleBossAI(time, delta);
         }
-        return;
+        return;*/
     }
 
     // --- 攻撃処理 (試練中: activeTrialIndex が 1 以上、つまり試練II以降) ---
@@ -1231,8 +1231,8 @@ if (this.backgroundObject && this.backgroundObject.active) { // 背景オブジ�
 
         if (this.isJiEndTimerRunning && !this.isGameOver && !this.bossDefeated) {
             let speedMultiplier = 1.0;
-            if (this.currentRoute === 'order') speedMultiplier = 0.75;
-            else if (this.currentRoute === 'chaos') speedMultiplier = 1.25;
+            if (this.currentRoute === 'order') speedMultiplier = 1.5;
+            else if (this.currentRoute === 'chaos') speedMultiplier = 0.5;
             this.jiEndTimeRemaining -= delta * speedMultiplier;
 
             if (this.jiEndTimerText?.active) this.jiEndTimerText.setText(this.formatTime(this.jiEndTimeRemaining));
