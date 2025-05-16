@@ -1151,7 +1151,7 @@ triggerJiEndGameOver() {
 
     // 4. 「JI・END」テキスト表示
     this.time.delayedCall(2500, () => { // 暗転や他の演出がある程度進んでから
-        const endText = this.add.text(this.gameWidth / 2, this.gameHeight / 2, "JI・END", {
+        const endText = this.add.text(this.gameWidth / 2, this.gameHeight / 2, "THE・END", {
             fontSize: `${this.gameWidth / 8}px`, fill: '#ff0000', fontFamily: 'serif',
             stroke: '#660000', strokeThickness: 10, align: 'center'
         }).setOrigin(0.5).setDepth(9999); // 最前面
