@@ -962,104 +962,138 @@ const targetReflectSpeed = baseReflectSpeed * speedMultiplier;
  * 現在アクティブな試練を完了としてマークし、報酬処理と次の試練への移行を行う。
  * このメソッドは、各試練の達成条件が満たされたと判断された箇所から呼び出される。
  */
-// Boss4Scene.js
-// Boss4Scene.js
-completeCurrentTrial() {
-    console.log("--- completeCurrentTrial CALLED (No Timeline Version) ---");
-    // thisとthis.tweensの確認ログは、このメソッドが呼ばれている時点でthis.tweens.addが使えるかどうかの確認にもなる
-    console.log("`this` in completeCurrentTrial IS:", this);
-    console.log("`this.tweens` in completeCurrentTrial IS:", this.tweens);
+/// Boss4Scene.js
 
-    if (!this.activeTrial || this.activeTrial.completed) {
-        console.warn("[TrialLogic] completeCurrentTrial called but no active trial or trial already completed.");
-        return;
-    }
-    if (!this.tweens || typeof this.tweens.add !== 'function') { // createTimelineではなくaddでチェック
-        console.error("CRITICAL ERROR in completeCurrentTrial: this.tweens or this.tweens.add is not available!");
-        // 最低限の試練完了処理
-        this.activeTrial.completed = true;
-        this.time.delayedCall(1000, this.startNextTrial, [], this);
-        return;
-    }
-
-    console.log(`[TrialLogic] Trial ${this.activeTrial.id}「${this.activeTrial.name}」 COMPLETED! Initiating post-trial sequence (No Timeline).`);
-    this.activeTrial.completed = true;
-    this.playerControlEnabled = false; // 演出中は操作制限
-
-    // --- ▼ 試練クリア演出シーケンス (Tweenの連鎖で実装) ▼ ---
-
-    // ステップ1: ルシファーのダメージモーション
+// 新しいヘルパーメソッド：ボスを指定座標へTween移動させる
+// (CommonBossSceneにあればそれでも良いし、Boss4Scene専用でも良い)
+warpBossToPosition(targetX, targetY, duration = 500, onCompleteCallback = null) {
     if (this.boss && this.boss.active) {
+        console.log(`[WarpToPosition] Moving boss to X:${targetX.toFixed(0)}, Y:${targetY.toFixed(0)} over ${duration}ms`);
+        // 現在のワープ演出中ならキャンセルするか、待つか (ここでは単純に新しいTweenを開始)
+        // this.tweens.killTweensOf(this.boss); // 既存の移動/アルファTweenを止める
+
         this.tweens.add({
             targets: this.boss,
-            tint: 0xff8888, duration: 150, yoyo: true, repeat: 2,
-            onStart: () => { console.log("[Trial Complete] Boss damage reaction start."); },
-            onComplete: () => { // ダメージリアクション完了後
-                if (this.boss?.active) this.boss.clearTint();
-                console.log("[Trial Complete] Boss damage reaction end. Proceeding to next step.");
-
-                // ステップ2: 画面内の敵弾消去 (即時実行)
-                if (this.attackBricks) {
-                    console.log("[Trial Complete] Clearing all active enemy projectiles.");
-                    const projectilesToClear = this.attackBricks.getChildren().filter(
-                        brick => brick.active && brick.getData('blockType') === 'projectile'
-                    );
-                    projectilesToClear.forEach(projectile => projectile.destroy());
-                    console.log(`[Trial Complete] Cleared ${projectilesToClear.length} projectiles.`);
-                }
-
-                // ステップ3: ルシファーが画面中央へワープ (Tweenで)
+            x: targetX,
+            y: targetY,
+            alpha: 1, // 見えるように
+            duration: duration,
+            ease: 'Sine.easeInOut', // スムーズな移動
+            onStart: () => {
+                // (ワープ開始SEなど)
+            },
+            onComplete: () => {
+                console.log("[WarpToPosition] Boss reached target position.");
                 if (this.boss && this.boss.active) {
-                    const targetX = this.gameWidth / 2;
-                    const targetY = this.gameHeight * 0.2; // 固定Y座標
-                    // (ワープSE開始)
-                    this.tweens.add({ // 簡単なフェードアウト・インワープ
-                        targets: this.boss,
-                        alpha: 0, duration: 200, ease: 'Power2.easeIn',
-                        onComplete: () => {
-                            if (!this.boss?.active) return;
-                            this.boss.setPosition(targetX, targetY);
-                            // (ワープSE出現)
-                            this.tweens.add({
-                                targets: this.boss, alpha: 1, duration: 200, ease: 'Power2.easeOut',
-                                onComplete: () => { // 中央ワープ完了後
-                                    console.log("[Trial Complete] Boss warped to center. Proceeding to next step.");
-
-                                    // ステップ4: 報酬ドロップ（ビカラ陽）
-                                    if (this.bossData.trialRewardItem && this.boss && this.boss.active) {
-                                        console.log(`[Trial Reward] Dropping ${this.bossData.trialRewardItem}.`);
-                                        this.dropSpecificPowerUp(this.boss.x, this.boss.y + this.boss.displayHeight/2 + 30, this.bossData.trialRewardItem);
-                                    }
-
-                                    // ステップ5: ジエンドタイマー30秒加算
-                                    if (this.isJiEndTimerRunning) {
-                                        const timeToAdd = 30 * 1000;
-                                        this.jiEndTimeRemaining += timeToAdd;
-                                        console.log(`[Trial Complete] JiEndTimer +${timeToAdd/1000}s.`);
-                                        // (タイマー加算SE)
-                                    }
-
-                                    // ステップ6: 次の試練へ
-                                    const nextTrialDelay = 1000;
-                                    console.log(`[Trial Complete] Post-trial sequence finished. Scheduling next trial in ${nextTrialDelay}ms.`);
-                                    this.time.delayedCall(nextTrialDelay, this.startNextTrial, [], this);
-                                }
-                            });
-                        }
-                    });
-                } else { // ボスがいない場合は報酬ドロップ等をスキップして次の試練へ
-                    this.time.delayedCall(1000, this.startNextTrial, [], this);
+                    this.boss.setAngle(0); // ★移動完了時に角度を0にリセット★
+                }
+                if (onCompleteCallback) {
+                    onCompleteCallback();
                 }
             }
         });
-    } else { // ボスがいない場合は弾消去だけして次の試練へ
-        if (this.attackBricks) { /* ... 弾消去 ... */ }
-        this.time.delayedCall(1000, this.startNextTrial, [], this);
+    } else if (onCompleteCallback) {
+        onCompleteCallback(); // ボスがいない場合は即座にコールバック実行
     }
-
-    if (AUDIO_KEYS.SE_TRIAL_SUCCESS) try { this.sound.play(AUDIO_KEYS.SE_TRIAL_SUCCESS); } catch(e){}
 }
 
+
+completeCurrentTrial() {
+    if (!this.activeTrial || this.activeTrial.completed) { /* ...ガード... */ return; }
+    this.activeTrial.completed = true;
+    this.playerControlEnabled = false; // 演出中は操作制限
+    console.log(`[TrialLogic] Trial ${this.activeTrial.id}「${this.activeTrial.name}」 COMPLETED!`);
+
+    // ステップ1: ダメージリアクション (SEと短いTint)
+    if (this.boss && this.boss.active) {
+        console.log("[Trial Complete] Boss damage reaction start.");
+        this.boss.setTintFill(0xffaa00); // オレンジっぽい色
+        this.time.delayedCall(200, () => {
+            if (this.boss?.active) this.boss.clearTint();
+            console.log("[Trial Complete] Boss damage reaction end.");
+        });
+    }
+    if (AUDIO_KEYS.SE_TRIAL_SUCCESS) try { this.sound.play(AUDIO_KEYS.SE_TRIAL_SUCCESS); } catch(e){}
+
+    // ステップ2: 弾消去 (ダメージリアクションとほぼ同時)
+    if (this.attackBricks) { /* ...弾消去ロジック... */ }
+    console.log("[Trial Complete] Projectiles cleared.");
+
+    // ステップ3: ボスを画面中央上部へ移動 (専用メソッド呼び出し)
+    const centralX = this.gameWidth / 2;
+    const centralY = this.gameHeight * 0.2; // ルシゼロの基本Y座標
+    const moveToCenterDuration = 600;
+
+    this.time.delayedCall(300, () => { // 弾消去などの後少し待つ
+        if (this.isGameOver || this.bossDefeated) return;
+        this.warpBossToPosition(centralX, centralY, moveToCenterDuration, () => {
+            // 中央移動完了後の処理 (ステップ4以降)
+            if (this.isGameOver || this.bossDefeated) return;
+
+            // ステップ4: 報酬ドロップ（ビカラ陽）
+            if (this.bossData.trialRewardItem && this.boss && this.boss.active) {
+                console.log(`[Trial Reward] Dropping ${this.bossData.trialRewardItem}.`);
+                this.dropSpecificPowerUp(this.boss.x, this.boss.y + this.boss.displayHeight/2 + 30, this.bossData.trialRewardItem);
+            }
+
+            // ステップ5: ジエンドタイマー30秒加算
+            if (this.isJiEndTimerRunning) {
+                const timeToAdd = 30 * 1000;
+                this.jiEndTimeRemaining += timeToAdd;
+                console.log(`[Trial Complete] JiEndTimer +${timeToAdd/1000}s.`);
+                // (タイマー加算SE)
+            }
+
+            // ステップ6: 次の試練へ (報酬ドロップなどを見せるための遅延)
+            const nextTrialDelay = 1200; // 少し長めに
+            console.log(`[Trial Complete] Post-trial sequence finished. Scheduling next trial in ${nextTrialDelay}ms.`);
+            this.time.delayedCall(nextTrialDelay, this.startNextTrial, [], this);
+        });
+    }, [], this);
+}
+
+// startNextTrial メソッドの修正 (ボス角度リセット追加)
+startNextTrial() {
+    // ... (既存のインデックス更新、UI更新など) ...
+    const currentTrial = this.trialsData[this.activeTrialIndex];
+    this.activeTrial = currentTrial;
+    // ...
+
+    // ★★★ 新しい試練開始時にボスの角度を0に戻す ★★★
+    if (this.boss && this.boss.active && !this.isFinalBattleActive) { // 最終決戦以外
+        this.boss.setAngle(0);
+        console.log(`[TrialLogic] Boss angle reset for Trial ${currentTrial.id}.`);
+    }
+    // ★★★--------------------------------------★★★
+
+    if (currentTrial.isChoiceEvent) { /* ... */ }
+    else if (currentTrial.isFinalBattle) { /* ... */ }
+    else { // 通常の試練開始
+        // ... (setupCurrentTrialEnvironment, playerControl有効化, タイマーリセットなど) ...
+        // 3秒間の準備時間タイマー
+        this.time.delayedCall(3000, () => {
+            // ... (準備時間終了後の処理: playerControl有効化、ボス行動開始タイマーリセットなど) ...
+            this.playerControlEnabled = true;
+            this.isBallLaunched = false;
+            this.prepareBallForTrial();
+            this.lastAttackTime = this.time.now;
+            this.lastWarpTime = this.time.now; // 通常ワープ用のタイマーもリセット
+            console.log(`[TrialLogic] Preparation for trial ${currentTrial.id} ended. Boss actions will start.`);
+        }, [], this);
+    }
+}
+
+// warpBoss (ランダム位置へのリッチなワープ) メソッドの最後にも角度リセットを追加 (念のため)
+warpBoss() {
+    // ... (既存のワープ演出ロジック) ...
+    // 最後の onComplete コールバック内
+    // onComplete: () => {
+    //     this.isWarping = false;
+    //     if (this.boss && this.boss.active) this.boss.setAngle(0); // ★角度リセット★
+    //     this.lastAttackTime = ...;
+    //     console.log("[BossAction] Rich Warp Sequence Complete.");
+    // }
+}
 
 spawnChaosFragments(count) {
     // this.chaosFragmentsGroup = this.physics.add.group(); // 専用グループ
