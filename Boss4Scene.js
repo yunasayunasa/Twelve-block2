@@ -163,7 +163,13 @@ export default class Boss4Scene extends CommonBossScene {
                 collectedCountForTrial7: 0, // ★集めた種類の数
                 completed: false
             },
-            { id: 8, name: "深淵より来る核金", conditionText: "「アビス・コア」にボールを1回当てよ。", targetItem: POWERUP_TYPES.SINDARA, completed: false, coreHit: false, /* ...コア出現ロジック... */ },
+            { id: 8, name: "深淵より来る核金", conditionText: "全てのアビス・コアを破壊せよ。(0/3)",
+                targetItem: POWERUP_TYPES.SINDARA, // 防御ブロックからドロップ
+                completed: false,
+                coreCount: 3,
+                coresHit: [false, false, false], // 各コアのヒット状況
+                hitCoreCount: 0 // ヒットしたコアの数
+            },
             { id: 9, name: "時の超越、歪む流れの中で", conditionText: "速度変化フィールド内で本体にボールを3回当てよ。(0/3)", targetItemAlternate: [POWERUP_TYPES.HAILA, POWERUP_TYPES.SHATORA], completed: false, hitCountTimeField: 0, requiredHitsTimeField: 3, /* ...フィールド展開ロジック... */ },
             { id: 10, name: "連鎖する星々の輝き", conditionText: "ライフを失わずにボールを連続3回当てよ。", targetItem: POWERUP_TYPES.INDARA, completed: false, consecutiveHits: 0, requiredConsecutiveHits: 3 },
             { id: 11, name: "虚無の壁", conditionText: "虚無の壁の奥の本体にボールを1回当てよ。", targetItem: POWERUP_TYPES.BIKARA_YIN, completed: false, wallBreachedAndHit: false, /* ...壁生成ロジック... */ },
@@ -754,9 +760,99 @@ playSpecificBgm(bgmKey) {
          else if (trial.id === 6) { // 試練VI「楽園追放」
         this.executeParadiseLostSequence();
     }
+  if (trial.id === 8) {
+        this.spawnAbyssCoresAndGuards(trial.coreCount || 3);
+    }
+
         if (trial.id === 11) this.spawnVoidWall();
         // 他の試練の準備も同様に
     }
+
+    // Boss4Scene.js
+spawnAbyssCoresAndGuards(coreCount) {
+    // グループの初期化
+    if (this.abyssCoresGroup) this.abyssCoresGroup.clear(true, true);
+    else this.abyssCoresGroup = this.physics.add.group({ immovable: true }); // コアは動かない
+
+    // 防御ブロックは既存の attackBricks グループに追加する形でも良いし、専用グループでも良い。
+    // ここでは attackBricks を使うと仮定。もし専用なら別途グループ作成。
+
+    console.log(`[Trial VIII] Spawning ${coreCount} Abyss Cores with guards.`);
+    this.activeTrial.coresHit = new Array(coreCount).fill(false); // ヒット状況リセット
+    this.activeTrial.hitCoreCount = 0;
+
+    const coreY = this.boss.y - (this.boss.displayHeight * 0.3); // ボスより少し上
+    const coreSpacing = this.gameWidth / (coreCount + 1); // コア間のスペース
+
+    for (let i = 0; i < coreCount; i++) {
+        const coreX = coreSpacing * (i + 1);
+        const core = this.abyssCoresGroup.create(coreX, coreY, 'abyss_core') // ★要アセットキー
+            .setScale(0.1) // 仮スケール
+            .setData('coreIndex', i) // どのコアか識別
+            .setDepth(2); // ボスより手前など
+        // core.body.setAllowGravity(false); // group作成時に immovable なら不要かも
+
+        // コアの周囲に防御ブロックを配置 (円形に数個など)
+        const guardBlockCount = 5; // 1つのコアあたりの防御ブロック数
+        const guardRadius = 40;    // コアから防御ブロックまでの距離
+        for (let j = 0; j < guardBlockCount; j++) {
+            const angle = (360 / guardBlockCount) * j;
+            const guardX = core.x + Math.cos(Phaser.Math.DegToRad(angle)) * guardRadius;
+            const guardY = core.y + Math.sin(Phaser.Math.DegToRad(angle)) * guardRadius;
+            // spawnLuciliusProjectile を流用するか、専用のブロック生成メソッド
+            const guardBlock = this.spawnLuciliusProjectile(guardX, guardY, this.bossData.projectileTextureKey || 'attack_brick_lucilius', {
+                scale: 0.08, // 少し小さめ
+                speed: 0,    // 静止
+                angleDeg: 0, // 向きは関係ない
+                // spinRate: 0 // 回転なし
+            });
+            if (guardBlock) {
+                guardBlock.setImmovable(false); // ボールで破壊できるように
+                guardBlock.setData('isCoreGuard', true); // 防御ブロックである印
+                // 確定ドロップは isGuaranteedDropSource: true で spawnLuciliusProjectile 内で設定済み
+            }
+        }
+    }
+
+    // ボールとアビス・コアの衝突設定
+    if (this.ballAbyssCoreCollider) this.ballAbyssCoreCollider.destroy();
+    this.ballAbyssCoreCollider = this.physics.add.collider(this.balls, this.abyssCoresGroup, this.hitAbyssCore, null, this);
+
+    // ボールと防御ブロックの衝突は、既存の attackBricks グループとの collider で処理される
+    // (hitAttackBrick内で 'isCoreGuard' フラグを見て特別な処理をする必要はない。通常通り破壊されアイテムドロップ)
+
+    this.updateTrialProgressUI(this.activeTrial);
+}
+
+// Boss4Scene.js
+hitAbyssCore(ball, core) {
+    if (!core.active || !this.activeTrial || this.activeTrial.id !== 8 || this.activeTrial.completed) {
+        return;
+    }
+    const coreIndex = core.getData('coreIndex');
+    if (this.activeTrial.coresHit[coreIndex]) return; // 既にヒット済みなら何もしない
+
+    console.log(`[Trial VIII] Ball hit Abyss Core ${coreIndex}.`);
+    // (コア破壊SE、エフェクト)
+    // this.sound.play(AUDIO_KEYS.SE_ABYSS_CORE_HIT);
+    // this.createImpactParticles(core.x, core.y, ...);
+    core.destroy(); // コアを破壊
+
+    this.activeTrial.coresHit[coreIndex] = true;
+    this.activeTrial.hitCoreCount++;
+    this.updateTrialProgressUI(this.activeTrial);
+
+    if (this.activeTrial.hitCoreCount >= this.activeTrial.coreCount) {
+        console.log("[Trial VIII] All Abyss Cores destroyed.");
+        this.completeCurrentTrial();
+        if (this.ballAbyssCoreCollider) this.ballAbyssCoreCollider.destroy();
+        this.ballAbyssCoreCollider = null;
+        // 残っているかもしれない防御ブロックもクリアする
+        this.attackBricks.getChildren().forEach(brick => {
+            if (brick.active && brick.getData('isCoreGuard')) brick.destroy();
+        });
+    }
+}
 
     // Boss4Scene.js
 executeParadiseLostSequence() {
@@ -1923,6 +2019,9 @@ updateTrialProgressUI(trial) {
               case 7: // 三宝の導き
             progressText = ` (${trial.collectedCountForTrial7 || 0}/${(trial.itemsToCollectForTrial7 || []).length})`;
             break;
+             case 8: // 深淵より来る核を狙え
+        progressDetails = ` (破壊コア: ${trial.hitCoreCount || 0}/${trial.coreCount || 3})`;
+        break;
         // ... 他の試練の進捗表示 ...
         default: break;
     }
