@@ -775,66 +775,87 @@ playSpecificBgm(bgmKey) {
     }
 
     // Boss4Scene.js
-// Boss4Scene.js
-spawnAbyssCores(coreCount) {
+spawnAbyssCoresAndGuards(coreCount) {
+    // グループの初期化
     if (this.abyssCoresGroup) this.abyssCoresGroup.clear(true, true);
-    else this.abyssCoresGroup = this.physics.add.group({ immovable: true });
+    else this.abyssCoresGroup = this.physics.add.group({ immovable: true }); // コアは動かない
 
-    console.log(`[Trial VIII] Spawning ${coreCount} Abyss Cores.`);
-    this.activeTrial.coresData = []; // コアデータ配列を初期化
-    this.activeTrial.destroyedCoreCount = 0;
+    // 防御ブロックは既存の attackBricks グループに追加する形でも良いし、専用グループでも良い。
+    // ここでは attackBricks を使うと仮定。もし専用なら別途グループ作成。
+
+    console.log(`[Trial VIII] Spawning ${coreCount} Abyss Cores with guards.`);
+    this.activeTrial.coresHit = new Array(coreCount).fill(false); // ヒット状況リセット
+    this.activeTrial.hitCoreCount = 0;
 
     const coreY = this.boss.y - (this.boss.displayHeight * 0.3); // ボスより少し上
-    const coreSpacing = this.gameWidth / (coreCount + 1);
+    const coreSpacing = this.gameWidth / (coreCount + 1); // コア間のスペース
 
     for (let i = 0; i < coreCount; i++) {
         const coreX = coreSpacing * (i + 1);
-        const core = this.abyssCoresGroup.create(coreX, coreY, 'abyss_core')
-            .setScale(0.15) // 仮スケール
-            .setData('coreIndex', i)
-            .setData('health', this.activeTrial.initialCoreHp || 3) // 初期HP設定
-            .setDepth(2)
-            .setImmovable(true); // ボールで動かないように
-        if (core.body) core.body.setAllowGravity(false);
+        const core = this.abyssCoresGroup.create(coreX, coreY, 'abyss_core') // ★要アセットキー
+            .setScale(0.1) // 仮スケール
+            .setData('coreIndex', i) // どのコアか識別
+            .setDepth(2); // ボスより手前など
+        // core.body.setAllowGravity(false); // group作成時に immovable なら不要かも
 
-        this.activeTrial.coresData.push({ instance: core, currentHp: this.activeTrial.initialCoreHp || 3 });
+        // コアの周囲に防御ブロックを配置 (円形に数個など)
+        const guardBlockCount = 5; // 1つのコアあたりの防御ブロック数
+        const guardRadius = 40;    // コアから防御ブロックまでの距離
+        for (let j = 0; j < guardBlockCount; j++) {
+            const angle = (360 / guardBlockCount) * j;
+            const guardX = core.x + Math.cos(Phaser.Math.DegToRad(angle)) * guardRadius;
+            const guardY = core.y + Math.sin(Phaser.Math.DegToRad(angle)) * guardRadius;
+            // spawnLuciliusProjectile を流用するか、専用のブロック生成メソッド
+             const guardBlock = this.spawnLuciliusProjectile(guardX, guardY, this.bossData.projectileTextureKey || 'attack_brick_lucilius', {
+                scale: 0.08,
+                speed: 0,    // 静止
+                angleDeg: 0,
+            });
+            if (guardBlock && guardBlock.body) { // guardBlockが生成され、bodyがあることを確認
+                guardBlock.setImmovable(true);     // ★ボールで動かないように★
+                guardBlock.body.setAllowGravity(false); // ★重力無効を再度確認★
+                guardBlock.setData('isCoreGuard', true);
+            }
+        }
     }
 
+    // ボールとアビス・コアの衝突設定
     if (this.ballAbyssCoreCollider) this.ballAbyssCoreCollider.destroy();
     this.ballAbyssCoreCollider = this.physics.add.collider(this.balls, this.abyssCoresGroup, this.hitAbyssCore, null, this);
+
+    // ボールと防御ブロックの衝突は、既存の attackBricks グループとの collider で処理される
+    // (hitAttackBrick内で 'isCoreGuard' フラグを見て特別な処理をする必要はない。通常通り破壊されアイテムドロップ)
+
     this.updateTrialProgressUI(this.activeTrial);
 }
 
 // Boss4Scene.js
 hitAbyssCore(ball, core) {
-    if (!core.active || !this.activeTrial || this.activeTrial.id !== 8 || this.activeTrial.completed) return;
-
+    if (!core.active || !this.activeTrial || this.activeTrial.id !== 8 || this.activeTrial.completed) {
+        return;
+    }
     const coreIndex = core.getData('coreIndex');
-    let currentCoreHp = core.getData('health');
+    if (this.activeTrial.coresHit[coreIndex]) return; // 既にヒット済みなら何もしない
 
-    if (currentCoreHp > 0) {
-        currentCoreHp--;
-        core.setData('health', currentCoreHp);
-        console.log(`[Trial VIII] Abyss Core ${coreIndex} hit. Remaining HP: ${currentCoreHp}`);
+    console.log(`[Trial VIII] Ball hit Abyss Core ${coreIndex}.`);
+    // (コア破壊SE、エフェクト)
+     this.sound.play(AUDIO_KEYS.SE_DESTROY);
+    // this.createImpactParticles(core.x, core.y, ...);
+    core.destroy(); // コアを破壊
 
-        // ヒットエフェクト（色を変える、小さくするなど）
-        this.tweens.add({ targets: core, scale: core.scale * 0.9, duration: 50, yoyo: true });
-        // (ヒットSE)
+    this.activeTrial.coresHit[coreIndex] = true;
+    this.activeTrial.hitCoreCount++;
+    this.updateTrialProgressUI(this.activeTrial);
 
-        if (currentCoreHp <= 0) {
-            console.log(`[Trial VIII] Abyss Core ${coreIndex} destroyed.`);
-            // (コア破壊SE、エフェクト)
-            core.destroy(); // コアを破壊
-            this.activeTrial.destroyedCoreCount++;
-            this.updateTrialProgressUI(this.activeTrial);
-
-            if (this.activeTrial.destroyedCoreCount >= this.activeTrial.coreCount) {
-                console.log("[Trial VIII] All Abyss Cores destroyed.");
-                this.completeCurrentTrial();
-                if (this.ballAbyssCoreCollider) this.ballAbyssCoreCollider.destroy();
-                this.ballAbyssCoreCollider = null;
-            }
-        }
+    if (this.activeTrial.hitCoreCount >= this.activeTrial.coreCount) {
+        console.log("[Trial VIII] All Abyss Cores destroyed.");
+        this.completeCurrentTrial();
+        if (this.ballAbyssCoreCollider) this.ballAbyssCoreCollider.destroy();
+        this.ballAbyssCoreCollider = null;
+        // 残っているかもしれない防御ブロックもクリアする
+        this.attackBricks.getChildren().forEach(brick => {
+            if (brick.active && brick.getData('isCoreGuard')) brick.destroy();
+        });
     }
 }
 
