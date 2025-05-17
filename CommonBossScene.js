@@ -323,44 +323,7 @@ export default class CommonBossScene extends Phaser.Scene {
             // --- 残りの update 処理はそのまま実行 ---
             this.updateBallFall();
             this.updateAttackBricks();
-              // --- ▼ 時の超越フィールドによるボール速度変更 ▼ ---
-    if (this.isTimeFieldTrialActive && this.timeFieldData && this.balls) {
-        this.balls.getChildren().forEach(ball => {
-            if (ball.active && ball.body) {
-                const currentSpeed = ball.body.velocity.length();
-                let targetSpeedFactor = 1.0;
-                let inSpecialZone = false;
-
-                if (ball.y < this.timeFieldData.boundaryY) { // 上半分 (低速)
-                    targetSpeedFactor = this.timeFieldData.slowFactor;
-                    inSpecialZone = true;
-                    // (ここに低速ゾーンの視覚的フィードバックをボールに与えても良い)
-                } else { // 下半分 (高速)
-                    targetSpeedFactor = this.timeFieldData.fastFactor;
-                    inSpecialZone = true;
-                    // (高速ゾーンのフィードバック)
-                }
-
-                if (inSpecialZone) {
-                    // パワーアップ効果を考慮した基本速度をまず計算
-                    let baseSpeedWithPowerUp = NORMAL_BALL_SPEED; // constants.jsから
-                    if (ball.getData('isFast')) baseSpeedWithPowerUp *= (BALL_SPEED_MODIFIERS[POWERUP_TYPES.SHATORA] || 1);
-                    if (ball.getData('isSlow')) baseSpeedWithPowerUp *= (BALL_SPEED_MODIFIERS[POWERUP_TYPES.HAILA] || 1);
-
-                    // フィールド効果を「加算/減算」的に適用するなら、
-                    // 目標速度 = 基本速度 + (フィールド効果による速度変化量)
-                    // ここではシンプルに乗算で。ただし極端にならないようにClampも考慮。
-                    let newSpeed = baseSpeedWithPowerUp * targetSpeedFactor;
-                    newSpeed = Phaser.Math.Clamp(newSpeed, NORMAL_BALL_SPEED * 0.3, NORMAL_BALL_SPEED * 3); // 極端な速度を防ぐ
-
-                    if (Math.abs(currentSpeed - newSpeed) > 10) { // 速度が大きく変わる場合のみ再設定 (振動防止)
-                        ball.body.velocity.normalize().scale(newSpeed);
-                    }
-                }
-            }
-        });
-    }
-    // --- ▲ 時の超越フィールド 終了 ▲ --
+            
             
             this.balls?.getMatching('active', true).forEach(ball => {
                  if (ball.getData('isIndaraActive') && this.boss && this.boss.active && ball.body) {
