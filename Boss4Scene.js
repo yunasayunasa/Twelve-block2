@@ -176,7 +176,7 @@ export default class Boss4Scene extends CommonBossScene {
                 destroyedCoreCount: 0
             },
             { id: 9, name: "加速する世界",
-                conditionText: "加速する世界で3回当てよ。",
+                conditionText: "ボールを一度当てよ",
                 targetItem: POWERUP_TYPES.HAILA, // この試練中のドロップアイテム
                 completed: false,
                 hitCountTimeField: 0,
@@ -2053,6 +2053,8 @@ updateTrialProgressUI(trial) {
              case 8: // 深淵より来る核を狙え
         progressText = ` (破壊コア: ${trial.hitCoreCount || 0}/${trial.coreCount || 3})`;
         break;
+        case 10: // 連鎖する星々の輝き
+        progressText = ` (連続: ${trial.consecutiveHits || 0}/${trial.requiredConsecutiveHits || 3})`;
         // ... 他の試練の進捗表示 ...
         default: break;
     }
@@ -2350,6 +2352,32 @@ if (this.backgroundObject && this.backgroundObject.active) { // 背景オブジ�
             }
         }
     }
+    // Boss4Scene.js クラス内に新しいメソッドとして追加
+
+/**
+ * ライフを失った際の処理。CommonBossSceneの処理に加え、
+ * 試練X「連鎖する星々の輝き」の連続ヒットカウントをリセットする。
+ */
+loseLife() {
+    const livesBefore = this.lives; // loseLife前のライフを記録
+
+    // まず親クラスのloseLife処理を実行（ライフ減少、パワーアップ解除、ボールリセットなど）
+    super.loseLife();
+    console.log(`[Boss4 LoseLife] Called. Lives changed from ${livesBefore} to ${this.lives}.`);
+
+    // ★★★ 試練Xの連続ヒットカウントをリセット ★★★
+    if (this.activeTrial && !this.activeTrial.completed && this.activeTrial.id === 10) {
+        if (this.activeTrial.consecutiveHits > 0) { // カウントが進んでいた場合のみログ出す
+            console.log(`[Trial X Reset] Ball lost. Resetting consecutive hits from ${this.activeTrial.consecutiveHits} to 0.`);
+        }
+        this.activeTrial.consecutiveHits = 0;
+        if (this.trialUiText) {
+            // UIの進捗表示もリセットする必要がある
+            this.updateTrialProgressUI(this.activeTrial);
+        }
+    }
+    // ★★★------------------------------------★★★
+}
 
     // シーン終了時の処理
     shutdownScene() {
