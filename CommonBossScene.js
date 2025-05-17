@@ -1947,23 +1947,33 @@ isPlayerKubiraActive() {
  * かつまだ完了していない（進行度が1未満）場合にtrueを返します。
  * @returns {boolean} アニラ効果がアクティブであればtrue、そうでなければfalse。
  */
+// CommonBossScene.js - isPlayerAnilaActive()
 isPlayerAnilaActive() {
-    // powerUpTimers プロパティが存在し、オブジェクトであることを確認
+    console.log("[AnilaCheck] Called. powerUpTimers:", this.powerUpTimers);
+    console.log("[AnilaCheck] POWERUP_TYPES.ANILA is:", POWERUP_TYPES.ANILA);
     if (this.powerUpTimers && typeof this.powerUpTimers === 'object') {
-        // アニラのタイマーイベントを取得
         const anilaTimerEvent = this.powerUpTimers[POWERUP_TYPES.ANILA];
-
-        // タイマーイベントが存在し、PhaserのTimerEventのインスタンスであり、
-        // getProgressメソッドを持ち、かつ進行度が1未満（つまり完了していない）かを確認
-        if (anilaTimerEvent &&
-            anilaTimerEvent instanceof Phaser.Time.TimerEvent &&
-            typeof anilaTimerEvent.getProgress === 'function' &&
-            anilaTimerEvent.getProgress() < 1) {
-            // console.log("[PowerUpCheck] Anila effect is ACTIVE.");
-            return true;
+        console.log("[AnilaCheck] anilaTimerEvent is:", anilaTimerEvent);
+        if (anilaTimerEvent && anilaTimerEvent instanceof Phaser.Time.TimerEvent && typeof anilaTimerEvent.getProgress === 'function') {
+            const progress = anilaTimerEvent.getProgress();
+            console.log("[AnilaCheck] Anila Timer Progress:", progress);
+            if (progress < 1) {
+                console.log("[AnilaCheck] Anila IS ACTIVE (progress < 1).");
+                return true;
+            } else {
+                console.log("[AnilaCheck] Anila Timer EXPIRED (progress >= 1).");
+            }
+        } else {
+            console.log("[AnilaCheck] Anila Timer Event not found or invalid type.");
         }
+    } else {
+        console.log("[AnilaCheck] powerUpTimers object not found or not an object.");
     }
-    // console.log("[PowerUpCheck] Anila effect is INACTIVE or powerUpTimers not set up correctly.");
+    // もし isPlayerTrulyInvincible フラグも併用・確認するなら
+    // console.log("[AnilaCheck] isPlayerTrulyInvincible flag is:", this.isPlayerTrulyInvincible);
+    // if (this.isPlayerTrulyInvincible === true) return true;
+
+    console.log("[AnilaCheck] Anila IS INACTIVE.");
     return false;
 }
 
