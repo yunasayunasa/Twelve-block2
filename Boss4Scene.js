@@ -964,6 +964,24 @@ const targetReflectSpeed = baseReflectSpeed * speedMultiplier;
  */
 // Boss4Scene.js
 completeCurrentTrial() {
+     console.log("--- completeCurrentTrial CALLED ---");
+    console.log("`this` in completeCurrentTrial IS:", this);
+    console.log("`this.tweens` in completeCurrentTrial IS:", this.tweens);
+    console.log("`typeof this.tweens.createTimeline` IS:", typeof this.tweens?.createTimeline); // ?.で安全にアクセス
+
+    if (!this.tweens || typeof this.tweens.createTimeline !== 'function') {
+        console.error("CRITICAL ERROR in completeCurrentTrial: this.tweens or this.tweens.createTimeline is not available!");
+        // ここでTweenを使わない代替処理を行うか、エラーを投げて停止させる
+        // (例：UI更新と次の試練への遅延呼び出しだけ行う)
+        if (this.activeTrial && !this.activeTrial.completed) {
+            this.activeTrial.completed = true;
+            // 敵弾消去、報酬ドロップなどはTweenなしで即時実行
+            // ... (Tweenを使わない形での実装) ...
+            this.time.delayedCall(1000, this.startNextTrial, [], this);
+        }
+        return; // Tweenが使えないのでシーケンス処理は中断
+    }
+
     if (this.activeTrial && !this.activeTrial.completed) {
         console.log(`[TrialLogic] Trial ${this.activeTrial.id}「${this.activeTrial.name}」 COMPLETED! Initiating post-trial sequence.`);
         this.activeTrial.completed = true;
