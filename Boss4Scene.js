@@ -1423,14 +1423,12 @@ updateFinalBattleBossAI(time, delta) {
 
    // CommonBossSceneのhitBossをオーバーライド (試練中のワープと、決着の刻の通常のヒット処理)
 // Boss4Scene.js
-
 hitBoss(boss, ball) {
-    if (!boss || !ball || !ball.body || !boss.active) {
-        console.warn("[Boss4 hitBoss] Hit with invalid objects or inactive boss/ball.");
+    if (!boss || !ball || !ball.body || !boss.active || this.isCompletingTrial) { // ★isCompletingTrial を追加★
+        if(this.isCompletingTrial) console.log("[HitBoss] Ignoring hit, trial completion in progress.");
         return;
     }
-
-    let trialJustCompleted = false;
+      let trialJustCompleted = false;
     console.log(`[Boss4 hitBoss Start] Initial trialJustCompleted: ${trialJustCompleted}, ActiveTrialID: ${this.activeTrial?.id}`);
 
     if (this.isFinalBattleActive) {
@@ -1460,10 +1458,13 @@ hitBoss(boss, ball) {
     }
     const targetSpeed = baseSpeedForReflection * speedMultiplier;
 
-    // hitBoss 内の試練中の反射ロジック (対策A)
-const escapeAngleRad = Phaser.Math.Angle.Between(boss.x, boss.y, ball.x, ball.y); // ボス中心からボールへの現在の角度
+    // hitBoss 内の試練中の反射ロジック (対策B - 位置補正追加)
+const escapeAngleRad = Phaser.Math.Angle.Between(boss.x, boss.y, ball.x, ball.y);
+const correctionDistance = 2; // わずかな補正距離
+ball.x += Math.cos(escapeAngleRad) * correctionDistance; // ボスから離れる方向に少しだけ移動
+ball.y += Math.sin(escapeAngleRad) * correctionDistance;
+// その後、速度設定
 this.physics.velocityFromAngle(Phaser.Math.RadToDeg(escapeAngleRad), targetSpeed, ball.body.velocity);
-console.log(`[Boss4 hitBoss - TrialPhase] Ball reflected (Escape Vector). Angle: ${Phaser.Math.RadToDeg(escapeAngleRad).toFixed(1)}, Speed: ${targetSpeed.toFixed(1)}`);
 
 
     // --- ▼ 試練達成判定 (ボールがボスに当たることが条件の試練) ▼ ---
@@ -1536,7 +1537,6 @@ console.log(`[Boss4 hitBoss - TrialPhase] Ball reflected (Escape Vector). Angle:
         this.time.delayedCall(this.bossData.warpDelayAfterHit || 100, this.warpBoss, [], this);
     }
 }
-
 
 // Boss4Scene.js クラス内に、他のメソッドと同列に追加してください
 
