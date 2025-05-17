@@ -1938,6 +1938,35 @@ isPlayerKubiraActive() {
     return false;
 }
 
+// CommonBossScene.js クラス内に、他のメソッドと同列に追加してください
+// (isPlayerKubiraActive や isPowerUpActive の近くが良いでしょう)
+
+/**
+ * プレイヤーが現在アニラのパワーアップ効果を受けているかを判定します。
+ * this.powerUpTimers を参照し、該当するタイマーが存在し、
+ * かつまだ完了していない（進行度が1未満）場合にtrueを返します。
+ * @returns {boolean} アニラ効果がアクティブであればtrue、そうでなければfalse。
+ */
+isPlayerAnilaActive() {
+    // powerUpTimers プロパティが存在し、オブジェクトであることを確認
+    if (this.powerUpTimers && typeof this.powerUpTimers === 'object') {
+        // アニラのタイマーイベントを取得
+        const anilaTimerEvent = this.powerUpTimers[POWERUP_TYPES.ANILA];
+
+        // タイマーイベントが存在し、PhaserのTimerEventのインスタンスであり、
+        // getProgressメソッドを持ち、かつ進行度が1未満（つまり完了していない）かを確認
+        if (anilaTimerEvent &&
+            anilaTimerEvent instanceof Phaser.Time.TimerEvent &&
+            typeof anilaTimerEvent.getProgress === 'function' &&
+            anilaTimerEvent.getProgress() < 1) {
+            // console.log("[PowerUpCheck] Anila effect is ACTIVE.");
+            return true;
+        }
+    }
+    // console.log("[PowerUpCheck] Anila effect is INACTIVE or powerUpTimers not set up correctly.");
+    return false;
+}
+
 // (オプション) より汎用的な判定メソッド
 /**
  * 指定されたタイプのパワーアップが現在有効かを判定します。
