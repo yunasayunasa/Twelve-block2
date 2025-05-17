@@ -181,7 +181,7 @@ export default class Boss4Scene extends CommonBossScene {
                 completed: false,
                 hitCountTimeField: 0,
                 requiredHitsTimeField: 3,
-                trialBallSpeedMultiplier: 1.5, // この試練中のボール速度倍率
+                trialBallSpeedMultiplier: 3.0, // この試練中のボール速度倍率
                 trialJiEndTimerMultiplier: 1.5 }, // この試練中のジエンドタイマー速度倍率
             { id: 10, name: "連鎖する星々の輝き", conditionText: "ライフを失わずにボールを連続3回当てよ。", targetItem: POWERUP_TYPES.INDARA, completed: false, consecutiveHits: 0, requiredConsecutiveHits: 3 },
             { id: 11, name: "虚無の壁", conditionText: "虚無の壁の奥の本体にボールを1回当てよ。", targetItem: POWERUP_TYPES.BIKARA_YIN, completed: false, wallBreachedAndHit: false, /* ...壁生成ロジック... */ },
