@@ -1110,7 +1110,7 @@ shatterCrystal(crystal) {
           if (this.isFinalBattleActive && !this.isCompletingTrial && !this.isSpecialSequenceActive) { // 最終決戦AIは特別演出中でなければ動く
             this.updateFinalBattleBossAI(time, delta);
         }
-        if(this.isSpecialSequenceActive) console.log("[UpdateSpecificBossBehavior] Guarded by isSpecialSequenceActive");
+        if(this.isSpecialSequenceActive) //console.log("[UpdateSpecificBossBehavior] Guarded by isSpecialSequenceActive");
         
         if(this.isCompletingTrial) console.log("[UpdateSpecificBossBehavior] Paused during trial completion sequence.");if (this.isFinalBattleActive) this.updateFinalBattleBossAI(time, delta);
         return;
@@ -1499,7 +1499,7 @@ warpBoss() {
     // --- ▲ ガード処理 終了 ▲ ---
 
     this.isWarping = true; // ★ワープ処理開始フラグを立てる
-    console.log("[BossAction] Initiating Rich Warp Sequence (Guarded & Sequential Tweens)...");
+  //  console.log("[BossAction] Initiating Rich Warp Sequence (Guarded & Sequential Tweens)...");
 
     // ワープ開始SE (キーが存在すれば再生)
     if (AUDIO_KEYS.SE_LUCILIUS_WARP_EFFECT_START && this.sound.get(AUDIO_KEYS.SE_LUCILIUS_WARP_EFFECT_START)) {
