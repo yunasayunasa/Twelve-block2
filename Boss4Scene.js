@@ -2020,7 +2020,7 @@ updateTrialProgressUI(trial) {
             progressText = ` (${trial.collectedCountForTrial7 || 0}/${(trial.itemsToCollectForTrial7 || []).length})`;
             break;
              case 8: // 深淵より来る核を狙え
-        progressDetails = ` (破壊コア: ${trial.hitCoreCount || 0}/${trial.coreCount || 3})`;
+        progressText = ` (破壊コア: ${trial.hitCoreCount || 0}/${trial.coreCount || 3})`;
         break;
         // ... 他の試練の進捗表示 ...
         default: break;
