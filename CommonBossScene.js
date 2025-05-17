@@ -1655,9 +1655,9 @@ returnToTitle() {
         }
 
         // ★ 完全無敵フラグを立てる (これが主要な効果) ★
-        this.isPlayerTrulyInvincible = true;
-        console.log(`[Anila Activate] Player True Invincibility ENABLED. isAnilaActive: ${this.isAnilaActive}, isPlayerTrulyInvincible: ${this.isPlayerTrulyInvincible}`);
-
+         this.isPlayerTrulyInvincible = true;
+    this.isAnilaActive = true; // 見た目用フラグなども
+    console.log("[ActivateAnila] isPlayerTrulyInvincible set to true.");
         // 見た目の変更
         this.updateBallAndPaddleAppearance(); // これでパドルが白くなるなどの処理を期待
         // ボールにANILA状態を設定 (アイコン表示用など)
@@ -1696,6 +1696,9 @@ returnToTitle() {
             this.anilaTimer = null;
             console.log("[Anila Deactivate] Anila timer reference nulled.");
         }
+         this.isPlayerTrulyInvincible = false;
+    this.isAnilaActive = false;
+    console.log("[DeactivateAnila] isPlayerTrulyInvincible set to false.");
 
         // ボールのANILA状態を解除 (アイコンなど)
         this.setBallPowerUpState(POWERUP_TYPES.ANILA, false);
@@ -1942,39 +1945,13 @@ isPlayerKubiraActive() {
 // (isPlayerKubiraActive や isPowerUpActive の近くが良いでしょう)
 
 /**
- * プレイヤーが現在アニラのパワーアップ効果を受けているかを判定します。
- * this.powerUpTimers を参照し、該当するタイマーが存在し、
- * かつまだ完了していない（進行度が1未満）場合にtrueを返します。
- * @returns {boolean} アニラ効果がアクティブであればtrue、そうでなければfalse。
+ * プレイヤーが現在アニラの「完全無敵」効果を受けているかを判定します。
+ * this.isPlayerTrulyInvincible フラグを参照します。
+ * @returns {boolean} 完全無敵効果がアクティブであればtrue、そうでなければfalse。
  */
-// CommonBossScene.js - isPlayerAnilaActive()
-isPlayerAnilaActive() {
-    console.log("[AnilaCheck] Called. powerUpTimers:", this.powerUpTimers);
-    console.log("[AnilaCheck] POWERUP_TYPES.ANILA is:", POWERUP_TYPES.ANILA);
-    if (this.powerUpTimers && typeof this.powerUpTimers === 'object') {
-        const anilaTimerEvent = this.powerUpTimers[POWERUP_TYPES.ANILA];
-        console.log("[AnilaCheck] anilaTimerEvent is:", anilaTimerEvent);
-        if (anilaTimerEvent && anilaTimerEvent instanceof Phaser.Time.TimerEvent && typeof anilaTimerEvent.getProgress === 'function') {
-            const progress = anilaTimerEvent.getProgress();
-            console.log("[AnilaCheck] Anila Timer Progress:", progress);
-            if (progress < 1) {
-                console.log("[AnilaCheck] Anila IS ACTIVE (progress < 1).");
-                return true;
-            } else {
-                console.log("[AnilaCheck] Anila Timer EXPIRED (progress >= 1).");
-            }
-        } else {
-            console.log("[AnilaCheck] Anila Timer Event not found or invalid type.");
-        }
-    } else {
-        console.log("[AnilaCheck] powerUpTimers object not found or not an object.");
-    }
-    // もし isPlayerTrulyInvincible フラグも併用・確認するなら
-    // console.log("[AnilaCheck] isPlayerTrulyInvincible flag is:", this.isPlayerTrulyInvincible);
-    // if (this.isPlayerTrulyInvincible === true) return true;
-
-    console.log("[AnilaCheck] Anila IS INACTIVE.");
-    return false;
+isPlayerAnilaActive() { // メソッド名は isPlayerAnilaActive のままでも良いですが、意味的には isTrulyInvincible
+    console.log("[AnilaCheck by Flag] Checking isPlayerTrulyInvincible:", this.isPlayerTrulyInvincible);
+    return this.isPlayerTrulyInvincible === true;
 }
 
 // (オプション) より汎用的な判定メソッド
