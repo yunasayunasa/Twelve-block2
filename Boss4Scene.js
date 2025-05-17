@@ -146,15 +146,15 @@ export default class Boss4Scene extends CommonBossScene {
     defineTrials() {
         return [
             { id: 1, name: "運命の岐路", conditionText: "滅びへの道を選べ", targetItem: null, completed: false, isChoiceEvent: true },
-            { id: 2, name: "原初の契約", conditionText: "ルシファー本体にボールを5回当てる。", targetItem: POWERUP_TYPES.ANCHIRA, completed: false, hitCount: 0, requiredHits: 5 },
+            { id: 2, name: "原初の契約", conditionText: "ルシファー本体にボールを5回当てよ。", targetItem: POWERUP_TYPES.ANCHIRA, completed: false, hitCount: 0, requiredHits: 5 },
             { id: 3, name: "混沌の残滓", conditionText: "混沌の欠片を全て破壊せよ。", targetItemRandom: [POWERUP_TYPES.MAKIRA, POWERUP_TYPES.BAISRAVA], completed: false, objectsToDestroy: 5, destroyedCount: 0, /* ...欠片生成ロジックなど... */ },
             { id: 4, name: "天穿つ最終奥義", conditionText: "ヴァジラ奥義を1回発動せよ。", targetItem: POWERUP_TYPES.VAJRA, completed: false, ougiUsed: false },
-            { id: 5, name: "星光の追撃", conditionText: "クビラ効果中に本体にボールを3回当てる。", targetItem: POWERUP_TYPES.KUBIRA, completed: false, hitCountKubira: 0, requiredHitsKubira: 3 },
+            { id: 5, name: "怪力無双", conditionText: "クビラ効果中に本体にボールを3回当てよ。", targetItem: POWERUP_TYPES.KUBIRA, completed: false, hitCountKubira: 0, requiredHitsKubira: 3 },
             { id: 6, name: "楽園追放", conditionText: "「パラダイス・ロスト」を受けよ。", targetItem: null, anilaDropLocation: null, completed: false, paradiseLostTriggered: false }, // anilaDropLocation はドロップ時に設定
             { id: 7, name: "三宝の導き", conditionText: "指定の三種の神器を集めよ。", targetItemsToCollect: [POWERUP_TYPES.BIKARA_YANG, POWERUP_TYPES.BADRA, POWERUP_TYPES.MAKORA], collectedItems: [], targetItem: null, completed: false }, // targetItemは進行中に設定
             { id: 8, name: "深淵より来る核金", conditionText: "「アビス・コア」にボールを1回当てよ。", targetItem: POWERUP_TYPES.SINDARA, completed: false, coreHit: false, /* ...コア出現ロジック... */ },
-            { id: 9, name: "時の超越、歪む流れの中で", conditionText: "速度変化フィールド内で本体にボールを3回当てる。(0/3)", targetItemAlternate: [POWERUP_TYPES.HAILA, POWERUP_TYPES.SHATORA], completed: false, hitCountTimeField: 0, requiredHitsTimeField: 3, /* ...フィールド展開ロジック... */ },
-            { id: 10, name: "連鎖する星々の輝き", conditionText: "本体にボールを連続3回当てる。", targetItem: POWERUP_TYPES.INDARA, completed: false, consecutiveHits: 0, requiredConsecutiveHits: 3 },
+            { id: 9, name: "時の超越、歪む流れの中で", conditionText: "速度変化フィールド内で本体にボールを3回当てよ。(0/3)", targetItemAlternate: [POWERUP_TYPES.HAILA, POWERUP_TYPES.SHATORA], completed: false, hitCountTimeField: 0, requiredHitsTimeField: 3, /* ...フィールド展開ロジック... */ },
+            { id: 10, name: "連鎖する星々の輝き", conditionText: "ライフを失わずにボールを連続3回当てよ。", targetItem: POWERUP_TYPES.INDARA, completed: false, consecutiveHits: 0, requiredConsecutiveHits: 3 },
             { id: 11, name: "虚無の壁", conditionText: "虚無の壁の奥の本体にボールを1回当てよ。", targetItem: POWERUP_TYPES.BIKARA_YIN, completed: false, wallBreachedAndHit: false, /* ...壁生成ロジック... */ },
             { id: 12, name: "終焉の刻 ", conditionText: "決着を付けろ", targetItem: null, completed: false, isFinalBattle: true }
         ];
@@ -425,22 +425,26 @@ triggerVajraOugi() {
     }
 }
 
-// defineTrials で試練IVの情報を更新 (ougiUsedプロパティ追加)
-// defineTrials() {
-//     return [
-//         // ...
-//         { id: 4, name: "天穿つ最終奥義", conditionText: "ヴァジラ奥義を1回発動せよ。", targetItem: POWERUP_TYPES.VAJRA, completed: false, ougiUsed: false },
-//         // ...
-//     ];
-// }
+// Boss4Scene.js (または、より汎用的にするなら CommonBossScene.js) に追加
 
-// updateTrialProgressUI で試練IVの進捗表示 (任意)
-// updateTrialProgressUI(trial) {
-//     // ...
-//     if (trial.id === 4) {
-//         progressText = trial.ougiUsed ? "(達成！)" : "(未達成)";
-//     }
-//     // ...
+/**
+ * プレイヤーが現在クビラのパワーアップ効果を受けているかを判定する。
+ * @returns {boolean} クビラ効果中であればtrue、そうでなければfalse。
+ */
+isPlayerKubiraActive() {
+    // CommonBossSceneで管理している powerUpTimers を参照する
+    // powerUpTimers は、キーがパワーアップタイプ、値がPhaserのTimerEventオブジェクトの想定
+    if (this.powerUpTimers && this.powerUpTimers[POWERUP_TYPES.KUBIRA]) {
+        const kubiraTimer = this.powerUpTimers[POWERUP_TYPES.KUBIRA];
+        // タイマーが存在し、かつまだ完了していない（getProgress() < 1）なら効果中
+        if (kubiraTimer && typeof kubiraTimer.getProgress === 'function' && kubiraTimer.getProgress() < 1) {
+            // console.log("[KubiraCheck] Kubira effect is ACTIVE.");
+            return true;
+        }
+    }
+    // console.log("[KubiraCheck] Kubira effect is INACTIVE.");
+    return false;
+}
 // }
   // startGameplay (オーバーライド): Commonの処理を呼びつつ、ルシゼロ専用の初期化
 startGameplay() {
@@ -1051,14 +1055,18 @@ const targetReflectSpeed = baseReflectSpeed * speedMultiplier;
                     }
                 }
                 break;
-            case 5: // 星光の追撃
-                if (boss === this.boss && this.isPlayerKubiraActive()) {
+            case 5: // 試練V「星光の追撃」
+            if (this.activeTrial.id === 5 && boss === this.boss) { // ★ボス本体へのヒットか確認★
+                if (this.isPlayerKubiraActive()) { // ★このメソッドが定義されていればエラーは出ない★
                     this.activeTrial.hitCountKubira = (this.activeTrial.hitCountKubira || 0) + 1;
                     if (this.trialUiText) this.updateTrialProgressUI(this.activeTrial);
                     if (this.activeTrial.hitCountKubira >= this.activeTrial.requiredHitsKubira) {
-                        trialJustCompleted = true; // ここも代入先に変更
+                        trialJustCompleted = true;
                     }
+                } else {
+                    console.log("[Trial V Check] Hit boss, but Kubira is not active.");
                 }
+            }
                 break;
             case 9: // 時の超越
                 if (boss === this.boss && this.isTimeFieldActive()) {
