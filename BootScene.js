@@ -170,6 +170,8 @@ this.load.image('void_wall_block', 'assets/void_wall_block.png');
 this.load.image('attack_brick_lucilius', 'assets/attack_brick_lucilius.png');
 this.load.image('attack_brick_lucilius_target', 'assets/attack_brick_lucilius_target.png');
 this.load.image('gameBackground_Boss4', 'assets/gameBackground_Boss4.jpg');
+ this.load.image('light_pillar_texture', 'assets/light_pillar.png'); // 仮パス
+ this.load.image('impact_spark_particle', 'assets/spark.png');    // 仮パス
 // (その他必要な画像アセット)
 
 this.load.video('gameOverVideo_JiEnd', 'assets/ji_end.mp4');

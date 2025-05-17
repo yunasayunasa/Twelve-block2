@@ -925,33 +925,59 @@ fireParadiseLost() {
     }
     console.log(`[ParadiseLost GFX] ${shockwaveCount} shockwaves scheduled.`);
 
-    // ステップ3: 光の柱 (フラッシュや衝撃波と並行して)
-    const pillarCount = 5;
-    const pillarFallBaseDuration = 600;
+    // Boss4Scene.js - fireParadiseLost 内の光の柱生成ループ
     for (let i = 0; i < pillarCount; i++) {
-        this.time.delayedCall(Phaser.Math.Between(100, 400) + i * 100, () => { // 少しずつずらして開始
+        this.time.delayedCall(Phaser.Math.Between(100, 400) + i * 100, () => { // タイミングを少し調整
             if (this.isGameOver || this.bossDefeated || !this.scene.isActive()) return;
-            const pillarX = Phaser.Math.Between(0, this.gameWidth);
-            const pillar = this.add.image(pillarX, -this.gameHeight * 0.1, 'whitePixel')
-                .setTint(0xffffcc).setOrigin(0.5, 0).setAlpha(0)
-                .setDisplaySize(Phaser.Math.Between(30, 80), this.gameHeight * 1.2)
+            const pillarX = Phaser.Math.Between(this.gameWidth * 0.1, this.gameWidth * 0.9); // 画面端すぎないように
+            
+            // ★専用テクスチャを使用★
+            const pillar = this.add.image(pillarX, -this.gameHeight * 0.2, 'light_pillar_texture') // Y開始位置を少し上に
+                .setOrigin(0.5, 0) // 上端中央基点
+                .setAlpha(0)
                 .setDepth(850);
+            // pillar.setScale(0.8); // 元画像のサイズに合わせて調整
 
-            // 柱の落下とフェードアウトアニメーション (2段階のTween)
+            const fallDuration = pillarFallBaseDuration * Phaser.Math.FloatBetween(0.8, 1.2); // 落下時間に少し揺らぎ
+
             this.tweens.add({ // 落下とフェードイン
-                targets: pillar, alpha:0.7, y: this.gameHeight * 0.5,
-                duration: pillarFallBaseDuration / 2, ease: 'Power2.easeIn',
+                targets: pillar,
+                alpha: 0.9, // 最大アルファ
+                y: this.gameHeight + pillar.displayHeight * 0.2, // 画面下端を少し通り過ぎるまで
+                duration: fallDuration,
+                ease: 'Power1.easeIn', // 最初ゆっくり、最後速く
                 onComplete: () => {
-                    if (!pillar.scene || !this.scene.isActive()) { if(pillar.scene) pillar.destroy(); return; }
-                    this.tweens.add({ // 通り過ぎてフェードアウト
-                        targets: pillar, alpha:0, y: this.gameHeight * 1.1,
-                        duration: pillarFallBaseDuration / 2, ease: 'Quad.easeOut', // ease変更
-                        onComplete: () => { if (pillar?.scene) pillar.destroy(); }
-                    });
+                    // ★着弾パーティクル★
+                    if (pillar.scene) { // pillarがまだ存在すれば
+                        const impactParticles = this.add.particles(0, 0, 'impact_spark_particle', {
+                            x: pillar.x,
+                            y: this.gameHeight - 10, // 地面付近
+                            speed: { min: 50, max: 200 },
+                            angle: { min: 240, max: 300 }, // 上向きに広がる
+                            lifespan: { min: 200, max: 500 },
+                            scale: { start: 0.7, end: 0 },
+                            quantity: 8,
+                            blendMode: 'ADD',
+                            emitting: false
+                        });
+                        impactParticles.explode(8);
+                        this.time.delayedCall(600, () => particles.destroy());
+                    }
+                    // ★柱本体のフェードアウト★
+                    if (pillar.scene) {
+                        this.tweens.add({
+                            targets: pillar,
+                            alpha: 0,
+                            duration: 300, // 素早く消える
+                            delay: 100,    // 着弾エフェクトを少し見せてから
+                            onComplete: () => { if (pillar.scene) pillar.destroy(); }
+                        });
+                    }
                 }
             });
         });
     }
+
     console.log(`[ParadiseLost GFX] ${pillarCount} light pillars scheduled.`);
     // --- ▲ 発動演出シーケンス 終了 ▲ ---
 
