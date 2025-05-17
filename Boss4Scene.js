@@ -2187,8 +2187,8 @@ if (this.backgroundObject && this.backgroundObject.active) { // 背景オブジ�
 
         if (this.isJiEndTimerRunning && !this.isGameOver && !this.bossDefeated) {
             let speedMultiplier = 1.0;
-            if (this.currentRoute === 'order') speedMultiplier = 1.5;
-            else if (this.currentRoute === 'chaos') speedMultiplier = 0.5;
+            if (this.currentRoute === 'order') speedMultiplier = 0.5;
+            else if (this.currentRoute === 'chaos') speedMultiplier = 1.5;
             this.jiEndTimeRemaining -= delta * speedMultiplier;
 
             if (this.jiEndTimerText?.active) this.jiEndTimerText.setText(this.formatTime(this.jiEndTimeRemaining));
