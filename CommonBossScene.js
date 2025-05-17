@@ -286,7 +286,42 @@ export default class CommonBossScene extends Phaser.Scene {
                 }
             }
             // ★★★---------------------------------------★★★
-     // --- ▼ 時の超越フィールドによるボール速度変更 ▼ ---
+   
+            // --- 通常のUpdate処理 ---
+            if (this.isGameOver || this.bossDefeated || this.startIntroPending) {
+                this.bossAfterImageEmitter?.stop();
+                return;
+            }
+
+          // if (this.isMakiraActive && this.familiars && this.familiars.countActive(true) > 0) {
+       // const familiarBase = this.familiars.getFirstAlive(); // 1体しかいない前提
+      //  if (familiarBase && familiarBase.active) {
+             // ★★★ 毎フレームの表示状態をログ出力 ★★★
+           //  console.log(`[Update Makira] Familiar visible: ${familiarBase.visible}, alpha: ${familiarBase.alpha}, x: ${familiarBase.x.toFixed(0)}, y: ${familiarBase.y.toFixed(0)}`);
+             // ★★★-------------------------------★★★
+
+            // 装飾の追従 (もしコメントアウト解除するならここに)
+            // if (familiarBase.getData('decoration')) { ... }
+     // }
+ //   }
+             
+    
+            if (this.boss && this.boss.active) {
+                if (this.bossAfterImageEmitter) {
+                     this.bossAfterImageEmitter.setPosition(this.boss.x, this.boss.y);
+                     if (!this.bossAfterImageEmitter.emitting && this.boss.body?.velocity.lengthSq() > 10) { this.bossAfterImageEmitter.start(); }
+                     else if (this.bossAfterImageEmitter.emitting && this.boss.body?.velocity.lengthSq() <= 10) { this.bossAfterImageEmitter.stop(); }
+                }
+                // ★★★ ボス固有行動の呼び出しを一時的にコメントアウト ★★★
+                // console.log("[Update] Calling updateSpecificBossBehavior..."); // 呼び出す前のログ
+                 this.updateSpecificBossBehavior(time, delta);
+                // ★★★-----------------------------------------------★★★
+            }
+    
+            // --- 残りの update 処理はそのまま実行 ---
+            this.updateBallFall();
+            this.updateAttackBricks();
+              // --- ▼ 時の超越フィールドによるボール速度変更 ▼ ---
     if (this.isTimeFieldTrialActive && this.timeFieldData && this.balls) {
         this.balls.getChildren().forEach(ball => {
             if (ball.active && ball.body) {
@@ -324,40 +359,6 @@ export default class CommonBossScene extends Phaser.Scene {
         });
     }
     // --- ▲ 時の超越フィールド 終了 ▲ --
-            // --- 通常のUpdate処理 ---
-            if (this.isGameOver || this.bossDefeated || this.startIntroPending) {
-                this.bossAfterImageEmitter?.stop();
-                return;
-            }
-
-          // if (this.isMakiraActive && this.familiars && this.familiars.countActive(true) > 0) {
-       // const familiarBase = this.familiars.getFirstAlive(); // 1体しかいない前提
-      //  if (familiarBase && familiarBase.active) {
-             // ★★★ 毎フレームの表示状態をログ出力 ★★★
-           //  console.log(`[Update Makira] Familiar visible: ${familiarBase.visible}, alpha: ${familiarBase.alpha}, x: ${familiarBase.x.toFixed(0)}, y: ${familiarBase.y.toFixed(0)}`);
-             // ★★★-------------------------------★★★
-
-            // 装飾の追従 (もしコメントアウト解除するならここに)
-            // if (familiarBase.getData('decoration')) { ... }
-     // }
- //   }
-             
-    
-            if (this.boss && this.boss.active) {
-                if (this.bossAfterImageEmitter) {
-                     this.bossAfterImageEmitter.setPosition(this.boss.x, this.boss.y);
-                     if (!this.bossAfterImageEmitter.emitting && this.boss.body?.velocity.lengthSq() > 10) { this.bossAfterImageEmitter.start(); }
-                     else if (this.bossAfterImageEmitter.emitting && this.boss.body?.velocity.lengthSq() <= 10) { this.bossAfterImageEmitter.stop(); }
-                }
-                // ★★★ ボス固有行動の呼び出しを一時的にコメントアウト ★★★
-                // console.log("[Update] Calling updateSpecificBossBehavior..."); // 呼び出す前のログ
-                 this.updateSpecificBossBehavior(time, delta);
-                // ★★★-----------------------------------------------★★★
-            }
-    
-            // --- 残りの update 処理はそのまま実行 ---
-            this.updateBallFall();
-            this.updateAttackBricks();
             
             this.balls?.getMatching('active', true).forEach(ball => {
                  if (ball.getData('isIndaraActive') && this.boss && this.boss.active && ball.body) {
