@@ -81,15 +81,7 @@ export default class Boss4Scene extends CommonBossScene {
             jiEndTimerYPosRatio: 0.1,
             jiEndTimerFontSizeRatio: 1 / 15,
 
-            attackIntervalOrder: { min: 12000, max: 20000 }, // 攻撃間隔 (秩序) - 少し速め
-            attackIntervalChaos: { min: 20000, max: 30000 }, // 攻撃間隔 (混沌) - 遅め
-            // (弾速、弾数などもここで定義し、fireRadialAttack/fireTargetedAttackで参照する)
-            radialAttackParamsOrder: { count: 3, speedMultiplier: 0.9 },
-            radialAttackParamsChaos: { count: 5, speedMultiplier: 0.4 },
-            targetedAttackParamsOrder: { chargeTime: 2500, speedMultiplier: 0.9 },
-            targetedAttackParamsChaos: { chargeTime: 4500, speedMultiplier: 0.4 },
-
-            warpYRange: { minRatio: 0.15, maxRatio: 0.25 }, // ワープ先のY座標範囲 (画面高さ比)
+               warpYRange: { minRatio: 0.15, maxRatio: 0.5 }, // ワープ先のY座標範囲 (画面高さ比)
     warpDelayAfterAttack: 300, // 攻撃後のワープ開始までの遅延 (ms)
     warpDelayAfterHit: 100,    // ボールヒット後のワープ開始までの遅延 (ms)
     warpDurationFadeOut: 200,  // ワープで消える時間
@@ -98,22 +90,46 @@ export default class Boss4Scene extends CommonBossScene {
     pauseAfterWarp: 800,       // ワープ後の行動停止時間 (ms)
             trials: this.defineTrials(),
             trialRewardItem: POWERUP_TYPES.BIKARA_YANG,
-            // ルシゼロ専用攻撃弾のテクスチャキー
-            projectileTextureKey: 'attack_brick_lucilius',
-            targetProjectileTextureKey: 'attack_brick_lucilius_target',
-            // 放射攻撃パラメータ
-    radialAttackProjectileCount: 5, // 例: 5方向
-    radialAttackAngles: [60, 75, 90, 105, 120], // 例: 下方向広範囲
-    radialAttackProjectileSpeed: DEFAULT_ATTACK_BRICK_VELOCITY_Y + 30,
-    radialAttackProjectileTexture: 'attack_brick_lucilius', // 剣のテクスチャ
-    radialAttackProjectileScale: 0.15, // テクスチャに合わせたスケール
-    radialAttackProjectileSpinRate: 180, // 1秒あたりの回転角度 (度)
 
-    // ターゲット攻撃パラメータ
-    targetedAttackProjectileSpeed: DEFAULT_ATTACK_BRICK_VELOCITY_Y + 50, // 少し速め
-    targetedAttackProjectileTexture: 'attack_brick_lucilius_target', // 剣のテクスチャ (同じでも別でも)
-    targetedAttackProjectileScale: 0.15,
-    targetedAttackProjectileSpinRate: 270, // こちらは少し速く回転させるなど変化をつけても
+             // --- ▼ 攻撃頻度の調整 ▼ ---
+    attackIntervalOrder: { min: 2200, max: 3500 }, // 秩序: 2.2秒～3.5秒間隔 (以前より少し遅く)
+    attackIntervalChaos: { min: 4500, max: 7000 }, // 混沌: 4.5秒～7秒間隔 (かなり遅く)
+    // --- ▲ ------------------ ▲ ---
+
+    // --- ▼ 放射攻撃パラメータのルート別調整（例）▼ ---
+    radialAttackParamsBase: { // 基本パラメータ
+        angles: [70, 80, 90, 100, 110], // 5方向を基本とする
+        projectileSpeed: DEFAULT_ATTACK_BRICK_VELOCITY_Y + 20, // 基本速度
+        projectileTexture: 'attack_brick_lucilius',
+        projectileScale: 0.15,
+        projectileSpinRate: 180,
+    },
+    radialAttackParamsOrder: { // 秩序ルート: 弾数を増やし、少し速く
+        count: 5, // 5方向全て
+        speedMultiplier: 1.1,
+        // (オプション) 角度を少し狭めて密度を上げるなども
+    },
+    radialAttackParamsChaos: { // 混沌ルート: 弾数を減らし、かなり遅く
+        count: 3, // 中央3方向のみなど
+        speedMultiplier: 0.7,
+        // (オプション) 角度を広げて避けやすくするなども
+    },
+    // --- ▲ ------------------------------------ ▲ ---
+
+    // --- ▼ ターゲット攻撃パラメータのルート別調整（例）▼ ---
+    targetedAttackParamsBase: {
+        projectileSpeed: DEFAULT_ATTACK_BRICK_VELOCITY_Y + 40,
+        projectileTexture: 'attack_brick_lucilius_target',
+        projectileScale: 0.15,
+        projectileSpinRate: 270,
+    },
+    targetedAttackParamsOrder: { // 秩序ルート: 速度微増
+        speedMultiplier: 1.05,
+        // (オプション) 2発連続で撃ってくるなども
+    },
+    targetedAttackParamsChaos: { // 混沌ルート: 速度大幅減
+        speedMultiplier: 0.6,
+    },
 
         };
         this.bossVoiceKeys = Array.isArray(this.bossData.voiceRandom) ? this.bossData.voiceRandom : [];
@@ -986,43 +1002,29 @@ fireRadialAttack() {
     console.log(`[BossAttack] Firing Radial Attack (Route: ${this.currentRoute})`);
     // if (AUDIO_KEYS.SE_LUCILIUS_ATTACK_RADIAL) this.sound.play(AUDIO_KEYS.SE_LUCILIUS_ATTACK_RADIAL);
 
-    const params = this.currentRoute === 'order' ?
-        (this.bossData.radialAttackParamsOrder || {}) : // フォールバック用の空オブジェクト
+    const baseParams = this.bossData.radialAttackParamsBase || {};
+    const routeParams = this.currentRoute === 'order' ?
+        (this.bossData.radialAttackParamsOrder || {}) :
         (this.bossData.radialAttackParamsChaos || {});
-    const count = params.count || this.bossData.radialAttackProjectileCount || 5;
-    const speed = (params.speedMultiplier ? (this.bossData.radialAttackProjectileSpeed * params.speedMultiplier) : this.bossData.radialAttackProjectileSpeed) || (DEFAULT_ATTACK_BRICK_VELOCITY_Y + 30);
-    const angles = this.bossData.radialAttackAngles || [75, 90, 105]; // デフォルト角度
-    const texture = this.bossData.radialAttackProjectileTexture || 'attack_brick_lucilius';
-    const scale = this.bossData.radialAttackProjectileScale || 0.15;
-    const spinRate = this.bossData.radialAttackProjectileSpinRate || 0;
+
+    const count = routeParams.count !== undefined ? routeParams.count : (baseParams.count || 5);
+    const speed = (baseParams.projectileSpeed || (DEFAULT_ATTACK_BRICK_VELOCITY_Y + 20)) * (routeParams.speedMultiplier !== undefined ? routeParams.speedMultiplier : 1.0);
+    const angles = baseParams.angles || [75, 90, 105];
+    const texture = baseParams.projectileTexture || 'attack_brick_lucilius';
+    const scale = baseParams.projectileScale || 0.15;
+    const spinRate = baseParams.projectileSpinRate || 0;
 
     const spawnX = this.boss.x;
-    const spawnY = this.boss.y + (this.boss.displayHeight / 2) * 0.7; // ボス下部から少し
+    const spawnY = this.boss.y + (this.boss.displayHeight / 2) * 0.7;
 
-    console.log(`[Radial Attack Params] Count:${count}, Speed:${speed.toFixed(0)}, Angles:${angles.join(',')}`);
+    console.log(`[Radial Attack] Final Params - Count:${count}, Speed:${speed.toFixed(0)}, Angles:${angles.slice(0,count).join(',')}, SpinRate:${spinRate}`);
 
-    angles.slice(0, count).forEach(angleDeg => { // countの数だけ角度配列から取り出す
-        const projectile = this.attackBricks.create(spawnX, spawnY, texture);
-        if (projectile) {
-            projectile.setScale(scale).setOrigin(0.5, 0.5);
-            if (projectile.body) {
-                this.physics.velocityFromAngle(angleDeg, speed, projectile.body.velocity);
-                projectile.body.setAllowGravity(false);
-                projectile.body.setCollideWorldBounds(true);
-                projectile.body.onWorldBounds = true;
-            }
-            projectile.setData('blockType', 'projectile');
-            projectile.setData('isGuaranteedDropSource', true); // ★確定ドロップ源の印
-            projectile.setDepth(1);
-
-            if (spinRate !== 0) {
-                this.tweens.add({
-                    targets: projectile, angle: 360, duration: (360 / Math.abs(spinRate)) * 1000, repeat: -1, ease: 'Linear'
-                });
-            }
-        }
+    angles.slice(0, count).forEach(angleDeg => {
+        this.spawnLuciliusProjectile(spawnX, spawnY, texture, {
+            scale: scale, speed: speed, angleDeg: angleDeg, spinRate: spinRate
+        });
     });
-}// ターゲット攻撃 (仮実装)
+}
     // Boss4Scene.js
 fireTargetedAttack() {
     if (!this.attackBricks || !this.boss || !this.boss.active || !this.paddle?.active || this.isGameOver || this.bossDefeated) {
@@ -1031,83 +1033,30 @@ fireTargetedAttack() {
     console.log(`[BossAttack] Firing Targeted Attack (Route: ${this.currentRoute}) - No Prediction Marker`);
     // if (AUDIO_KEYS.SE_LUCILIUS_ATTACK_TARGET) this.sound.play(AUDIO_KEYS.SE_LUCILIUS_ATTACK_TARGET);
 
-    const params = this.currentRoute === 'order' ?
+    const baseParams = this.bossData.targetedAttackParamsBase || {};
+    const routeParams = this.currentRoute === 'order' ?
         (this.bossData.targetedAttackParamsOrder || {}) :
         (this.bossData.targetedAttackParamsChaos || {});
-    const speed = (params.speedMultiplier ? (this.bossData.targetedAttackProjectileSpeed * params.speedMultiplier) : this.bossData.targetedAttackProjectileSpeed) || (DEFAULT_ATTACK_BRICK_VELOCITY_Y + 50);
-    // const chargeTime = params.chargeTime || (this.currentRoute === 'order' ? 600 : 900); // 予兆がないのでチャージ時間は不要に
 
-    const texture = this.bossData.targetedAttackProjectileTexture || 'attack_brick_lucilius_target';
-    const scale = this.bossData.targetedAttackProjectileScale || 0.15;
-    const spinRate = this.bossData.targetedAttackProjectileSpinRate || 0;
+    const speed = (baseParams.projectileSpeed || (DEFAULT_ATTACK_BRICK_VELOCITY_Y + 40)) * (routeParams.speedMultiplier !== undefined ? routeParams.speedMultiplier : 1.0);
+    const texture = baseParams.projectileTexture || 'attack_brick_lucilius_target';
+    const scale = baseParams.projectileScale || 0.15;
+    const spinRate = baseParams.projectileSpinRate || 0;
 
-    const targetX = this.paddle.x; // 発射決定時のパドルX座標
+    // ... (targetX, spawnX, spawnY の計算は変更なし) ...
+    const targetX = this.paddle.x;
+    const spawnFromBossX = this.boss.x;
     const spawnFromBossY = this.boss.y + (this.boss.displayHeight / 2) * 0.7;
 
-    // 予兆マーカーは表示しない
+    const angleToTargetRad = Phaser.Math.Angle.Between(spawnFromBossX, spawnFromBossY, targetX, this.gameHeight - 30);
+    const angleToTargetDeg = Phaser.Math.RadToDeg(angleToTargetRad);
 
-    // 即座に発射 (またはごく短い遅延)
-    // this.time.delayedCall(100, () => { // 0.1秒のディレイなど、調整用
-        if (!this.attackBricks || !this.boss || !this.boss.active || this.isGameOver || this.bossDefeated) return;
+    console.log(`[Targeted Attack] Final Params - Speed:${speed.toFixed(0)}, TargetX:${targetX.toFixed(0)}, Angle:${angleToTargetDeg.toFixed(1)}, SpinRate:${spinRate}`);
 
-        const projectile = this.attackBricks.create(this.boss.x, spawnFromBossY, texture);
-        if (projectile) {
-            projectile.setScale(scale).setOrigin(0.5, 0.5);
-            if (projectile.body) {
-                const angleToTarget = Phaser.Math.Angle.Between(
-                    projectile.x, projectile.y,
-                    targetX, this.gameHeight - 30 // 画面下端より少し手前を狙う
-                );
-                this.physics.velocityFromAngle(Phaser.Math.RadToDeg(angleToTarget), speed, projectile.body.velocity);
-                projectile.body.setAllowGravity(false);
-                projectile.body.setCollideWorldBounds(true);
-                projectile.body.onWorldBounds = true;
-            }
-            projectile.setData('blockType', 'projectile');
-            projectile.setData('isGuaranteedDropSource', true); // ★確定ドロップ源の印
-            projectile.setDepth(1);
-
-            if (spinRate !== 0) {
-                this.tweens.add({
-                    targets: projectile, angle: projectile.angle + 360, duration: (360 / Math.abs(spinRate)) * 1000, repeat: -1, ease: 'Linear'
-                });
-            }
-            console.log(`[Targeted Attack] Projectile fired towards X:${targetX.toFixed(0)} at Speed:${speed.toFixed(0)}`);
-        }
-    // }, [], this);
-}
-
-// Boss4Scene.js
-completeCurrentTrial() {
-    if (this.activeTrial && !this.activeTrial.completed) { // (A)
-        console.log(`[TrialLogic] Trial ${this.activeTrial.id}「${this.activeTrial.name}」 COMPLETED!`);
-        this.activeTrial.completed = true;
-
-        // ★★★ 試練クリア時に画面内の全ての敵の弾を消す ★★★
-        if (this.attackBricks) { // attackBricks は CommonBossScene のプロパティ
-            console.log("[Trial Complete] Clearing all active attack bricks.");
-            this.attackBricks.clear(true, true); // グループ内の全ての子を破棄し、グループからも削除
-        }
-        // ★★★-----------------------------------------★★★
-
-        // 報酬：ビカラ陽ドロップ
-        if (this.bossData.trialRewardItem && this.boss && this.boss.active) { // (B)
-            console.log(`[Trial Reward] Dropping ${this.bossData.trialRewardItem}`);
-            this.dropSpecificPowerUp(this.boss.x, this.boss.y + this.boss.displayHeight/2, this.bossData.trialRewardItem);
-        }
-        // (試練達成SEなど)
-        // if (AUDIO_KEYS.SE_TRIAL_SUCCESS) try { this.sound.play(AUDIO_KEYS.SE_TRIAL_SUCCESS); } catch(e){}
-
-        // 次の試練へ
-        const nextTrialDelay = 1000; // 1秒後 (調整可能)
-        console.log(`[Trial Complete] Scheduling next trial in ${nextTrialDelay}ms.`);
-        this.time.delayedCall(nextTrialDelay, this.startNextTrial, [], this); // (C)
-    } else {
-        console.warn("[TrialLogic] completeCurrentTrial called but no active trial or trial already completed.");
-    }
-}
-
-// 混沌の欠片召喚 (仮実装)
+    this.spawnLuciliusProjectile(spawnFromBossX, spawnFromBossY, texture, {
+        scale: scale, speed: speed, angleDeg: angleToTargetDeg, spinRate: spinRate
+    });
+}// 混沌の欠片召喚 (仮実装)
     spawnChaosFragments(count) { /* TODO */ console.log(`[Trial] Spawning ${count} Chaos Fragments.`);}
     // 虚無の壁召喚 (仮実装)
     spawnVoidWall() { /* TODO */ console.log("[Trial] Spawning Void Wall.");}
