@@ -733,9 +733,107 @@ playSpecificBgm(bgmKey) {
     if (trial.id === 3) { // 試練III「混沌の残滓」
         this.spawnChaosFragments(trial.objectsToDestroy || 5); }
         // 例: 試練XI「虚無の壁」なら壁を召喚
+         else if (trial.id === 6) { // 試練VI「楽園追放」
+        this.executeParadiseLostSequence();
+    }
         if (trial.id === 11) this.spawnVoidWall();
         // 他の試練の準備も同様に
     }
+
+    executeParadiseLostSequence() {
+    console.log("[Trial VI] Starting Paradise Lost sequence.");
+    this.playerControlEnabled = false; // 演出中は完全に操作不能にしても良いかも
+    // (もしボスが通常の攻撃/ワープをしていたら、それを止める)
+    // this.lastAttackTime = Infinity; this.lastWarpTime = Infinity;
+
+    const moveToCenterDuration = 500;
+    const flyOffDuration = 300;
+    const pauseOffScreenDuration = 500;
+    const returnDuration = 700;
+    const chargeDuration = 3000;
+
+    // 1a. 画面中央へ移動
+    this.warpBossToPosition(this.gameWidth / 2, this.gameHeight / 2, moveToCenterDuration, () => {
+        if (this.isGameOver || this.bossDefeated) return;
+        // 1b. 高速で画面上部画面外へ
+        this.tweens.add({
+            targets: this.boss, y: -this.boss.displayHeight, scale: this.boss.scale * 0.5, duration: flyOffDuration, ease: 'Power2.easeIn',
+            onComplete: () => {
+                if (this.isGameOver || this.bossDefeated) return;
+                this.boss.setVisible(false); // 一旦見えなくする
+                // 1c. 画面中央へ再出現（奥からの接近）
+                this.time.delayedCall(pauseOffScreenDuration, () => {
+                    if (this.isGameOver || this.bossDefeated) return;
+                    this.boss.setPosition(this.gameWidth / 2, this.gameHeight * 0.1); // 少し上から
+                    this.boss.setScale((this.bossData.widthRatio / (this.boss.texture.source[0].width / this.gameWidth)) * 0.3); // 小さいスケール
+                    this.boss.setAlpha(0).setVisible(true);
+                    // (再出現SE)
+                    this.tweens.add({
+                        targets: this.boss,
+                        y: this.gameHeight * 0.2, // 元の戦闘Y位置
+                        scale: (this.bossData.widthRatio / (this.boss.texture.source[0].width / this.gameWidth)), // 元のスケール
+                        alpha: 1,
+                        duration: returnDuration,
+                        ease: 'Power2.easeOut',
+                        onComplete: () => { // ルシファー最終位置到達、チャージ開始
+                            if (this.isGameOver || this.bossDefeated) return;
+                            this.startParadiseLostCharge(chargeDuration);
+                        }
+                    });
+                }, [], this);
+            }
+        });
+    });
+}
+
+startParadiseLostCharge(duration) {
+    console.log("[Trial VI] Paradise Lost charging...");
+    if (this.bossData.voiceParadiseLost) this.sound.play(this.bossData.voiceParadiseLost); // 詠唱ボイス
+    // (チャージSE開始)
+    // (画面揺れ開始 this.cameras.main.shake(duration, 0.005);)
+    // (赤い点滅Tween開始 targets: someOverlay, alpha: {from:0.1, to:0.4, yoyo:true, repeat...})
+    // (エネルギー集中パーティクル開始)
+
+    // アニラドロップ
+    const anilaDropX = Phaser.Math.Between(this.gameWidth * 0.2, this.gameWidth * 0.8);
+    const anilaDropY = this.gameHeight * 0.5; // 画面中央高さ
+    console.log(`[Trial VI] Dropping Anila at X:${anilaDropX.toFixed(0)}, Y:${anilaDropY.toFixed(0)}`);
+    this.dropSpecificPowerUp(anilaDropX, anilaDropY, POWERUP_TYPES.ANILA);
+    // (アニラドロップ専用SE)
+
+    this.time.delayedCall(duration, this.fireParadiseLost, [], this);
+}
+
+fireParadiseLost() {
+    console.log("[Trial VI] Firing Paradise Lost!");
+    // (チャージSE停止、揺れ停止、点滅停止、集中エフェクト停止)
+    // (発動SE再生)
+    // (画面フラッシュ this.cameras.main.flash(200, 255, 255, 255, true);)
+    // (全画面攻撃エフェクト開始)
+
+    this.time.delayedCall(500, () => { // 攻撃エフェクトのピークに合わせてダメージ処理
+        if (this.isGameOver || this.bossDefeated) return;
+        let damage = 8;
+        if (this.isPlayerAnilaActive()) { // isPlayerAnilaActive()はアニラ効果中か判定するヘルパー
+            damage = 0;
+            console.log("[Trial VI] Paradise Lost negated by Anila!");
+            // (アニラバリアエフェクト)
+        }
+        console.log(`[Trial VI] Player takes ${damage} damage from Paradise Lost.`);
+        if (damage > 0) {
+            for(let i=0; i < damage; i++) { // ライフを複数回減らす
+                if(this.lives > 0) this.loseLife(); else break; // loseLifeは1減らす想定
+            }
+        }
+        // (ダメージ受けたSE/エフェクト)
+
+        // 試練達成
+        this.activeTrial.paradiseLostTriggered = true; // 達成フラグ
+        this.completeCurrentTrial();
+
+        // (攻撃エフェクト終了処理)
+    }, [], this);
+}
 
 
     // 「調和と破壊」の選択イベントを開始
