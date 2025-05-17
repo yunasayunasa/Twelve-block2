@@ -1460,13 +1460,10 @@ hitBoss(boss, ball) {
     }
     const targetSpeed = baseSpeedForReflection * speedMultiplier;
 
-    const reflectAngleRad = Phaser.Math.Angle.Between(boss.x, boss.y, ball.x, ball.y);
-    const reflectAngleDeg = Phaser.Math.RadToDeg(reflectAngleRad) + 180; // ボスから離れる方向
-    try {
-        this.physics.velocityFromAngle(reflectAngleDeg, targetSpeed, ball.body.velocity);
-    } catch (e) {
-        console.error("[Boss4 hitBoss - TrialPhase] Error setting ball velocity for reflection:", e);
-    }
+    // hitBoss 内の試練中の反射ロジック (対策A)
+const escapeAngleRad = Phaser.Math.Angle.Between(boss.x, boss.y, ball.x, ball.y); // ボス中心からボールへの現在の角度
+this.physics.velocityFromAngle(Phaser.Math.RadToDeg(escapeAngleRad), targetSpeed, ball.body.velocity);
+console.log(`[Boss4 hitBoss - TrialPhase] Ball reflected (Escape Vector). Angle: ${Phaser.Math.RadToDeg(escapeAngleRad).toFixed(1)}, Speed: ${targetSpeed.toFixed(1)}`);
 
 
     // --- ▼ 試練達成判定 (ボールがボスに当たることが条件の試練) ▼ ---
