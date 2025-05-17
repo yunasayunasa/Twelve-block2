@@ -1108,7 +1108,7 @@ completeCurrentTrial() {
 
     this.isCompletingTrial = true; // ★試練完了処理を開始
     this.activeTrial.completed = true;
-    this.playerControlEnabled = false; // 演出中はプレイヤー操作を一時的に制限
+   // this.playerControlEnabled = false; // 演出中はプレイヤー操作を一時的に制限
 
     console.log(`[TrialLogic] Trial ${this.activeTrial.id}「${this.activeTrial.name}」 MARKED COMPLETED! Initiating post-trial sequence.`);
 
@@ -1125,7 +1125,7 @@ completeCurrentTrial() {
         const damageReactionColor = 0xffaa00; // オレンジっぽい色
 
         // ★★★ damageReactionDuration をここで宣言・初期化 ★★★
-        const damageReactionDuration = 3000;   // 点滅を含めた合計時間 (ms) - 調整可能
+        const damageReactionDuration = 2500;   // 点滅を含めた合計時間 (ms) - 調整可能
         // ★★★-------------------------------------------------★★★
 
         const flashInterval = 150;            // 1回の点滅の間隔 (ms)
