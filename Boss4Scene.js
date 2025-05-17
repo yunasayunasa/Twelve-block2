@@ -32,6 +32,7 @@ export default class Boss4Scene extends CommonBossScene {
         this.harmonyCrystal = null;
         this.destructionCrystal = null;
         this.isChoiceEventActive = false;
+        this.chaosFragmentsGroup = null; // 専用グループ
 
         this.isFinalBattleActive = false;
         this.lastAttackTime = 0;
@@ -50,6 +51,8 @@ export default class Boss4Scene extends CommonBossScene {
         this.lastAttackTime = 0;
         this.lastWarpTime = 0;
         this.isIntroAnimating = false;
+          this.chaosFragmentsGroup?.destroy(true, true); // シーン初期化で破棄
+    this.chaosFragmentsGroup = null;
 
         this.jiEndTimerText?.destroy(); this.jiEndTimerText = null;
         this.harmonyCrystal?.destroy(); this.harmonyCrystal = null;
@@ -662,9 +665,9 @@ playSpecificBgm(bgmKey) {
 
 
     // 現在の試練に応じた環境設定 (専用オブジェクト召喚など)
-    setupCurrentTrialEnvironment(trial) {
-        // 例: 試練III「混沌の残滓」なら欠片を召喚
-        if (trial.id === 3) this.spawnChaosFragments(trial.objectsToDestroy);
+   setupCurrentTrialEnvironment(trial) {
+    if (trial.id === 3) { // 試練III「混沌の残滓」
+        this.spawnChaosFragments(trial.objectsToDestroy || 5); }
         // 例: 試練XI「虚無の壁」なら壁を召喚
         if (trial.id === 11) this.spawnVoidWall();
         // 他の試練の準備も同様に
@@ -1414,27 +1417,61 @@ const projectile = this.spawnLuciliusProjectile(spawnFromBossX, spawnFromBossY, 
  //   console.log(`[Targeted Attack] Final Params - Speed:${speed.toFixed(0)}, TargetX:${targetX.toFixed(0)}, Angle:${angleToTargetDeg.toFixed(1)}, SpinRate:${spinRate}`);
 
  
-}// 混沌の欠片召喚 (仮実装)
-    spawnChaosFragments(count) { /* TODO */ console.log(`[Trial] Spawning ${count} Chaos Fragments.`);}
-    // 虚無の壁召喚 (仮実装)
-    spawnVoidWall() { /* TODO */ console.log("[Trial] Spawning Void Wall.");}
-    // 試練達成チェック (仮実装 - 各試練の条件に応じて詳細化)
-    checkTrialCompletion(trial, ball = null, brick = null) {
-        if (!trial || trial.completed) return;
-        let trialJustCompleted = false;
-        // --- ここに各試練IDごとの達成判定ロジックを書く ---
-        // 例: trial.id === 2 (原初の契約)
-        // if (trial.id === 2 && /* ボールがボスに当たった */) {
-        //     trial.hitCount++;
-        //     this.updateTrialProgressUI(trial); // UI更新
-        //     if (trial.hitCount >= trial.requiredHits) trialJustCompleted = true;
-        // }
-        // ... 他の試練の判定 ...
+}
+spawnChaosFragments(count) {
+    if (this.chaosFragmentsGroup) this.chaosFragmentsGroup.clear(true, true); // 既存があればクリア
+    else this.chaosFragmentsGroup = this.physics.add.group();
 
-        if (trialJustCompleted) {
-            this.completeCurrentTrial();
+    console.log(`[Trial III] Spawning ${count} Chaos Fragments.`);
+    this.activeTrial.destroyedCount = 0; // 破壊カウンターリセット
+
+    for (let i = 0; i < count; i++) {
+        // 画面内のランダムな位置、または特定パターンで配置
+        const x = Phaser.Math.Between(this.gameWidth * 0.1, this.gameWidth * 0.9);
+        const y = Phaser.Math.Between(this.gameHeight * 0.3, this.gameHeight * 0.6);
+        const fragment = this.chaosFragmentsGroup.create(x, y, 'chaos_fragment'); // ★専用テクスチャキー
+        if (fragment) {
+            fragment.setScale(0.12); // 仮スケール
+            fragment.setImmovable(true); // ボールが当たっても動かない
+            // fragment.body.setAllowGravity(false); // Group作成時に設定も可
+            // (もし欠片が少し動くなら setImmovable(false) にして setBounce など設定)
         }
     }
+    // ボールと欠片の衝突設定
+    if (this.ballChaosFragmentCollider) this.ballChaosFragmentCollider.destroy(); // 既存コライダー破棄
+    this.ballChaosFragmentCollider = this.physics.add.collider(
+        this.balls,
+        this.chaosFragmentsGroup,
+        this.hitChaosFragment, // 専用の衝突コールバック
+        null,
+        this
+    );
+    this.updateTrialProgressUI(this.activeTrial); // UI初期表示
+}
+
+// ボールが混沌の欠片に当たった時のコールバック
+hitChaosFragment(ball, fragment) {
+    if (!fragment.active || !this.activeTrial || this.activeTrial.id !== 3 || this.activeTrial.completed) {
+        return; // 無効な衝突は無視
+    }
+
+    console.log("[Trial III] Ball hit Chaos Fragment.");
+    // (破片破壊のSEやエフェクト)
+    // this.createImpactParticles(fragment.x, fragment.y, ...);
+    // this.sound.play(AUDIO_KEYS.SE_FRAGMENT_DESTROY);
+    fragment.destroy(); // 1ヒットで破壊
+
+    this.activeTrial.destroyedCount++;
+    this.updateTrialProgressUI(this.activeTrial);
+
+    if (this.activeTrial.destroyedCount >= (this.activeTrial.objectsToDestroy || 5)) {
+        console.log("[Trial III] All Chaos Fragments destroyed.");
+        this.completeCurrentTrial(); // 試練達成
+        if (this.ballChaosFragmentCollider) this.ballChaosFragmentCollider.destroy(); // コライダーも不要に
+        this.ballChaosFragmentCollider = null;
+    }
+}
+
     // updateTrialProgressUI (試練の進捗UIを更新するメソッド)
 updateTrialProgressUI(trial) {
     if (!this.trialUiText || !this.trialUiText.active || !trial) return;
@@ -1600,6 +1637,10 @@ if (this.backgroundObject && this.backgroundObject.active) { // 背景オブジ�
         this.trialUiText?.destroy();
         this.harmonyCrystal?.destroy();
         this.destructionCrystal?.destroy();
+         this.chaosFragmentsGroup?.destroy(true, true);
+    this.chaosFragmentsGroup = null;
+    this.ballChaosFragmentCollider?.destroy();
+    this.ballChaosFragmentCollider = null;
         // 他のこのシーン固有のオブジェクトやタイマーもクリア
         console.log("--- Boss4Scene SHUTDOWN Complete ---");
     }
