@@ -99,6 +99,8 @@ export default class CommonBossScene extends Phaser.Scene {
      //   this.startIntroPending = false; // ★ 登場演出開始待ちフラグを追加
       //  this.originalBodySize = { width: 0, height: 0 }; // ★ ボディサイズ保存用
         //this.originalBodyOffset = { x: 0, y: 0 };   // ★ ボディオフセット保存用
+         this.isTimeFieldTrialActive = false; // Boss4Sceneがtrue/falseする
+ this.timeFieldData = null;           // Boss4Sceneが設定する {boundaryY, slowFactor, fastFactor}
 
         // --- 攻撃ブロック関連 ---
         this.attackBricks = null;

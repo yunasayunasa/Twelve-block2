@@ -27,6 +27,8 @@ export default class Boss4Scene extends CommonBossScene {
         this.trialsData = [];
         this.activeTrialIndex = -1;
         this.trialUiText = null;
+        // this.isTimeFieldTrialActive = false; // Boss4Sceneがtrue/falseする
+// this.timeFieldData = null;           // Boss4Sceneが設定する {boundaryY, slowFactor, fastFactor}
 
         this.currentRoute = null;
         this.harmonyCrystal = null;
