@@ -3,7 +3,7 @@ import CommonBossScene from './CommonBossScene.js';
 import {
     AUDIO_KEYS, POWERUP_TYPES, TOTAL_BOSSES, GAMEPLAY_START_DELAY,VAJRA_GAUGE_MAX, 
     NORMAL_BALL_SPEED, BALL_SPEED_MODIFIERS, DEFAULT_ATTACK_BRICK_VELOCITY_Y,
-    CUTSCENE_DURATION, POWERUP_ICON_KEYS,
+    CUTSCENE_DURATION, POWERUP_ICON_KEYS,BALL_INITIAL_VELOCITY_Y,BALL_INITIAL_VELOCITY_X_RANGE,
     // (その他必要な定数を constants.js からインポート)
     // SE_JI_END_BELL, SE_TRIAL_COMPLETE などもAUDIO_KEYS経由で
 } from './constants.js';
@@ -1423,18 +1423,19 @@ updateFinalBattleBossAI(time, delta) {
 
    // CommonBossSceneのhitBossをオーバーライド (試練中のワープと、決着の刻の通常のヒット処理)
 // Boss4Scene.js
+
 hitBoss(boss, ball) {
-    if (!boss || !ball || !ball.body || !boss.active || this.isCompletingTrial) { // ★isCompletingTrial を追加★
-        if(this.isCompletingTrial) console.log("[HitBoss] Ignoring hit, trial completion in progress.");
+    if (!boss || !ball || !ball.body || !boss.active) {
+        console.warn("[Boss4 hitBoss] Hit with invalid objects or inactive boss/ball.");
         return;
     }
-    let trialJustCompleted = false; // ★★★ 変数宣言をメソッドの早い段階に移動 ★★★
-    console.log(`[Boss4 hitBoss Start] Initial trialJustCompleted: ${trialJustCompleted}`);
+
+    let trialJustCompleted = false;
+    console.log(`[Boss4 hitBoss Start] Initial trialJustCompleted: ${trialJustCompleted}, ActiveTrialID: ${this.activeTrial?.id}`);
 
     if (this.isFinalBattleActive) {
         console.log("[Boss4 hitBoss - FinalBattle] Standard boss hit.");
         super.hitBoss(boss, ball);
-        // 最終決戦中は試練判定は不要なので、ここでreturnしても良い
         return;
     }
 
@@ -1442,30 +1443,35 @@ hitBoss(boss, ball) {
     console.log("[Boss4 hitBoss - TrialPhase] Ball hit, reflecting.");
 
     // ボール反射ロジック
-    const escapeAngleRad = Phaser.Math.Angle.Between(boss.x, boss.y, ball.x, ball.y); // ボス中心からボールへの角度
-const escapeAngleDeg = Phaser.Math.RadToDeg(escapeAngleRad);
     let speedMultiplier = 1.0;
-    const baseReflectSpeed = (NORMAL_BALL_SPEED || 380) * 0.8; // 反射時は少し減速させるなど調整
-const targetReflectSpeed = baseReflectSpeed * speedMultiplier;
     if (ball.getData('isFast') === true && BALL_SPEED_MODIFIERS && POWERUP_TYPES) {
         speedMultiplier = BALL_SPEED_MODIFIERS[POWERUP_TYPES.SHATORA] || 1.0;
     } else if (ball.getData('isSlow') === true && BALL_SPEED_MODIFIERS && POWERUP_TYPES) {
         speedMultiplier = BALL_SPEED_MODIFIERS[POWERUP_TYPES.HAILA] || 1.0;
     }
-    const targetSpeed = (NORMAL_BALL_SPEED || 380) * speedMultiplier;
-    const reflectAngleRad = Phaser.Math.Angle.Between(boss.x, boss.y, ball.x, ball.y);
-    const reflectAngleDeg = Phaser.Math.RadToDeg(reflectAngleRad) + 180;
-    try {
-        this.physics.velocityFromAngle(escapeAngleDeg, targetReflectSpeed, ball.body.velocity);
-    console.log(`[Boss4 hitBoss - TrialPhase] Ball reflected. Angle: ${escapeAngleDeg.toFixed(1)}, Speed: ${targetReflectSpeed.toFixed(1)}`);
-} catch (e) {
-    console.error("[Boss4 hitBoss - TrialPhase] Error setting ball velocity for reflection:", e);
-}
+    // ★試練IX中は、ボールの基本速度自体が currentTrialBallSpeedMultiplier で上がっているはずなので、
+    //  ここでの targetSpeed 計算は、その加速された状態を基準にするか、
+    //  あるいは、NORMAL_BALL_SPEED に直接 currentTrialBallSpeedMultiplier を掛けてから、
+    //  さらにアイテムの speedMultiplier を掛けるか、仕様を明確にする必要があります。
+    //  ここでは、アイテム効果と試練効果が乗算されると仮定します。
+    let baseSpeedForReflection = NORMAL_BALL_SPEED || 380;
+    if (this.isTrialShatoraActive && typeof this.currentTrialBallSpeedMultiplier === 'number') { // 試練IXのシャトラ効果
+        baseSpeedForReflection *= this.currentTrialBallSpeedMultiplier;
+    }
+    const targetSpeed = baseSpeedForReflection * speedMultiplier;
 
-    // 試練達成判定 (ボールがボスに当たることが条件の試練)
+    const reflectAngleRad = Phaser.Math.Angle.Between(boss.x, boss.y, ball.x, ball.y);
+    const reflectAngleDeg = Phaser.Math.RadToDeg(reflectAngleRad) + 180; // ボスから離れる方向
+    try {
+        this.physics.velocityFromAngle(reflectAngleDeg, targetSpeed, ball.body.velocity);
+    } catch (e) {
+        console.error("[Boss4 hitBoss - TrialPhase] Error setting ball velocity for reflection:", e);
+    }
+
+
+    // --- ▼ 試練達成判定 (ボールがボスに当たることが条件の試練) ▼ ---
     if (this.activeTrial && !this.activeTrial.completed) {
         console.log(`[Boss4 hitBoss - TrialCheck] Active Trial ID: ${this.activeTrial.id}`);
-        // trialJustCompleted は既に false で初期化済み
 
         switch (this.activeTrial.id) {
             case 2: // 原初の契約
@@ -1477,50 +1483,59 @@ const targetReflectSpeed = baseReflectSpeed * speedMultiplier;
                     }
                 }
                 break;
-            case 5: // 試練V「星光の追撃」
-            if (this.activeTrial.id === 5 && boss === this.boss) { // ★ボス本体へのヒットか確認★
-                if (this.isPlayerKubiraActive()) { // ★このメソッドが定義されていればエラーは出ない★
+            case 5: // 星光の追撃
+                if (boss === this.boss && this.isPlayerKubiraActive()) { // isPlayerKubiraActive は CommonBossScene にある想定
                     this.activeTrial.hitCountKubira = (this.activeTrial.hitCountKubira || 0) + 1;
                     if (this.trialUiText) this.updateTrialProgressUI(this.activeTrial);
                     if (this.activeTrial.hitCountKubira >= this.activeTrial.requiredHitsKubira) {
                         trialJustCompleted = true;
                     }
-                } else {
-                    console.log("[Trial V Check] Hit boss, but Kubira is not active.");
                 }
-            }
                 break;
-            case 9: // 時の超越
-                if (boss === this.boss && this.isTimeFieldActive()) {
+            // ★★★ 試練IX「時の超越、加速する運命」の判定 ★★★
+            case 9:
+                if (boss === this.boss) { // ボス本体へのヒットか確認
+                    // isTrialShatoraActive フラグは試練IX中はずっとtrueのはずなので、
+                    // 特別な条件は不要で、単純にヒットカウントを増やす。
                     this.activeTrial.hitCountTimeField = (this.activeTrial.hitCountTimeField || 0) + 1;
                     if (this.trialUiText) this.updateTrialProgressUI(this.activeTrial);
                     if (this.activeTrial.hitCountTimeField >= this.activeTrial.requiredHitsTimeField) {
-                        trialJustCompleted = true; // ここも代入先に変更
+                        trialJustCompleted = true;
                     }
                 }
                 break;
+            // ★★★------------------------------------------★★★
             case 10: // 連鎖する星々の輝き
                 if (boss === this.boss) {
                     this.activeTrial.consecutiveHits = (this.activeTrial.consecutiveHits || 0) + 1;
+                    // ボールロストで this.activeTrial.consecutiveHits = 0; にする処理が別途必要
                     if (this.trialUiText) this.updateTrialProgressUI(this.activeTrial);
                     if (this.activeTrial.consecutiveHits >= this.activeTrial.requiredConsecutiveHits) {
-                        trialJustCompleted = true; // ここも代入先に変更
+                        trialJustCompleted = true;
                     }
                 }
                 break;
             // --- 他の「ボスにヒット」が条件の試練の case をここに追加 ---
+            // 例: 試練XI「虚無の壁を打ち破れ」も、最終的にボスに当てる必要があるのでここで判定
+            case 11: // 虚無の壁
+                if (boss === this.boss && this.activeTrial.voidWallDestroyed) { // voidWallDestroyed は壁破壊時にtrueにするフラグと仮定
+                    this.activeTrial.wallBreachedAndHit = true;
+                    if (this.trialUiText) this.updateTrialProgressUI(this.activeTrial);
+                    trialJustCompleted = true; // 壁破壊後の1ヒットでクリア
+                }
+                break;
         }
         console.log(`[Boss4 hitBoss - TrialCheck After Switch] trialJustCompleted: ${trialJustCompleted}`);
     }
+    // --- ▲ 試練達成判定 終了 ▲ ---
 
-    // trialJustCompleted の値に基づいて試練完了処理を呼び出す
     if (trialJustCompleted) {
         console.log("[Boss4 hitBoss] trialJustCompleted is true, calling completeCurrentTrial.");
         this.completeCurrentTrial();
     }
 
-    // ボスをワープさせる
-    if (boss === this.boss) { // ボス本体に当たった場合のみワープ
+    // ボスをワープさせる (試練中のみ、かつボス本体へのヒット時)
+    if (!this.isFinalBattleActive && boss === this.boss) {
         this.time.delayedCall(this.bossData.warpDelayAfterHit || 100, this.warpBoss, [], this);
     }
 }
@@ -2227,6 +2242,14 @@ launchBall() {
     }
 }
 // (isBallOnPaddle(ball) はパドル上にボールがあるか判定するヘルパー)
+// (isBallOnPaddle(ball) ヘルパーメソッド - ボールがパドル上にあるか判定)
+isBallOnPaddle(ball) {
+    if (!ball || !ball.body || !this.paddle || !this.paddle.active) return false;
+    // 簡易的な判定: ボールのY座標がパドルの上端より少し上で、X座標がパドルの範囲内
+    const paddleBounds = this.paddle.getBounds();
+    return ball.y < paddleBounds.top && ball.y > paddleBounds.top - ball.displayHeight * 2 &&
+           ball.x > paddleBounds.left && ball.x < paddleBounds.right;
+}
 
 // hitPaddle, hitBoss の反射ロジックでも this.currentTrialBallSpeedMultiplier を考慮する必要がある
 // (ボールの最終速度を計算する際に、この倍率を掛ける)
