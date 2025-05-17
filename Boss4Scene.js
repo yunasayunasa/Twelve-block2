@@ -1432,29 +1432,57 @@ shatterCrystal(crystal) {
     // ボスの攻撃パターンとワープ - lastAttackTime の更新を確認
 
   updateSpecificBossBehavior(time, delta) {
-    if (this.isIntroAnimating || !this.playerControlEnabled || !this.boss || !this.boss.active ||
-        this.bossDefeated || this.isGameOver || this.isChoiceEventActive || this.isFinalBattleActive ||
-        this.isCompletingTrial || this.isSpecialSequenceActive) { // ★isCompletingTrial を追加★
-          if (this.isFinalBattleActive && !this.isCompletingTrial && !this.isSpecialSequenceActive) { // 最終決戦AIは特別演出中でなければ動く
+    // --- ▼ ガード処理 ▼ ---
+    // (この部分は前回のものでほぼOKですが、isFinalBattleActiveの扱いを少し整理)
+    let blockBossActions = this.isIntroAnimating ||
+                           !this.playerControlEnabled ||
+                           !this.boss || !this.boss.active ||
+                           this.bossDefeated ||
+                           this.isGameOver ||
+                           this.isChoiceEventActive || // 選択イベント中はボスは何もしない
+                           this.isCompletingTrial ||   // 試練完了演出中はボスは何もしない
+                           this.isSpecialSequenceActive; // パラダイス・ロスト演出中はボスは何もしない
+
+    if (this.isFinalBattleActive) { // 最終決戦モード
+        if (!blockBossActions) { // 最終決戦中でも、他のガード条件に引っかからなければAI実行
             this.updateFinalBattleBossAI(time, delta);
         }
-        if(this.isSpecialSequenceActive) //console.log("[UpdateSpecificBossBehavior] Guarded by isSpecialSequenceActive");
-        
-        if(this.isCompletingTrial) console.log("[UpdateSpecificBossBehavior] Paused during trial completion sequence.");if (this.isFinalBattleActive) this.updateFinalBattleBossAI(time, delta);
+        return; // 最終決戦中は、以下の試練中ロジックは実行しない
+    }
+
+    // 試練XI「虚無の壁」中はボスを静止させ、攻撃もワープもしないようにする
+    if (this.activeTrial && this.activeTrial.id === 11 && this.activeTrial.bossShouldBeStatic === true) {
+        // console.log("[UpdateSpecificBossBehavior] Trial XI active and bossShouldBeStatic is true. No attacks or standard warps.");
+        // (もし壁召喚中に何か特別なことをするならここに)
+        return; // 通常の攻撃/ワープ処理をスキップ
+    }
+
+    if (blockBossActions) {
+        // if (this.isCompletingTrial) console.log("[UpdateSpecificBossBehavior] Paused during trial completion sequence.");
+        // if (this.isSpecialSequenceActive) console.log("[UpdateSpecificBossBehavior] Guarded by isSpecialSequenceActive");
         return;
     }
-    // ..
+    // --- ▲ ガード処理 終了 ▲ ---
 
-    // --- 攻撃処理 (試練中: activeTrialIndex が 1 以上、つまり試練II以降) ---
+
+    // --- ▼ 時間経過によるワープ (現在はコメントアウト想定) ▼ ---
+    /*
+    if (time > this.lastWarpTime + (this.bossData.warpInterval || 7000)) {
+        // if (!this.activeTrial?.bossShouldBeStatic) { // 試練XI中でなければ
+             this.warpBoss();
+        // }
+    }
+    */
+    // --- ▲ 時間経過によるワープ 終了 ▲ ---
+
+
+    // --- ▼ 攻撃処理 (試練II以降、最終決戦前、かつ試練XIのボス静止中でない場合) ▼ ---
     // activeTrialIndex は 0 から始まるので、試練IIはインデックス 1
-    if (this.activeTrialIndex >= 1) { // 試練ID 2 (原初の契約) 以降
+    if (this.activeTrialIndex >= 1) { // 試練I「調和と破壊」選択後から
         const attackIntervalConfig = this.currentRoute === 'order' ?
             (this.bossData.attackIntervalOrder || {min:1800, max:2800}) :
             (this.bossData.attackIntervalChaos || {min:3500, max:5500});
         const interval = Phaser.Math.Between(attackIntervalConfig.min, attackIntervalConfig.max);
-
-        // デバッグログ (条件確認用)
-        // console.log(`[Attack Check] time: ${time.toFixed(0)}, lastAttack: ${this.lastAttackTime.toFixed(0)}, interval: ${interval}, diff: ${(time - (this.lastAttackTime + interval)).toFixed(0)}`);
 
         if (time > this.lastAttackTime + interval) {
             if (Phaser.Math.Between(0, 1) === 0) {
@@ -1462,14 +1490,18 @@ shatterCrystal(crystal) {
             } else {
                 this.fireTargetedAttack();
             }
-            this.lastAttackTime = time; // ★★★ 攻撃実行後に lastAttackTime を更新 ★★★
+            this.lastAttackTime = time;
             console.log(`[Attack] Attack executed. Next attack possible after ${interval}ms. Updated lastAttackTime: ${this.lastAttackTime.toFixed(0)}`);
 
-            // 攻撃後に少し遅れてワープ
-            this.time.delayedCall(this.bossData.warpDelayAfterAttack || 300, this.warpBoss, [], this);
+            // 攻撃後に少し遅れてワープ (試練XI中でなければ)
+            // if (!this.activeTrial?.bossShouldBeStatic) { // このチェックは warpBoss 側で行っても良い
+                 this.time.delayedCall(this.bossData.warpDelayAfterAttack || 300, this.warpBoss, [], this);
+            // }
         }
     }
+    // --- ▲ 攻撃処理 終了 ▲ ---
 }
+
 
 // (オプション) 最終決戦用のボスAIメソッド
 updateFinalBattleBossAI(time, delta) {
@@ -1861,7 +1893,8 @@ hitChaosFragment(ball, fragment) {
  */
 warpBoss() {
     // --- ▼ ガード処理: ボスが存在しない、非アクティブ、または既にワープ中の場合は実行しない ▼ ---
-    if (!this.boss || !this.boss.active) {
+    if (!this.boss || !this.boss.active || this.isWarping) {
+        // ...
         console.warn("[WarpBoss] Boss is not active or does not exist. Skipping warp.");
         return;
     }
@@ -1871,6 +1904,13 @@ warpBoss() {
     }
     // --- ▲ ガード処理 終了 ▲ ---
 
+ // ★★★ 試練XI中はワープしない ★★★
+    if (this.activeTrial && this.activeTrial.id === 11 && this.activeTrial.bossShouldBeStatic === true) {
+        console.log("[WarpBoss] Skipping warp: Trial XI active and bossShouldBeStatic is true.");
+        this.isWarping = false; // 念のためフラグを戻す (呼ばれないはずだが)
+        return;
+    }
+    // ★★★-----------------------★★★
     this.isWarping = true; // ★ワープ処理開始フラグを立てる
   //  console.log("[BossAction] Initiating Rich Warp Sequence (Guarded & Sequential Tweens)...");
 
