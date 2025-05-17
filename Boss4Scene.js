@@ -805,16 +805,15 @@ spawnAbyssCoresAndGuards(coreCount) {
             const guardX = core.x + Math.cos(Phaser.Math.DegToRad(angle)) * guardRadius;
             const guardY = core.y + Math.sin(Phaser.Math.DegToRad(angle)) * guardRadius;
             // spawnLuciliusProjectile を流用するか、専用のブロック生成メソッド
-            const guardBlock = this.spawnLuciliusProjectile(guardX, guardY, this.bossData.projectileTextureKey || 'attack_brick_lucilius', {
-                scale: 0.08, // 少し小さめ
+             const guardBlock = this.spawnLuciliusProjectile(guardX, guardY, this.bossData.projectileTextureKey || 'attack_brick_lucilius', {
+                scale: 0.08,
                 speed: 0,    // 静止
-                angleDeg: 0, // 向きは関係ない
-                // spinRate: 0 // 回転なし
+                angleDeg: 0,
             });
-            if (guardBlock) {
-                guardBlock.setImmovable(false); // ボールで破壊できるように
-                guardBlock.setData('isCoreGuard', true); // 防御ブロックである印
-                // 確定ドロップは isGuaranteedDropSource: true で spawnLuciliusProjectile 内で設定済み
+            if (guardBlock && guardBlock.body) { // guardBlockが生成され、bodyがあることを確認
+                guardBlock.setImmovable(true);     // ★ボールで動かないように★
+                guardBlock.body.setAllowGravity(false); // ★重力無効を再度確認★
+                guardBlock.setData('isCoreGuard', true);
             }
         }
     }
