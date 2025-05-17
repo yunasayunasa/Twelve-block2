@@ -1189,13 +1189,13 @@ completeCurrentTrial() {
 }
 
 spawnChaosFragments(count) {
-    // this.chaosFragmentsGroup = this.physics.add.group(); // 専用グループ
-    // for (let i = 0; i < count; i++) {
-    //     const fragment = this.chaosFragmentsGroup.create(x, y, 'chaos_fragment_texture');
-    //     fragment.setData('isChaosFragment', true);
-    // }
+     this.chaosFragmentsGroup = this.physics.add.group(); // 専用グループ
+     for (let i = 0; i < count; i++) {
+        const fragment = this.chaosFragmentsGroup.create(x, y, 'chaos_fragment');
+        fragment.setData('isChaosFragment', true);
+    }
     // ボールと欠片のコライダー設定
-    // this.physics.add.collider(this.balls, this.chaosFragmentsGroup, this.hitChaosFragment, null, this);
+     this.physics.add.collider(this.balls, this.chaosFragmentsGroup, this.hitChaosFragment, null, this);
     this.activeTrial.destroyedCount = 0; // カウンター初期化
     this.updateTrialProgressUI(this.activeTrial);
     console.log(`[Trial] Spawned ${count} Chaos Fragments. Need to destroy.`);
