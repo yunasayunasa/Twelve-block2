@@ -171,7 +171,17 @@ export default class Boss4Scene extends CommonBossScene {
                 coresData: [],    // 各コアの状態（HPなど）を格納する配列
                 destroyedCoreCount: 0
             },
-            { id: 9, name: "時の超越、歪む流れの中で", conditionText: "速度変化フィールド内で本体にボールを3回当てよ。(0/3)", targetItemAlternate: [POWERUP_TYPES.HAILA, POWERUP_TYPES.SHATORA], completed: false, hitCountTimeField: 0, requiredHitsTimeField: 3, /* ...フィールド展開ロジック... */ },
+            { id: 9, name: "時の超越、歪む流れの中で", conditionText: "速度変化フィールド内で/n本体にボールを3回当てよ。", 
+                 dropLogic: 'alternate', // ドロップロジックのタイプを示す（getOverrideDropItemで使う）
+                items: [POWERUP_TYPES.HAILA, POWERUP_TYPES.SHATORA], // 交互ドロップ候補
+                lastDroppedTimeFieldItemIndex: -1, // 最後にドロップしたアイテムのインデックス
+                completed: false,
+                hitCountTimeField: 0,
+                requiredHitsTimeField: 3,
+                timeFieldBoundaryYRatio: 0.5, // 画面高さの50%が境界
+                timeFieldSlowFactor: 0.7,   // 低速エリアの速度倍率 (基本速度に対して)
+                timeFieldFastFactor: 1.3    // 高速エリアの速度倍率
+            },
             { id: 10, name: "連鎖する星々の輝き", conditionText: "ライフを失わずにボールを連続3回当てよ。", targetItem: POWERUP_TYPES.INDARA, completed: false, consecutiveHits: 0, requiredConsecutiveHits: 3 },
             { id: 11, name: "虚無の壁", conditionText: "虚無の壁の奥の本体にボールを1回当てよ。", targetItem: POWERUP_TYPES.BIKARA_YIN, completed: false, wallBreachedAndHit: false, /* ...壁生成ロジック... */ },
             { id: 12, name: "終焉の刻 ", conditionText: "決着を付けろ", targetItem: null, completed: false, isFinalBattle: true }
@@ -769,10 +779,50 @@ playSpecificBgm(bgmKey) {
  if (trial.id === 8) {
         this.spawnAbyssCores(trial.coreCount || 3);
     }
+     if (trial.id === 9) { // 時の超越
+        this.activateTimeField(trial);
+    }
 
         if (trial.id === 11) this.spawnVoidWall();
         // 他の試練の準備も同様に
     }
+
+    activateTimeField(trialData) {
+    console.log("[Trial IX] Activating Time Field.");
+    this.isTimeFieldTrialActive = true; // CommonBossSceneのフラグを立てる
+    this.timeFieldData = { // CommonBossSceneに渡すデータ
+        boundaryY: this.gameHeight * (trialData.timeFieldBoundaryYRatio || 0.5),
+        slowFactor: trialData.timeFieldSlowFactor || 0.7,
+        fastFactor: trialData.timeFieldFastFactor || 1.3
+    };
+
+    // 視覚エフェクト生成 (例: 半透明オーバーレイ)
+    this.timeFieldSlowOverlay = this.add.rectangle(0, 0, this.gameWidth, this.timeFieldData.boundaryY, 0x0000ff, 0.1).setOrigin(0,0).setDepth(-1);
+    this.timeFieldFastOverlay = this.add.rectangle(0, this.timeFieldData.boundaryY, this.gameWidth, this.gameHeight - this.timeFieldData.boundaryY, 0xff0000, 0.1).setOrigin(0,0).setDepth(-1);
+
+    if (AUDIO_KEYS.SE_TIME_FIELD_ON) this.sound.play(AUDIO_KEYS.SE_TIME_FIELD_ON);
+}
+// completeCurrentTrial や shutdownScene で timeField を解除する処理
+deactivateTimeField() {
+    console.log("[Trial IX] Deactivating Time Field.");
+    this.isTimeFieldTrialActive = false;
+    this.timeFieldData = null;
+    this.timeFieldSlowOverlay?.destroy(); this.timeFieldSlowOverlay = null;
+    this.timeFieldFastOverlay?.destroy(); this.timeFieldFastOverlay = null;
+    if (AUDIO_KEYS.SE_TIME_FIELD_OFF) this.sound.play(AUDIO_KEYS.SE_TIME_FIELD_OFF);
+    // ボールの速度を通常に戻す処理も必要ならここで行う
+    this.balls?.getChildren().forEach(ball => {
+        if(ball.active && ball.body) {
+            const currentSpeed = ball.body.velocity.length();
+            let baseSpeedWithPowerUp = NORMAL_BALL_SPEED;
+            if (ball.getData('isFast')) baseSpeedWithPowerUp *= (BALL_SPEED_MODIFIERS[POWERUP_TYPES.SHATORA] || 1);
+            if (ball.getData('isSlow')) baseSpeedWithPowerUp *= (BALL_SPEED_MODIFIERS[POWERUP_TYPES.HAILA] || 1);
+            if (Math.abs(currentSpeed - baseSpeedWithPowerUp) > 10) {
+                ball.body.velocity.normalize().scale(baseSpeedWithPowerUp);
+            }
+        }
+    });
+}
 
    // Boss4Scene.js
 spawnAbyssCores(coreCount) {
@@ -1479,11 +1529,11 @@ const targetReflectSpeed = baseReflectSpeed * speedMultiplier;
             }
                 break;
             case 9: // 時の超越
-                if (boss === this.boss && this.isTimeFieldActive()) {
+                if (boss === this.boss && this.isTimeFieldTrialActive) { // フィールド効果中か確認
                     this.activeTrial.hitCountTimeField = (this.activeTrial.hitCountTimeField || 0) + 1;
                     if (this.trialUiText) this.updateTrialProgressUI(this.activeTrial);
                     if (this.activeTrial.hitCountTimeField >= this.activeTrial.requiredHitsTimeField) {
-                        trialJustCompleted = true; // ここも代入先に変更
+                        trialJustCompleted = true;
                     }
                 }
                 break;
