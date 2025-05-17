@@ -897,7 +897,7 @@ shatterCrystal(crystal) {
         const interval = Phaser.Math.Between(attackIntervalConfig.min, attackIntervalConfig.max);
 
         // デバッグログ (条件確認用)
-         console.log(`[Attack Check] time: ${time.toFixed(0)}, lastAttack: ${this.lastAttackTime.toFixed(0)}, interval: ${interval}, diff: ${(time - (this.lastAttackTime + interval)).toFixed(0)}`);
+        // console.log(`[Attack Check] time: ${time.toFixed(0)}, lastAttack: ${this.lastAttackTime.toFixed(0)}, interval: ${interval}, diff: ${(time - (this.lastAttackTime + interval)).toFixed(0)}`);
 
         if (time > this.lastAttackTime + interval) {
             if (Phaser.Math.Between(0, 1) === 0) {
