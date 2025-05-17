@@ -249,9 +249,28 @@ spawnLuciliusProjectile(x, y, textureKey, config = {}) {
         projectile.setData('blockType', 'projectile');      // これが攻撃弾であることを示す
         projectile.setData('isGuaranteedDropSource', true); // この弾からはアイテムが確定ドロップする印
 
-        // 回転アニメーションは「勝手に回転していた」とのことなので、ここでは追加しない。
-        // もし個別に回転速度などを設定したい場合は、config.spinRate を受け取り、
-        // ここで Tween を追加する。
+          // --- ▼▼▼ 回転Tween ▼▼▼ ---
+        if (spinRate !== 0 && Math.abs(spinRate) > 0.01 && this.tweens && typeof this.tweens.add === 'function') { // this.tweens の存在も確認
+            const rotationDuration = (360 / Math.abs(spinRate)) * 1000;
+            if (rotationDuration > 0 && isFinite(rotationDuration)) { // durationが正の有限数か
+                try {
+                    this.tweens.add({
+                        targets: projectile,
+                        angle: projectile.angle + (spinRate > 0 ? 359.9 : -359.9),
+                        duration: rotationDuration,
+                        repeat: -1,
+                        ease: 'Linear'
+                    });
+                    console.log(`[SpawnLuciProjectile] Spin tween added to ${textureKey} (Rate: ${spinRate} deg/s)`);
+                } catch (e_tween) {
+                    console.error("[SpawnLuciProjectile] Error occurred while adding spin tween:", e_tween);
+                }
+            } else {
+                console.warn(`[SpawnLuciProjectile] Invalid rotationDuration (${rotationDuration}) for spin tween. SpinRate: ${spinRate}`);
+            }
+        }
+        // --- ▲▲▲ 回転Tween 終了 ▲▲▲ ---
+
         
 
         // console.log(`[SpawnLuciProjectile] Successfully created projectile: ${textureKey} at (${x.toFixed(0)},${y.toFixed(0)}) with Angle:${angleDeg.toFixed(1)}, Speed:${speed.toFixed(0)}`);
