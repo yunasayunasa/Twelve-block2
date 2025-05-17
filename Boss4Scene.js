@@ -33,6 +33,7 @@ export default class Boss4Scene extends CommonBossScene {
         this.destructionCrystal = null;
         this.isChoiceEventActive = false;
         this.chaosFragmentsGroup = null; // 専用グループ
+        this.isCompletingTrial = false;
 
         this.isFinalBattleActive = false;
         this.lastAttackTime = 0;
@@ -53,6 +54,7 @@ export default class Boss4Scene extends CommonBossScene {
         this.isIntroAnimating = false;
           this.chaosFragmentsGroup?.destroy(true, true); // シーン初期化で破棄
     this.chaosFragmentsGroup = null;
+    this.isCompletingTrial = false;
 
         this.jiEndTimerText?.destroy(); this.jiEndTimerText = null;
         this.harmonyCrystal?.destroy(); this.harmonyCrystal = null;
@@ -890,13 +892,12 @@ shatterCrystal(crystal) {
 
     // ボスの攻撃パターンとワープ - lastAttackTime の更新を確認
 
-   updateSpecificBossBehavior(time, delta) {
-    // isIntroAnimating は戦闘開始前に false になっているはず
-    // isChoiceEventActive は選択が終われば false になっているはず
-    // ★ playerControlEnabled が false の間はボスは行動しない ★
-    if (!this.playerControlEnabled || !this.boss || !this.boss.active ||
-        this.bossDefeated || this.isGameOver || this.isFinalBattleActive) { // isFinalBattleActiveのAIは別途
-        if (this.isFinalBattleActive) this.updateFinalBattleBossAI(time, delta);
+  updateSpecificBossBehavior(time, delta) {
+    if (this.isIntroAnimating || !this.playerControlEnabled || !this.boss || !this.boss.active ||
+        this.bossDefeated || this.isGameOver || this.isChoiceEventActive || this.isFinalBattleActive ||
+        this.isCompletingTrial) { // ★isCompletingTrial を追加★
+        // ... (最終決戦AI呼び出しなど) ...
+        if(this.isCompletingTrial) console.log("[UpdateSpecificBossBehavior] Paused during trial completion sequence.");if (this.isFinalBattleActive) this.updateFinalBattleBossAI(time, delta);
         return;
     }
     // ..
@@ -939,8 +940,10 @@ updateFinalBattleBossAI(time, delta) {
    // CommonBossSceneのhitBossをオーバーライド (試練中のワープと、決着の刻の通常のヒット処理)
 // Boss4Scene.js
 hitBoss(boss, ball) {
-    if (!boss || !ball || !ball.body || !boss.active) return;
-
+    if (!boss || !ball || !ball.body || !boss.active || this.isCompletingTrial) { // ★isCompletingTrial を追加★
+        if(this.isCompletingTrial) console.log("[HitBoss] Ignoring hit, trial completion in progress.");
+        return;
+    }
     let trialJustCompleted = false; // ★★★ 変数宣言をメソッドの早い段階に移動 ★★★
     console.log(`[Boss4 hitBoss Start] Initial trialJustCompleted: ${trialJustCompleted}`);
 
@@ -1088,102 +1091,106 @@ warpBossToPosition(targetX, targetY, duration = 500, onCompleteCallback = null) 
     }
 }
 
-
+// Boss4Scene.js
 completeCurrentTrial() {
-    // --- ▼ ガード処理: アクティブな試練があり、かつ未完了の場合のみ実行 ▼ ---
-    if (!this.activeTrial || this.activeTrial.completed) {
-        if (this.activeTrial && this.activeTrial.completed) {
-            console.warn(`[TrialLogic] completeCurrentTrial called, but trial ${this.activeTrial.id}「${this.activeTrial.name}」 is already marked as completed.`);
+    // --- ▼ ガード処理: アクティブな試練があり、未完了、かつ現在完了処理中でない場合のみ実行 ▼ ---
+    if (!this.activeTrial || this.activeTrial.completed || this.isCompletingTrial) {
+        if (this.isCompletingTrial) {
+            console.warn(`[CompleteTrial] Called while already completing trial ${this.activeTrial?.id}. Ignoring.`);
+        } else if (this.activeTrial?.completed) {
+            console.warn(`[CompleteTrial] Trial ${this.activeTrial.id}「${this.activeTrial.name}」 is already marked as completed. Ignoring.`);
         } else {
-            console.warn("[TrialLogic] completeCurrentTrial called, but no active trial found.");
+            console.warn("[CompleteTrial] No active trial to complete or called unexpectedly.");
         }
-        return; // 何もせず終了
+        return;
     }
     // --- ▲ ガード処理 終了 ▲ ---
 
-    console.log(`[TrialLogic] Trial ${this.activeTrial.id}「${this.activeTrial.name}」 COMPLETED! Initiating post-trial sequence.`);
-    this.activeTrial.completed = true;  // 試練を完了済みにマーク
- //   this.playerControlEnabled = false;  // ★演出中はプレイヤー操作を一時的に制限
+    this.isCompletingTrial = true; // ★試練完了処理を開始
+    this.activeTrial.completed = true;
+    this.playerControlEnabled = false; // 演出中はプレイヤー操作を一時的に制限
+
+    console.log(`[TrialLogic] Trial ${this.activeTrial.id}「${this.activeTrial.name}」 MARKED COMPLETED! Initiating post-trial sequence.`);
+
+    // ボスの現在の攻撃/ワープタイマーを実質的に停止させる (次の行動を遅らせる)
+    this.lastAttackTime = this.time.now + 100000; // 非常に大きな値を設定して一時停止
+    this.lastWarpTime = this.time.now + 100000;   // 同上
+    console.log("[CompleteTrial] Boss action timers temporarily paused.");
 
     // --- ▼ 試練クリア演出シーケンス (delayedCallで順番に実行) ▼ ---
-// ★★★ 試練クリア演出中はボスを無敵にする ★★★
-    if (this.boss && this.boss.active) {
-        this.boss.setData('isInvulnerable', true);
-        console.log("[Trial Complete] Boss set to INVULNERABLE during post-trial sequence.");
-    }
-    // ★★★------------------------------------★★★
 
-    // ステップ1: ルシファーのダメージモーション（HPは減らないフェイク）とSE
+    // ステップ1: ルシファーのダメージモーションとSE (約0.5秒の演出)
     if (this.boss && this.boss.active) {
         console.log("[Trial Complete GFX] Boss damage reaction start.");
-          this.boss.setTintFill(0xffaa00); // オレンジっぽい色
-        this.time.delayedCall(200, () => { // 0.2秒後にTintをクリア
-            if (this.boss?.active) { // ?.で安全に
-                this.boss.clearTint(); // ★ここでクリア★
-                this.boss.setAlpha(1); // アルファも念のため戻す
+        this.boss.setTintFill(0xffaa00); // オレンジっぽいティント
+        this.tweens.add({
+            targets: this.boss,
+            alpha: 0.6,
+            duration: 100,
+            yoyo: true,
+            repeat: 2, // 3回点滅 (計 100ms * 2 * 3 = 600ms)
+            onComplete: () => {
+                if (this.boss?.active) {
+                    this.boss.clearTint();
+                    this.boss.setAlpha(1);
+                }
+                console.log("[Trial Complete GFX] Boss damage reaction end.");
             }
-            console.log("[Trial Complete GFX] Boss damage reaction end (Tint cleared).");
         });
     }
-    // 試練達成SE
-    if (AUDIO_KEYS.SE_TRIAL_SUCCESS) { // キーの存在を確認
-        try { this.sound.play(AUDIO_KEYS.SE_TRIAL_SUCCESS); } catch(e) { console.error("Error playing SE_TRIAL_SUCCESS:", e); }
-    }
+    if (AUDIO_KEYS.SE_TRIAL_SUCCESS) try { this.sound.play(AUDIO_KEYS.SE_TRIAL_SUCCESS); } catch(e){}
+    const step1Duration = 600; // ダメージリアクション時間
 
     // ステップ2: 画面内の敵弾消去 (ダメージリアクションとほぼ同時か、少し後)
-    const clearProjectilesDelay = 150; // 0.15秒後 (調整可能)
-    this.time.delayedCall(clearProjectilesDelay, () => {
-        if (this.isGameOver || this.bossDefeated) return; // 既にゲームが終了していたら何もしない
-
+    this.time.delayedCall(step1Duration - 400 > 0 ? step1Duration - 400 : 50, () => { // リアクションの途中から
+        if (!this.isCompletingTrial || this.isGameOver || this.bossDefeated) { this.isCompletingTrial = false; return; }
         if (this.attackBricks) {
             console.log("[Trial Complete GFX] Clearing all active enemy projectiles.");
             const projectilesToClear = this.attackBricks.getChildren().filter(
                 brick => brick.active && brick.getData('blockType') === 'projectile'
             );
-            projectilesToClear.forEach(projectile => {
-                // (オプション: 弾が消える際の小さなエフェクトなど)
-                projectile.destroy();
-            });
+            projectilesToClear.forEach(projectile => projectile.destroy());
             console.log(`[Trial Complete GFX] Cleared ${projectilesToClear.length} projectiles.`);
         }
+    }, [], this);
 
-        // ステップ3: ルシファーが画面中央へワープ (弾消去後、少し間をおいて)
-        const warpToCenterDelay = 400; // 弾消去から0.4秒後 (調整可能)
-        this.time.delayedCall(warpToCenterDelay, () => {
-            if (this.isGameOver || this.bossDefeated) return;
+    // ステップ3: ルシファーが画面中央へワープ (ステップ1完了後)
+    this.time.delayedCall(step1Duration + 100, () => { // ダメージリアクションが終わってから少し
+        if (!this.isCompletingTrial || this.isGameOver || this.bossDefeated) { this.isCompletingTrial = false; return; }
 
-            const centralX = this.gameWidth / 2;
-            const centralY = this.gameHeight * 0.2; // ルシゼロの基本Y座標
-            const moveToCenterDuration = 700;     // 中央への移動にかける時間 (調整可能)
+        const centralX = this.gameWidth / 2;
+        const centralY = this.gameHeight * 0.2;
+        const moveToCenterDuration = 700;
 
-            this.warpBossToPosition(centralX, centralY, moveToCenterDuration, () => {
-                // --- ▼ 中央移動完了後の処理 ▼ ---
-                if (this.isGameOver || this.bossDefeated) return;
+        this.warpBossToPosition(centralX, centralY, moveToCenterDuration, () => {
+            // --- ▼ 中央ワープ完了後の処理 ▼ ---
+            if (!this.isCompletingTrial || this.isGameOver || this.bossDefeated) { this.isCompletingTrial = false; return; }
 
-                // ステップ4: 報酬ドロップ（ビカラ陽）
-                if (this.bossData.trialRewardItem && this.boss && this.boss.active) {
-                    console.log(`[Trial Reward] Dropping ${this.bossData.trialRewardItem} at boss center.`);
-                    this.dropSpecificPowerUp(this.boss.x, this.boss.y + this.boss.displayHeight / 2 + 30, this.bossData.trialRewardItem);
-                }
+            // ステップ4: 報酬ドロップ（ビカラ陽）
+            if (this.bossData.trialRewardItem && this.boss && this.boss.active) {
+                console.log(`[Trial Reward] Dropping ${this.bossData.trialRewardItem}.`);
+                this.dropSpecificPowerUp(this.boss.x, this.boss.y + this.boss.displayHeight / 2 + 30, this.bossData.trialRewardItem);
+            }
 
-                // ステップ5: ジエンドタイマー30秒加算
-                if (this.isJiEndTimerRunning) {
-                    const timeToAdd = 30 * 1000; // 30秒
-                    this.jiEndTimeRemaining += timeToAdd;
-                    console.log(`[Trial Complete] JiEndTimer +${timeToAdd/1000}s. New remaining: ${this.formatTime(this.jiEndTimeRemaining)}`);
-                    // (タイマー加算のSEやUIエフェクトなど)
-                }
+            // ステップ5: ジエンドタイマー30秒加算
+            if (this.isJiEndTimerRunning) {
+                const timeToAdd = 30 * 1000;
+                this.jiEndTimeRemaining += timeToAdd;
+                console.log(`[Trial Complete] JiEndTimer +${timeToAdd/1000}s.`);
+                if (this.jiEndTimerText?.active) this.jiEndTimerText.setText(this.formatTime(this.jiEndTimeRemaining)); // UI即時更新
+                // (タイマー加算SE)
+            }
 
-                // ステップ6: 次の試練へ (報酬ドロップやタイマー加算を見せるための遅延)
-                const nextTrialStartDelay = 1200; // 1.2秒後 (調整可能)
-                console.log(`[Trial Complete] Post-trial actions finished. Scheduling next trial in ${nextTrialStartDelay}ms.`);
-                this.time.delayedCall(nextTrialStartDelay, () => {
-                    if (this.isGameOver || this.bossDefeated) return; // 再度チェック
-                    this.startNextTrial(); // 次の試練を開始するメソッドを呼び出す
-                }, [], this);
-                // --- ▲ 中央移動完了後の処理 終了 ▲ ---
-            });
-        }, [], this);
+            // ステップ6: 次の試練へ (報酬ドロップやタイマー加算を見せるための遅延)
+            const nextTrialStartDelay = 1200;
+            console.log(`[Trial Complete] Post-trial actions finished. Scheduling next trial in ${nextTrialStartDelay}ms.`);
+            this.time.delayedCall(nextTrialStartDelay, () => {
+                this.isCompletingTrial = false; // ★★★ 全ての演出が終わり、次の試練へ進む直前にフラグを下ろす ★★★
+                if (this.isGameOver || this.bossDefeated) return; // 再度チェック
+                this.startNextTrial();
+            }, [], this);
+            // --- ▲ 中央ワープ完了後の処理 終了 ▲ ---
+        });
     }, [], this);
     // --- ▲ 試練クリア演出シーケンス 終了 ▲ ---
 }
