@@ -885,105 +885,122 @@ startParadiseLostCharge(duration) {
 }
 
 
+// Boss4Scene.js
 fireParadiseLost() {
-    console.log("[Trial VI] Firing Paradise Lost!");
-    this.isChargingParadiseLost = false; // チャージ終了フラグ (もしあれば)
+    console.log("[Trial VI] Firing Paradise Lost! (No Timeline Version)");
+    this.isChargingParadiseLost = false; // チャージ終了
 
     // --- ▼ 発動前準備 (チャージエフェクト停止など) ▼ ---
-    if (this.paradiseLostChargeSound && this.paradiseLostChargeSound.isPlaying) {
-        this.paradiseLostChargeSound.stop();
-    }
+    if (this.paradiseLostChargeSound?.isPlaying) this.paradiseLostChargeSound.stop();
     this.tweens.killTweensOf(this.boss); // ボスのチャージ中Tweenを停止
-    if (this.boss?.active) this.boss.clearTint().setAlpha(1); // 見た目を元に戻す
-    if (this.screenRedFilter && this.screenRedFilter.active) {
-        this.tweens.add({targets: this.screenRedFilter, alpha:0, duration:300, onComplete: ()=>this.screenRedFilter.destroy()});
+    if (this.boss?.active) this.boss.clearTint().setAlpha(1);
+    if (this.screenRedFilter?.active) {
+        this.tweens.add({targets: this.screenRedFilter, alpha:0, duration:300, onComplete: ()=>this.screenRedFilter?.destroy()});
     }
-    this.convergingLightBeams?.clear(true, true); // 光の筋を全て破棄
-    // (画面揺れなどもここで止める)
-    // this.cameras.main.shakeEffect.reset();
+    this.convergingLightBeams?.clear(true, true);
     // --- ▲ 発動前準備 終了 ▲ ---
 
-    // 発動SE
-    if (AUDIO_KEYS.SE_PARADISE_LOST_EXECUTE && this.sound.get(AUDIO_KEYS.SE_PARADISE_LOST_EXECUTE)) {
-        try { this.sound.play(AUDIO_KEYS.SE_PARADISE_LOST_EXECUTE); } catch(e){}
-    }
+    if (AUDIO_KEYS.SE_PARADISE_LOST_EXECUTE) try { this.sound.play(AUDIO_KEYS.SE_PARADISE_LOST_EXECUTE); } catch(e){}
 
-    // --- ▼ 発動演出 ▼ ---
-    // 1. 画面全体の白フラッシュ (持続あり)
-    this.cameras.main.flash(300, 255, 255, 255, true); // 0.3秒間白く光る (force=trueで強制)
+    // --- ▼ 発動演出シーケンス (delayedCall と onComplete で制御) ▼ ---
 
-    // 2. 衝撃波エフェクト (白フラッシュとほぼ同時か直後)
+    // ステップ1: 画面全体の白フラッシュ
+    this.cameras.main.flash(300, 255, 255, 255, true);
+    console.log("[ParadiseLost GFX] Screen flash initiated.");
+
+    // ステップ2: 衝撃波エフェクト (フラッシュとほぼ同時に開始)
     const shockwaveCount = 3;
+    const shockwaveDelayBetween = 150; // 各衝撃波の開始遅延
     for (let i = 0; i < shockwaveCount; i++) {
-        this.time.delayedCall(i * 150, () => { // 少しずつずらして発生
-            if (this.isGameOver || this.bossDefeated) return;
+        this.time.delayedCall(i * shockwaveDelayBetween, () => {
+            if (this.isGameOver || this.bossDefeated || !this.scene.isActive()) return; // シーンがアクティブか確認
             const shockwave = this.add.circle(this.boss.x, this.boss.y, 0, 0xffffff, 0.8)
-                .setStrokeStyle(5, 0xffffff, 0.5) // 白い輪郭
-                .setDepth(9995); // テキストより手前
+                .setStrokeStyle(5, 0xffffff, 0.5).setDepth(9995);
             this.tweens.add({
-                targets: shockwave,
-                radius: this.gameWidth * 0.8, // 画面幅の80%まで広がる
-                alpha: 0,
-                duration: 700, // 0.7秒で広がりながら消える
-                ease: 'Quad.easeOut',
-                onComplete: () => { if (shockwave.scene) shockwave.destroy(); }
+                targets: shockwave, radius: this.gameWidth * 0.8, alpha: 0,
+                duration: 700, ease: 'Quad.easeOut',
+                onComplete: () => { if (shockwave?.scene) shockwave.destroy(); }
             });
         });
     }
+    console.log(`[ParadiseLost GFX] ${shockwaveCount} shockwaves scheduled.`);
 
-    // 3. 光の柱 (衝撃波と並行して、または少し遅れて)
-    const pillarCount = 5; // 降ってくる光の柱の数
-    const pillarDuration = 600; // 1本の柱が表示される時間
+    // ステップ3: 光の柱 (フラッシュや衝撃波と並行して)
+    const pillarCount = 5;
+    const pillarFallBaseDuration = 600;
     for (let i = 0; i < pillarCount; i++) {
-        this.time.delayedCall(Phaser.Math.Between(100, 400) + i * 80, () => { // ランダムな遅延で非同期に開始
-            if (this.isGameOver || this.bossDefeated) return;
+        this.time.delayedCall(Phaser.Math.Between(100, 400) + i * 100, () => { // 少しずつずらして開始
+            if (this.isGameOver || this.bossDefeated || !this.scene.isActive()) return;
             const pillarX = Phaser.Math.Between(0, this.gameWidth);
-            // 光の柱用のテクスチャキー (例: 'light_pillar_texture') か、なければ白矩形
-            const pillar = this.add.image(pillarX, -this.gameHeight * 0.1, 'whitePixel') // whitePixelで代用
-                .setTint(0xffffcc) // 薄黄色
-                .setOrigin(0.5, 0) // 上端中央基点
-                .setDisplaySize(Phaser.Math.Between(30, 80), this.gameHeight * 1.2) // 幅ランダム、高さは画面より少し長い
-                .setAlpha(0)
-                .setDepth(850); // ボスより手前、赤フィルターより手前くらい
+            const pillar = this.add.image(pillarX, -this.gameHeight * 0.1, 'whitePixel')
+                .setTint(0xffffcc).setOrigin(0.5, 0).setAlpha(0)
+                .setDisplaySize(Phaser.Math.Between(30, 80), this.gameHeight * 1.2)
+                .setDepth(850);
 
-            this.tweens.timeline() // 個別の柱のアニメーション
-                .add({ targets: pillar, alpha:0.7, y: this.gameHeight * 0.5, duration: pillarDuration/2, ease: 'Power2.easeIn'}) // 降りてくる
-                .add({ targets: pillar, alpha:0, y: this.gameHeight * 1.1, duration: pillarDuration/2, ease: 'Power2.easeOut', offset: `-=${pillarDuration/3}`}) // 通り過ぎて消える
-                .setCallback('onComplete', () => { if (pillar.scene) pillar.destroy(); }, [])
-                .play();
+            // 柱の落下とフェードアウトアニメーション (2段階のTween)
+            this.tweens.add({ // 落下とフェードイン
+                targets: pillar, alpha:0.7, y: this.gameHeight * 0.5,
+                duration: pillarFallBaseDuration / 2, ease: 'Power2.easeIn',
+                onComplete: () => {
+                    if (!pillar.scene || !this.scene.isActive()) { if(pillar.scene) pillar.destroy(); return; }
+                    this.tweens.add({ // 通り過ぎてフェードアウト
+                        targets: pillar, alpha:0, y: this.gameHeight * 1.1,
+                        duration: pillarFallBaseDuration / 2, ease: 'Quad.easeOut', // ease変更
+                        onComplete: () => { if (pillar?.scene) pillar.destroy(); }
+                    });
+                }
+            });
         });
     }
-    // --- ▲ 発動演出 終了 ▲ ---
+    console.log(`[ParadiseLost GFX] ${pillarCount} light pillars scheduled.`);
+    // --- ▲ 発動演出シーケンス 終了 ▲ ---
 
 
-    // ダメージ処理と試練達成 (発動演出がある程度落ち着いてから)
-    const damageDelay = 800; // 発動から0.8秒後 (調整)
-    this.time.delayedCall(damageDelay, () => {
-        if (this.isGameOver || this.bossDefeated || !this.activeTrial || this.activeTrial.id !== 6) return; // 試練VI中か確認
+    // ダメージ処理と試練達成 (演出がある程度落ち着くのを待つ)
+    // (白フラッシュ300ms + 衝撃波や光の柱の主要部分が終わるまでを想定)
+    const damageAndCompletionDelay = 1000; // 1秒後 (調整可能)
+    this.time.delayedCall(damageAndCompletionDelay, () => {
+        if (this.isGameOver || this.bossDefeated || !this.activeTrial || this.activeTrial.id !== 6 || !this.scene.isActive()) {
+            // 試練VI中でない、またはゲームが終わっていたら何もしない
+            if(this.activeTrial && this.activeTrial.id === 6) this.isSpecialSequenceActive = false; // フラグだけ戻す
+            return;
+        }
 
+        console.log("[ParadiseLost] Applying damage and checking trial completion...");
         let damage = 8;
-        if (this.isPlayerAnilaActive()) {
+        if (this.isPlayerAnilaActive()) { // isPlayerAnilaActive は CommonBossScene に定義済みと仮定
             damage = 0;
             console.log("[Trial VI] Paradise Lost NEGATED by Anila!");
-            if (typeof this.deactivateAnila === 'function') this.deactivateAnila();
+            if (typeof this.deactivateAnila === 'function') this.deactivateAnila(); // アニラ消費
         }
         console.log(`[Trial VI] Player to take ${damage} damage from Paradise Lost.`);
+
         if (damage > 0) {
             for(let i=0; i < damage; i++) {
-                if(this.lives > 0) this.loseLife(); else break;
+                if(this.lives > 0 && !this.isGameOver) { // isGameOverもチェック
+                    this.loseLife();
+                } else { break; }
             }
         }
-        if (this.lives <= 0 && !this.isGameOver) { // パラロストで死んだ場合
-            this.isGameOver = true; this.playerControlEnabled = false;
-            this.time.delayedCall(1000, () => { if (this.scene.isActive()) super.gameOver(); }, [], this);
-            return; // 試練達成にはしない
+
+        // ライフが0になった場合のゲームオーバー処理 (loseLife内でgameOverが呼ばれる想定だが念のため)
+        if (this.lives <= 0 && !this.isGameOver) {
+            console.log("[Trial VI] Lives reached 0 after Paradise Lost. Triggering game over.");
+            this.isGameOver = true; // isGameOverを立ててから
+            this.playerControlEnabled = false;
+            // 派手なエフェクトが少し収まるのを待ってからゲームオーバー処理へ
+            this.time.delayedCall(500, () => {
+                if (this.scene.isActive()) super.gameOver();
+            }, [], this);
+            this.isSpecialSequenceActive = false; // ここでもフラグを下ろす
+            return; // 試練達成には進まない
         }
 
         // 生き残れば試練達成
-        this.activeTrial.paradiseLostTriggered = true;
-        this.isSpecialSequenceActive = false; // ★専用演出終了フラグを下ろす★
+        this.activeTrial.paradiseLostTriggered = true; // 試練内の達成フラグ
+        this.isSpecialSequenceActive = false; // ★専用演出終了フラグを下ろす
         console.log("[Trial VI] Paradise Lost sequence (attack part) finished. SpecialSequenceActive = false.");
-        this.completeCurrentTrial();
+        this.completeCurrentTrial(); // 試練完了処理へ
     }, [], this);
 }
 
