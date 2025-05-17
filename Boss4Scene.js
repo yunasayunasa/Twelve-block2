@@ -193,7 +193,8 @@ export default class Boss4Scene extends CommonBossScene {
                 wallBlockSpacingX: 3,
                 wallBlockSpacingY: 3,
                 wallStartYRatio: 0.35, // ルシファー(Y:0.2)の少し下
-                bossHitInThisTrial: false  },// この試練中にボスにヒットしたか
+                bossHitInThisTrial: false,
+                bossShouldBeStatic: false },// 初期値はfalse。setupCurrentTrialEnvironmentでtrueにする },// この試練中にボスにヒットしたか
             { id: 12, name: "終焉の刻 ", conditionText: "決着を付けろ", targetItem: null, completed: false, isFinalBattle: true }
         ];
     }
@@ -780,6 +781,7 @@ playSpecificBgm(bgmKey) {
 
     // 現在の試練に応じた環境設定 (専用オブジェクト召喚など)
    setupCurrentTrialEnvironment(trial) {
+    console.log("[SetupTrialEnv] Setting up for Trial ID:", trial?.id, "TrialData:", trial); // trial の中身を確認
     if (trial.id === 3) { // 試練III「混沌の残滓」
         this.spawnChaosFragments(trial.objectsToDestroy || 5); }
         // 例: 試練XI「虚無の壁」なら壁を召喚
@@ -793,9 +795,9 @@ playSpecificBgm(bgmKey) {
         this.activateTrialShatora(trial.trialBallSpeedMultiplier || 1.5);
         // ジエンドタイマーの速度変更は update メソッドで trial.trialJiEndTimerMultiplier を参照
     }
-        if (trial.id === 11) this.spawnVoidWall();
-        // 他の試練の準備も同様に
-    }
+       if (trial && trial.id === 11) { // ★trial が存在し、IDが11か確認★
+        this.spawnVoidWall(trial); // ★この trial が spawnVoidWall に渡される★
+    }}
 
     // Boss4Scene.js
 spawnVoidWall(trialData) {
