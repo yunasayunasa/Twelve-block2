@@ -222,7 +222,7 @@ spawnLuciliusProjectile(x, y, textureKey, config = {}) {
     const scale = config.scale || 0.15; // configにscaleがなければ0.15を使用
     const speed = config.speed || (DEFAULT_ATTACK_BRICK_VELOCITY_Y + 30); // configにspeedがなければデフォルト値
     const angleDeg = config.angleDeg || 90; // configにangleDegがなければ真下(90度)
-
+  const localSpinRate = config.spinRate || 0; // 変数名を変更して明確化 (spinRate のままでもOK)
     // 攻撃ブロック（projectile）を生成
     const projectile = this.attackBricks.create(x, y, textureKey);
 
@@ -250,27 +250,24 @@ spawnLuciliusProjectile(x, y, textureKey, config = {}) {
         projectile.setData('isGuaranteedDropSource', true); // この弾からはアイテムが確定ドロップする印
 
           // --- ▼▼▼ 回転Tween ▼▼▼ ---
-        if (spinRate !== 0 && Math.abs(spinRate) > 0.01 && this.tweens && typeof this.tweens.add === 'function') { // this.tweens の存在も確認
-            const rotationDuration = (360 / Math.abs(spinRate)) * 1000;
-            if (rotationDuration > 0 && isFinite(rotationDuration)) { // durationが正の有限数か
+        // ★★★ ローカル変数 localSpinRate (または spinRate) を使用 ★★★
+        if (localSpinRate !== 0 && Math.abs(localSpinRate) > 0.01 && this.tweens && typeof this.tweens.add === 'function') {
+            const rotationDuration = (360 / Math.abs(localSpinRate)) * 1000;
+            if (rotationDuration > 0 && isFinite(rotationDuration)) {
                 try {
                     this.tweens.add({
                         targets: projectile,
-                        angle: projectile.angle + (spinRate > 0 ? 359.9 : -359.9),
+                        angle: projectile.angle + (localSpinRate > 0 ? 359.9 : -359.9),
                         duration: rotationDuration,
                         repeat: -1,
                         ease: 'Linear'
                     });
-                    console.log(`[SpawnLuciProjectile] Spin tween added to ${textureKey} (Rate: ${spinRate} deg/s)`);
-                } catch (e_tween) {
-                    console.error("[SpawnLuciProjectile] Error occurred while adding spin tween:", e_tween);
-                }
-            } else {
-                console.warn(`[SpawnLuciProjectile] Invalid rotationDuration (${rotationDuration}) for spin tween. SpinRate: ${spinRate}`);
-            }
+                    // console.log(`[SpawnLuciProjectile] Spin tween added. Rate: ${localSpinRate} deg/s`);
+                } catch (e_tween) { /* ... */ }
+            } else { /* ... */ }
         }
         // --- ▲▲▲ 回転Tween 終了 ▲▲▲ ---
-
+        return projectile;
         
 
         // console.log(`[SpawnLuciProjectile] Successfully created projectile: ${textureKey} at (${x.toFixed(0)},${y.toFixed(0)}) with Angle:${angleDeg.toFixed(1)}, Speed:${speed.toFixed(0)}`);
@@ -1092,16 +1089,20 @@ fireRadialAttack() {
     const angles = baseParams.angles || [75, 90, 105];
     const texture = baseParams.projectileTexture || 'attack_brick_lucilius';
     const scale = baseParams.projectileScale || 0.15;
-    const spinRate = baseParams.projectileSpinRate || 0;
-
+    // ★★★ bossData から回転速度を取得 ★★★
+    const spinRateForThisAttack = baseParams.projectileSpinRate || this.bossData.radialAttackProjectileSpinRate || 0; // ルート別も考慮するなら routeParamsからも
+    // ★★★-------------------------★★★
     const spawnX = this.boss.x;
     const spawnY = this.boss.y + (this.boss.displayHeight / 2) * 0.7;
 
     console.log(`[Radial Attack] Final Params - Count:${count}, Speed:${speed.toFixed(0)}, Angles:${angles.slice(0,count).join(',')}, SpinRate:${spinRate}`);
 
-    angles.slice(0, count).forEach(angleDeg => {
-        this.spawnLuciliusProjectile(spawnX, spawnY, texture, {
-            scale: scale, speed: speed, angleDeg: angleDeg, spinRate: spinRate
+     angles.slice(0, count).forEach(angleDeg => {
+        const projectile = this.spawnLuciliusProjectile(spawnX, spawnY, texture, {
+            scale: scale,
+            speed: speed,
+            angleDeg: angleDeg,
+            spinRate: spinRateForThisAttack // ★★★ spinRate を config オブジェクトに含めて渡す ★★★
         });
     });
 }
@@ -1121,16 +1122,21 @@ fireTargetedAttack() {
     const speed = (baseParams.projectileSpeed || (DEFAULT_ATTACK_BRICK_VELOCITY_Y + 40)) * (routeParams.speedMultiplier !== undefined ? routeParams.speedMultiplier : 1.0);
     const texture = baseParams.projectileTexture || 'attack_brick_lucilius_target';
     const scale = baseParams.projectileScale || 0.15;
-    const spinRate = baseParams.projectileSpinRate || 0;
+    // ★★★ bossData から回転速度を取得 ★★★
+    const spinRateForThisAttack = baseParams.projectileSpinRate || this.bossData.targetedAttackProjectileSpinRate || 0;
+    // ★★★-------------------------★★★
 
     // ... (targetX, spawnX, spawnY の計算は変更なし) ...
     const targetX = this.paddle.x;
     const spawnFromBossX = this.boss.x;
     const spawnFromBossY = this.boss.y + (this.boss.displayHeight / 2) * 0.7;
 
-    const angleToTargetRad = Phaser.Math.Angle.Between(spawnFromBossX, spawnFromBossY, targetX, this.gameHeight - 30);
-    const angleToTargetDeg = Phaser.Math.RadToDeg(angleToTargetRad);
-
+    const projectile = this.spawnLuciliusProjectile(spawnFromBossX, spawnFromBossY, texture, {
+        scale: scale,
+        speed: speed,
+        angleDeg: angleToTargetDeg,
+        spinRate: spinRateForThisAttack // ★★★ spinRate を config オブジェクトに含めて渡す ★★★
+    });
     console.log(`[Targeted Attack] Final Params - Speed:${speed.toFixed(0)}, TargetX:${targetX.toFixed(0)}, Angle:${angleToTargetDeg.toFixed(1)}, SpinRate:${spinRate}`);
 
     this.spawnLuciliusProjectile(spawnFromBossX, spawnFromBossY, texture, {
