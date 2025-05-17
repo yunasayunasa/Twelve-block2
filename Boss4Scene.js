@@ -1163,7 +1163,7 @@ completeCurrentTrial() {
         if (AUDIO_KEYS.SE_TRIAL_SUCCESS) try { this.sound.play(AUDIO_KEYS.SE_TRIAL_SUCCESS); } catch(e){}
 
     }
-    // const step1Duration = damageReactionDuration; // 他のdelayedCallの基準時間として使う
+     const step1Duration = damageReactionDuration; // 他のdelayedCallの基準時間として使う
 
     // ステップ2以降の処理は、このダメージリアクションが完了するのを待つ必要はないので、
     // damageReactionDuration を目安に delayedCall の時間を調整する。
