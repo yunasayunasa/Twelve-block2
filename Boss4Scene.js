@@ -163,7 +163,7 @@ export default class Boss4Scene extends CommonBossScene {
                 collectedCountForTrial7: 0, // ★集めた種類の数
                 completed: false
             },
-            { id: 8, name: "深淵より来る核金", conditionText: "全てのアビス・コアを破壊せよ。",
+            { id: 8, name: "深淵の核金", conditionText: "全てのアビス・コアを破壊せよ。",
                 targetItem: POWERUP_TYPES.SINDARA,
                 completed: false,
                 coreCount: 3,
