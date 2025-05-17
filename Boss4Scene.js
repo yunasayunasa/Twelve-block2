@@ -928,6 +928,9 @@ fireParadiseLost() {
     }
     console.log(`[ParadiseLost GFX] ${shockwaveCount} shockwaves scheduled.`);
 const pillarCount = this.bossData.paradiseLostPillarCount || 5; // bossDataから取得するかデフォルト値
+const pillarFallBaseDuration = this.bossData.paradiseLostPillarDuration || 600; // bossDataから取得
+
+
     // Boss4Scene.js - fireParadiseLost 内の光の柱生成ループ
     for (let i = 0; i < pillarCount; i++) {
         this.time.delayedCall(Phaser.Math.Between(100, 400) + i * 100, () => { // タイミングを少し調整
