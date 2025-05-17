@@ -1141,9 +1141,7 @@ const projectile = this.spawnLuciliusProjectile(spawnFromBossX, spawnFromBossY, 
     });
  //   console.log(`[Targeted Attack] Final Params - Speed:${speed.toFixed(0)}, TargetX:${targetX.toFixed(0)}, Angle:${angleToTargetDeg.toFixed(1)}, SpinRate:${spinRate}`);
 
-    this.spawnLuciliusProjectile(spawnFromBossX, spawnFromBossY, texture, {
-        scale: scale, speed: speed, angleDeg: angleToTargetDeg, spinRate: spinRate
-    });
+ 
 }// 混沌の欠片召喚 (仮実装)
     spawnChaosFragments(count) { /* TODO */ console.log(`[Trial] Spawning ${count} Chaos Fragments.`);}
     // 虚無の壁召喚 (仮実装)
