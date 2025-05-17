@@ -113,7 +113,7 @@ export default class Boss4Scene extends CommonBossScene {
         // (オプション) 角度を少し狭めて密度を上げるなども
     },
     radialAttackParamsChaos: { // 混沌ルート: 弾数を減らし、かなり遅く
-        count: 2, // 中央3方向のみなど
+        count: 1, // 中央3方向のみなど
         speedMultiplier: 0.7,
         // (オプション) 角度を広げて避けやすくするなども
     },
