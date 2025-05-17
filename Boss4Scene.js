@@ -1119,27 +1119,55 @@ completeCurrentTrial() {
 
     // --- ▼ 試練クリア演出シーケンス (delayedCallで順番に実行) ▼ ---
 
-    // ステップ1: ルシファーのダメージモーションとSE (約0.5秒の演出)
+     // ステップ1: ルシファーのダメージモーションとSE
     if (this.boss && this.boss.active) {
         console.log("[Trial Complete GFX] Boss damage reaction start.");
-        this.boss.setTintFill(0xffaa00); // オレンジっぽいティント
-        this.tweens.add({
-            targets: this.boss,
-            alpha: 0.6,
-            duration: 100,
-            yoyo: true,
-            repeat: 2, // 3回点滅 (計 100ms * 2 * 3 = 600ms)
-            onComplete: () => {
+        const damageReactionColor = 0xffaa00; // オレンジっぽい色
+        const damageReactionDuration = 600;   // 点滅を含めた合計時間 (ms)
+        const flashInterval = 150;            // 1回の点滅の間隔 (ms)
+        const numberOfFlashes = Math.floor(damageReactionDuration / (flashInterval * 2)); // 点滅回数 (明暗で1セット)
+
+        this.boss.setTintFill(damageReactionColor); // まず色をつける
+        let currentFlashes = 0;
+
+        const flashDamageReaction = () => {
+            if (!this.boss || !this.boss.active || currentFlashes >= numberOfFlashes || !this.isCompletingTrial) {
+                // 条件を満たさなくなったら終了し、Tintを確実にクリア
                 if (this.boss?.active) {
                     this.boss.clearTint();
-                    this.boss.setAlpha(1);
+                    this.boss.setAlpha(1); // アルファも戻す
                 }
-                console.log("[Trial Complete GFX] Boss damage reaction end.");
+                console.log("[Trial Complete GFX] Boss damage reaction ended or aborted. Tint cleared.");
+                return;
             }
-        });
+
+            currentFlashes++;
+            // Tintをクリアして元に戻し、少し待ってから再度Tintを設定 (点滅)
+            this.boss.clearTint();
+            this.boss.setAlpha(0.7); // 少し半透明に
+
+            this.time.delayedCall(flashInterval, () => {
+                if (!this.boss || !this.boss.active || !this.isCompletingTrial) { // 再度チェック
+                    if (this.boss?.active) this.boss.clearTint().setAlpha(1);
+                    return;
+                }
+                this.boss.setTintFill(damageReactionColor);
+                this.boss.setAlpha(1);
+                this.time.delayedCall(flashInterval, flashDamageReaction, [], this); // 次の点滅へ
+            }, [], this);
+        };
+
+        this.time.delayedCall(flashInterval, flashDamageReaction, [], this); // 最初の点滅の後半を開始
+
+        // 試練達成SE
+        if (AUDIO_KEYS.SE_TRIAL_SUCCESS) try { this.sound.play(AUDIO_KEYS.SE_TRIAL_SUCCESS); } catch(e){}
+
     }
-    if (AUDIO_KEYS.SE_TRIAL_SUCCESS) try { this.sound.play(AUDIO_KEYS.SE_TRIAL_SUCCESS); } catch(e){}
-    const step1Duration = 600; // ダメージリアクション時間
+    // const step1Duration = damageReactionDuration; // 他のdelayedCallの基準時間として使う
+
+    // ステップ2以降の処理は、このダメージリアクションが完了するのを待つ必要はないので、
+    // damageReactionDuration を目安に delayedCall の時間を調整する。
+    // ただし、上記の flashDamageReaction の最後の呼び出しで Tint がクリアされる。
 
     // ステップ2: 画面内の敵弾消去 (ダメージリアクションとほぼ同時か、少し後)
     this.time.delayedCall(step1Duration - 400 > 0 ? step1Duration - 400 : 50, () => { // リアクションの途中から
