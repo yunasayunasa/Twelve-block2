@@ -2164,7 +2164,72 @@ triggerPowerUpEffect(type, itemObject = null) {
         return null; // それ以外は通常ドロップ
     }
 
+activateTrialShatora(multiplier) {
+    console.log(`[Trial IX] Activating permanent Shatora effect. Multiplier: ${multiplier}`);
+    this.isTrialShatoraActive = true; // シーンプロパティで状態を管理
+    this.currentTrialBallSpeedMultiplier = multiplier; // 現在の試練の速度倍率を保存
 
+    // 既存のボール全ての速度を変更
+    this.balls?.getChildren().forEach(ball => {
+        if (ball.active && ball.body) {
+            const currentDirection = ball.body.velocity.clone().normalize();
+            const newSpeed = (NORMAL_BALL_SPEED || 380) * this.currentTrialBallSpeedMultiplier;
+            ball.setVelocity(currentDirection.x * newSpeed, currentDirection.y * newSpeed);
+        }
+    });
+    // (ボールの見た目をシャトラ状態にする this.setBallPowerUpState(POWERUP_TYPES.SHATORA, true) なども行うと良い)
+    this.updateBallAndPaddleAppearance(); // 見た目更新
+}
+
+deactivateTrialShatora() {
+    if (!this.isTrialShatoraActive) return;
+    console.log("[Trial IX] Deactivating permanent Shatora effect.");
+    this.isTrialShatoraActive = false;
+    this.currentTrialBallSpeedMultiplier = 1.0; // 通常に戻す
+
+    // 既存のボール全ての速度を通常に戻す
+    this.balls?.getChildren().forEach(ball => {
+        if (ball.active && ball.body) {
+            const currentDirection = ball.body.velocity.clone().normalize();
+            // パワーアップ効果を考慮した基本速度に戻す
+            let baseSpeed = NORMAL_BALL_SPEED || 380;
+            if (ball.getData('isFast')) baseSpeed *= (BALL_SPEED_MODIFIERS[POWERUP_TYPES.SHATORA] || 1);
+            if (ball.getData('isSlow')) baseSpeed *= (BALL_SPEED_MODIFIERS[POWERUP_TYPES.HAILA] || 1);
+            ball.setVelocity(currentDirection.x * baseSpeed, currentDirection.y * baseSpeed);
+        }
+    });
+    // (ボールの見た目を通常に戻す this.setBallPowerUpState(POWERUP_TYPES.SHATORA, false) など)
+    this.updateBallAndPaddleAppearance();
+}
+
+// launchBall をオーバーライドして、試練IX中は強制的に高速で発射
+launchBall() {
+    if (this.isTrialShatoraActive && this.currentTrialBallSpeedMultiplier) {
+        console.log("[LaunchBall Override] Trial IX active, launching with speed multiplier.");
+        if (!this.isBallLaunched && this.playerControlEnabled && this.balls?.countActive(true) > 0) {
+            const baseSpeedY = BALL_INITIAL_VELOCITY_Y || -380; // constants.js から
+            const finalSpeedY = baseSpeedY * this.currentTrialBallSpeedMultiplier;
+            const baseSpeedXRange = BALL_INITIAL_VELOCITY_X_RANGE || [-180, 180];
+            const finalSpeedX = Phaser.Math.Between(baseSpeedXRange[0] * this.currentTrialBallSpeedMultiplier, baseSpeedXRange[1] * this.currentTrialBallSpeedMultiplier);
+
+            this.balls.getChildren().forEach(ball => {
+                if (ball.active && !this.isBallOnPaddle(ball)) { // パドル上にないボールは既に動いているとみなす
+                    // 既に動いているボールの速度を維持するか、ここで再設定するかは設計次第
+                } else if (ball.active) { // パドル上のボールを発射
+                    ball.setVelocity(finalSpeedX, finalSpeedY);
+                }
+            });
+            this.isBallLaunched = true;
+            if (AUDIO_KEYS.SE_LAUNCH) this.sound.play(AUDIO_KEYS.SE_LAUNCH);
+        }
+    } else {
+        super.launchBall(); // 通常の発射処理
+    }
+}
+// (isBallOnPaddle(ball) はパドル上にボールがあるか判定するヘルパー)
+
+// hitPaddle, hitBoss の反射ロジックでも this.currentTrialBallSpeedMultiplier を考慮する必要がある
+// (ボールの最終速度を計算する際に、この倍率を掛ける)
 
 
     // updateメソッド (ジエンドタイマー更新など)
