@@ -767,7 +767,7 @@ playSpecificBgm(bgmKey) {
         this.executeParadiseLostSequence();
     }
  if (trial.id === 8) {
-        this.spawnAbyssCoresAndGuards(trial.coreCount || 3);
+        this.spawnAbyssCores(trial.coreCount || 3);
     }
 
         if (trial.id === 11) this.spawnVoidWall();
