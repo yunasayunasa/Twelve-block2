@@ -888,104 +888,80 @@ startParadiseLostCharge(duration) {
 }
 
 
-// Boss4Scene.js
 fireParadiseLost() {
-    console.log("[Trial VI] Firing Paradise Lost! (No Timeline Version)");
+    console.log("[Trial VI] Firing Paradise Lost! (Shape & Camera FX Version)");
     this.isChargingParadiseLost = false; // チャージ終了
 
     // --- ▼ 発動前準備 (チャージエフェクト停止など) ▼ ---
     if (this.paradiseLostChargeSound?.isPlaying) this.paradiseLostChargeSound.stop();
     this.tweens.killTweensOf(this.boss); // ボスのチャージ中Tweenを停止
-    if (this.boss?.active) this.boss.clearTint().setAlpha(1);
+    if (this.boss?.active) this.boss.clearTint().setAlpha(1).setAngle(0); // 見た目を元に戻し、角度もリセット
     if (this.screenRedFilter?.active) {
-        this.tweens.add({targets: this.screenRedFilter, alpha:0, duration:300, onComplete: ()=>this.screenRedFilter?.destroy()});
+        this.tweens.add({targets: this.screenRedFilter, alpha:0, duration:200, onComplete: ()=>this.screenRedFilter?.destroy()});
     }
-    this.convergingLightBeams?.clear(true, true);
+    this.convergingLightBeams?.clear(true, true); // 光の筋を全て破棄
+    // (画面揺れなどもここで止める)
+    // this.cameras.main.shakeEffect.reset(); // もしシェイク中なら
     // --- ▲ 発動前準備 終了 ▲ ---
 
     if (AUDIO_KEYS.SE_PARADISE_LOST_EXECUTE) try { this.sound.play(AUDIO_KEYS.SE_PARADISE_LOST_EXECUTE); } catch(e){}
 
-    // --- ▼ 発動演出シーケンス (delayedCall と onComplete で制御) ▼ ---
+    // --- ▼ 発動演出シーケンス (図形とカメラエフェクト主体) ▼ ---
+    const effectDuration = this.bossData.paradiseLostEffectDuration || 2000; // 演出全体の時間(ms)
 
-    // ステップ1: 画面全体の白フラッシュ
-    this.cameras.main.flash(300, 255, 255, 255, true);
-    console.log("[ParadiseLost GFX] Screen flash initiated.");
+    // ステップ1: 画面全体の強力な白フラッシュ (一瞬)
+    this.cameras.main.flash(250, 255, 255, 255, true); // 0.25秒白く光る (force=true)
+    console.log("[ParadiseLost GFX] Initial screen flash.");
 
-    // ステップ2: 衝撃波エフェクト (フラッシュとほぼ同時に開始)
+    // ステップ2: ボス中心からの衝撃波エフェクト (複数回、少し遅れて開始)
     const shockwaveCount = 3;
-    const shockwaveDelayBetween = 150; // 各衝撃波の開始遅延
+    const shockwaveInterval = 200; // 各衝撃波の発生間隔
+    const shockwaveDuration = 800; // 1つの衝撃波が消えるまでの時間
     for (let i = 0; i < shockwaveCount; i++) {
-        this.time.delayedCall(i * shockwaveDelayBetween, () => {
-            if (this.isGameOver || this.bossDefeated || !this.scene.isActive()) return; // シーンがアクティブか確認
-            const shockwave = this.add.circle(this.boss.x, this.boss.y, 0, 0xffffff, 0.8)
-                .setStrokeStyle(5, 0xffffff, 0.5).setDepth(9995);
+        this.time.delayedCall(100 + i * shockwaveInterval, () => { // フラッシュの少し後から開始
+            if (this.isGameOver || this.bossDefeated || !this.scene.isActive() || !this.boss?.active) return;
+            const shockwave = this.add.circle(this.boss.x, this.boss.y, 0, 0xffffff, 0.7) // 初期半径0, 半透明の白
+                .setStrokeStyle(4, 0xffffff, 0.4) // 白い輪郭
+                .setDepth(9995); // 非常に手前
             this.tweens.add({
-                targets: shockwave, radius: this.gameWidth * 0.8, alpha: 0,
-                duration: 700, ease: 'Quad.easeOut',
+                targets: shockwave,
+                radius: this.gameWidth, // 画面幅まで広がる (またはgameHeightとの大きい方)
+                alpha: 0,
+                duration: shockwaveDuration,
+                ease: 'Expo.easeOut', // 急速に広がってゆっくり消える
                 onComplete: () => { if (shockwave?.scene) shockwave.destroy(); }
             });
         });
     }
-    console.log(`[ParadiseLost GFX] ${shockwaveCount} shockwaves scheduled.`);
-const pillarCount = this.bossData.paradiseLostPillarCount || 5; // bossDataから取得するかデフォルト値
-const pillarFallBaseDuration = this.bossData.paradiseLostPillarDuration || 600; // bossDataから取得
+    console.log(`[ParadiseLost GFX] ${shockwaveCount} shockwaves initiated.`);
 
+    // ステップ3: ボスの中心からゆっくり白い「光の円」が画面全体を覆う
+    const expandingLightDelay = 200; // 衝撃波が少し始まってから開始
+    this.time.delayedCall(expandingLightDelay, () => {
+        if (this.isGameOver || this.bossDefeated || !this.scene.isActive() || !this.boss?.active) return;
 
-    // Boss4Scene.js - fireParadiseLost 内の光の柱生成ループ
-    for (let i = 0; i < pillarCount; i++) {
-        this.time.delayedCall(Phaser.Math.Between(100, 400) + i * 100, () => { // タイミングを少し調整
-            if (this.isGameOver || this.bossDefeated || !this.scene.isActive()) return;
-            const pillarX = Phaser.Math.Between(this.gameWidth * 0.1, this.gameWidth * 0.9); // 画面端すぎないように
-            
-            // ★専用テクスチャを使用★
-            const pillar = this.add.image(pillarX, -this.gameHeight * 0.2, 'light_pillar_texture') // Y開始位置を少し上に
-                .setOrigin(0.5, 0) // 上端中央基点
-                .setAlpha(0)
-                .setDepth(850);
-            // pillar.setScale(0.8); // 元画像のサイズに合わせて調整
+        const expandingLight = this.add.circle(
+            this.boss.x, this.boss.y, // ボス中心から
+            0,                       // 初期半径0
+            0xffffff,                // 真っ白
+            0                        // 最初は透明
+        ).setDepth(9990); // 衝撃波よりは少し奥、他のUIより手前
 
-            const fallDuration = pillarFallBaseDuration * Phaser.Math.FloatBetween(0.8, 1.2); // 落下時間に少し揺らぎ
-
-            this.tweens.add({ // 落下とフェードイン
-                targets: pillar,
-                alpha: 0.9, // 最大アルファ
-                y: this.gameHeight + pillar.displayHeight * 0.2, // 画面下端を少し通り過ぎるまで
-                duration: fallDuration,
-                ease: 'Power1.easeIn', // 最初ゆっくり、最後速く
-                onComplete: () => {
-                    // ★着弾パーティクル★
-                    if (pillar.scene) { // pillarがまだ存在すれば
-                        const impactParticles = this.add.particles(0, 0, 'impact_spark_particle', {
-                            x: pillar.x,
-                            y: this.gameHeight - 10, // 地面付近
-                            speed: { min: 50, max: 200 },
-                            angle: { min: 240, max: 300 }, // 上向きに広がる
-                            lifespan: { min: 200, max: 500 },
-                            scale: { start: 0.7, end: 0 },
-                            quantity: 8,
-                            blendMode: 'ADD',
-                            emitting: false
-                        });
-                        impactParticles.explode(8);
-                        this.time.delayedCall(600, () => particles.destroy());
-                    }
-                    // ★柱本体のフェードアウト★
-                    if (pillar.scene) {
-                        this.tweens.add({
-                            targets: pillar,
-                            alpha: 0,
-                            duration: 300, // 素早く消える
-                            delay: 100,    // 着弾エフェクトを少し見せてから
-                            onComplete: () => { if (pillar.scene) pillar.destroy(); }
-                        });
-                    }
-                }
-            });
+        console.log("[ParadiseLost GFX] Expanding white light initiated.");
+        this.tweens.add({
+            targets: expandingLight,
+            radius: Math.max(this.gameWidth, this.gameHeight) * 1.2, // 画面を完全に覆うより少し大きめに
+            alpha: { from: 0, to: 0.6, duration: (effectDuration - expandingLightDelay) * 0.4, ease: 'Sine.easeIn', yoyo: true, hold: (effectDuration - expandingLightDelay) * 0.2 },
+            // ↑ 徐々に明るくなり(alpha 0.6)、一定時間維持し、徐々に消える
+            duration: effectDuration - expandingLightDelay, // 残りの演出時間いっぱいかけて
+            onComplete: () => {
+                if (expandingLight?.scene) expandingLight.destroy();
+                console.log("[ParadiseLost GFX] Expanding white light finished.");
+            }
         });
-    }
-
-    console.log(`[ParadiseLost GFX] ${pillarCount} light pillars scheduled.`);
+    }, [], this);
     // --- ▲ 発動演出シーケンス 終了 ▲ ---
+
 
 
     // ダメージ処理と試練達成 (演出がある程度落ち着くのを待つ)
