@@ -1586,18 +1586,14 @@ updateTrialProgressUI(trial) {
     switch (trial.id) {
         case 2: progressText = `(${trial.hitCount || 0}/${trial.requiredHits})`; break;
         case 3: progressText = `(破壊数: ${trial.destroyedCount || 0}/${trial.objectsToDestroy})`; break;
-           case 5: // ★★★ 星光の追撃 ★★★
+         case 5: // ★★★ 星光の追撃 ★★★
             progressDetails = ` (${trial.hitCountKubira || 0}/${trial.requiredHitsKubira || 3})`;
             console.log(`[UpdateTrialUI V] Progress: ${trial.hitCountKubira || 0}/${trial.requiredHitsKubira || 3}`);
             break;
-        // ... 他の試練のID ...
-        default:
-            // 進捗表示がない試練の場合は progressDetails は空のまま
-            break;
+        // ... 他の試練の進捗表示 ...
+        default: break;
     }
-
-    this.trialUiText.setText(baseText + progressDetails);
-    console.log(`[UpdateTrialUI] UI Text set to: "${baseText + progressDetails}"`);
+    this.trialUiText.setText(`十二の試練：試練 ${trial.id}「${trial.name}」\n${trial.conditionText} ${progressText}`);
 }
 
 
