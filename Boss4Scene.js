@@ -935,31 +935,76 @@ fireParadiseLost() {
     }
     console.log(`[ParadiseLost GFX] ${shockwaveCount} shockwaves initiated.`);
 
-    // ステップ3: ボスの中心からゆっくり白い「光の円」が画面全体を覆う
-    const expandingLightDelay = 200; // 衝撃波が少し始まってから開始
-    this.time.delayedCall(expandingLightDelay, () => {
-        if (this.isGameOver || this.bossDefeated || !this.scene.isActive() || !this.boss?.active) return;
+   // Boss4Scene.js - fireParadiseLost 内の光の柱生成ループを置き換え
 
-        const expandingLight = this.add.circle(
-            this.boss.x, this.boss.y, // ボス中心から
-            0,                       // 初期半径0
-            0xffffff,                // 真っ白
-            0                        // 最初は透明
-        ).setDepth(9990); // 衝撃波よりは少し奥、他のUIより手前
+    // ステップ3: 光の柱（Rectangle組み合わせバージョン）
+    const pillarCount = this.bossData.paradiseLostPillarCount || 7; // 柱の数を増やす
+    const pillarBaseWidth = this.gameWidth / 25; // 柱の芯の基本幅
+    const pillarFallDuration = this.bossData.paradiseLostPillarDuration || 700;
 
-        console.log("[ParadiseLost GFX] Expanding white light initiated.");
-        this.tweens.add({
-            targets: expandingLight,
-            radius: Math.max(this.gameWidth, this.gameHeight) * 1.2, // 画面を完全に覆うより少し大きめに
-            alpha: { from: 0, to: 0.6, duration: (effectDuration - expandingLightDelay) * 0.4, ease: 'Sine.easeIn', yoyo: true, hold: (effectDuration - expandingLightDelay) * 0.2 },
-            // ↑ 徐々に明るくなり(alpha 0.6)、一定時間維持し、徐々に消える
-            duration: effectDuration - expandingLightDelay, // 残りの演出時間いっぱいかけて
-            onComplete: () => {
-                if (expandingLight?.scene) expandingLight.destroy();
-                console.log("[ParadiseLost GFX] Expanding white light finished.");
-            }
+    console.log(`[ParadiseLost GFX] Scheduling ${pillarCount} advanced light pillars.`);
+    for (let i = 0; i < pillarCount; i++) {
+        this.time.delayedCall(Phaser.Math.Between(50, 300) + i * 120, () => { // 少しずつずらして開始
+            if (this.isGameOver || this.bossDefeated || !this.scene.isActive()) return;
+
+            const pillarX = Phaser.Math.Between(this.gameWidth * 0.05, this.gameWidth * 0.95);
+            const startY = -this.gameHeight * 0.1; // 画面上部画面外から
+            const endY = this.gameHeight;       // 画面下端まで
+
+            // --- 柱の芯 ---
+            const corePillar = this.add.rectangle(
+                pillarX, startY,
+                pillarBaseWidth, this.gameHeight * 1.2, // 画面より少し長い
+                0xffffff, 1 // 真っ白、不透明
+            ).setOrigin(0.5, 0).setAlpha(0).setDepth(850);
+
+            // --- オーラ (芯の両側に2つ) ---
+            const auraWidthMultiplier = 2.5;
+            const auraAlpha = 0.3;
+            const auraPillarLeft = this.add.rectangle(
+                pillarX - pillarBaseWidth * 0.6, startY,
+                pillarBaseWidth * auraWidthMultiplier, corePillar.height,
+                0xaaaaff, auraAlpha // 薄い青紫
+            ).setOrigin(0.5, 0).setAlpha(0).setDepth(849); // 芯より少し奥
+
+            const auraPillarRight = this.add.rectangle(
+                pillarX + pillarBaseWidth * 0.6, startY,
+                pillarBaseWidth * auraWidthMultiplier, corePillar.height,
+                0xaaaaff, auraAlpha
+            ).setOrigin(0.5, 0).setAlpha(0).setDepth(849);
+
+            const allPillarParts = [corePillar, auraPillarLeft, auraPillarRight];
+
+            // 落下とフェードイン・アウトのTween
+            this.tweens.add({
+                targets: allPillarParts,
+                y: endY,
+                alpha: { from: 0.9, to: 0, start: 0.8, end: 0 }, // 現れてから消える
+                duration: pillarFallDuration * Phaser.Math.FloatBetween(0.9, 1.3), // 落下時間に揺らぎ
+                ease: 'Cubic.easeIn', // 加速して落ちる
+                delay: i * 50, // 各柱の開始をさらにわずかに遅延
+                onComplete: () => {
+                    allPillarParts.forEach(p => { if (p.scene) p.destroy(); }); // 全パーツ破棄
+
+                    // 着弾エフェクト (円形の衝撃波)
+                    if (!this.isGameOver && this.scene.isActive()) { // ゲームオーバーでなければ
+                        const impactCircle = this.add.circle(pillarX, endY - 50, 0, 0xffffff, 0.7) // 地面より少し上
+                            .setDepth(851);
+                        this.tweens.add({
+                            targets: impactCircle,
+                            radius: pillarBaseWidth * 3,
+                            alpha: 0,
+                            duration: 300,
+                            ease: 'Quad.easeOut',
+                            onComplete: () => { if (impactCircle.scene) impactCircle.destroy(); }
+                        });
+                        // 短いカメラシェイク
+                        if (i % 2 === 0) this.cameras.main.shake(100, 0.003); // 偶数番目の柱でシェイク
+                    }
+                }
+            });
         });
-    }, [], this);
+    }
     // --- ▲ 発動演出シーケンス 終了 ▲ ---
 
 
