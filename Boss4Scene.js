@@ -156,7 +156,13 @@ export default class Boss4Scene extends CommonBossScene {
             { id: 4, name: "天穿つ最終奥義", conditionText: "ヴァジラ奥義を1回発動せよ。", targetItem: POWERUP_TYPES.VAJRA, completed: false, ougiUsed: false },
             { id: 5, name: "怪力無双", conditionText: "クビラ効果中にボールを3回当てよ。", targetItem: POWERUP_TYPES.KUBIRA, completed: false, hitCountKubira: 0, requiredHitsKubira: 3 },
             { id: 6, name: "楽園追放", conditionText: "「パラダイス・ロスト」を受けよ。", targetItem: null, anilaDropLocation: null, completed: false, paradiseLostTriggered: false }, // anilaDropLocation はドロップ時に設定
-            { id: 7, name: "三宝の導き", conditionText: "指定の三種の神器を集めよ。", targetItemsToCollect: [POWERUP_TYPES.BIKARA_YANG, POWERUP_TYPES.BADRA, POWERUP_TYPES.MAKORA], collectedItems: [], targetItem: null, completed: false }, // targetItemは進行中に設定
+            { id: 7, name: "三宝の導き", conditionText: "三種の神将を集めよ。", 
+                 dropCandidateSanpo: [POWERUP_TYPES.BIKARA_YANG, POWERUP_TYPES.BADRA, POWERUP_TYPES.MAKORA], // ★この試練中のドロップ候補
+                itemsToCollectForTrial7: [POWERUP_TYPES.BIKARA_YANG, POWERUP_TYPES.BADRA, POWERUP_TYPES.MAKORA], // ★収集目標リスト
+                collectedFlagsForTrial7: [false, false, false], // ★収集済みフラグ (配列の順序はitemsToCollectForTrial7に対応)
+                collectedCountForTrial7: 0, // ★集めた種類の数
+                completed: false
+            },
             { id: 8, name: "深淵より来る核金", conditionText: "「アビス・コア」にボールを1回当てよ。", targetItem: POWERUP_TYPES.SINDARA, completed: false, coreHit: false, /* ...コア出現ロジック... */ },
             { id: 9, name: "時の超越、歪む流れの中で", conditionText: "速度変化フィールド内で本体にボールを3回当てよ。(0/3)", targetItemAlternate: [POWERUP_TYPES.HAILA, POWERUP_TYPES.SHATORA], completed: false, hitCountTimeField: 0, requiredHitsTimeField: 3, /* ...フィールド展開ロジック... */ },
             { id: 10, name: "連鎖する星々の輝き", conditionText: "ライフを失わずにボールを連続3回当てよ。", targetItem: POWERUP_TYPES.INDARA, completed: false, consecutiveHits: 0, requiredConsecutiveHits: 3 },
@@ -1914,6 +1920,9 @@ updateTrialProgressUI(trial) {
             progressText = ` (${trial.hitCountKubira || 0}/${trial.requiredHitsKubira || 3})`;
             console.log(`[UpdateTrialUI V] Progress: ${trial.hitCountKubira || 0}/${trial.requiredHitsKubira || 3}`);
             break;
+              case 7: // 三宝の導き
+            progressText = ` (${trial.collectedCountForTrial7 || 0}/${(trial.itemsToCollectForTrial7 || []).length})`;
+            break;
         // ... 他の試練の進捗表示 ...
         default: break;
     }
@@ -1998,6 +2007,32 @@ triggerJiEndGameOver() {
     }
     // --- ジエンドタイマー関連メソッド終了 ---
 
+    // CommonBossSceneのtriggerPowerUpEffectをオーバーライド
+triggerPowerUpEffect(type, itemObject = null) {
+    // ★試練VII「三宝の導き」の収集状況を更新★
+    if (this.activeTrial && !this.activeTrial.completed && this.activeTrial.id === 7) {
+        const trialData = this.activeTrial;
+        const itemIndex = trialData.itemsToCollectForTrial7.indexOf(type);
+
+        if (itemIndex !== -1 && !trialData.collectedFlagsForTrial7[itemIndex]) {
+            // 目標アイテムであり、かつまだ収集していなければ
+            trialData.collectedFlagsForTrial7[itemIndex] = true;
+            trialData.collectedCountForTrial7 = (trialData.collectedCountForTrial7 || 0) + 1;
+            console.log(`[Trial VII] Collected: ${type}. Total unique collected: ${trialData.collectedCountForTrial7}/${trialData.itemsToCollectForTrial7.length}`);
+            if (this.trialUiText) this.updateTrialProgressUI(trialData); // UI更新
+
+            if (trialData.collectedCountForTrial7 >= trialData.itemsToCollectForTrial7.length) {
+                console.log("[Trial VII] All Sanpo items collected!");
+                this.completeCurrentTrial(); // 試練達成
+            }
+        }
+    }
+    // ★★★------------------------------------★★★
+
+    super.triggerPowerUpEffect(type, itemObject); // 親の通常のアイテム効果発動処理を呼ぶ
+}
+
+
 
     // --- 「十二神将の導き」アイテムドロップ制御 (Commonからオーバーライド) ---
     getOverrideDropItem(brick) {
@@ -2013,11 +2048,10 @@ triggerJiEndGameOver() {
         if (this.activeTrial.id === 3 && this.activeTrial.targetItemRandom) {
             return Phaser.Utils.Array.GetRandom(this.activeTrial.targetItemRandom);
         }
-        // 試練VII「三宝の導き」: 現在集めているターゲットアイテム
-        if (this.activeTrial.id === 7 && this.activeTrial.targetItemsToCollect) {
-            const currentTarget = this.activeTrial.targetItemsToCollect.find(item => !this.activeTrial.collectedItems.includes(item));
-            return currentTarget || null; // まだ集め終わっていない最初のアイテム
-        }
+         // 試練VII「三宝の導き」: 指定3種からランダムドロップ
+    if (this.activeTrial.id === 7 && this.activeTrial.dropCandidateSanpo && this.activeTrial.dropCandidateSanpo.length > 0) {
+        return Phaser.Utils.Array.GetRandom(this.activeTrial.dropCandidateSanpo);
+    }
         // 試練IX「時の超越」: ハイラかシャトラを交互
         if (this.activeTrial.id === 9 && this.activeTrial.targetItemAlternate) {
             // (交互ドロップのロジックをここに。例: 前回ドロップを記録)
@@ -2031,6 +2065,8 @@ triggerJiEndGameOver() {
         }
         return null; // それ以外は通常ドロップ
     }
+
+
 
 
     // updateメソッド (ジエンドタイマー更新など)
