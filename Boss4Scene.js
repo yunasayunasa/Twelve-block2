@@ -1095,7 +1095,7 @@ fireRadialAttack() {
     const spawnX = this.boss.x;
     const spawnY = this.boss.y + (this.boss.displayHeight / 2) * 0.7;
 
-    console.log(`[Radial Attack] Final Params - Count:${count}, Speed:${speed.toFixed(0)}, Angles:${angles.slice(0,count).join(',')}, SpinRate:${spinRate}`);
+  //  console.log(`[Radial Attack] Final Params - Count:${count}, Speed:${speed.toFixed(0)}, Angles:${angles.slice(0,count).join(',')}, SpinRate:${spinRate}`);
 
      angles.slice(0, count).forEach(angleDeg => {
         const projectile = this.spawnLuciliusProjectile(spawnX, spawnY, texture, {
@@ -1139,7 +1139,7 @@ const projectile = this.spawnLuciliusProjectile(spawnFromBossX, spawnFromBossY, 
         angleDeg: angleToTargetDeg,
         spinRate: spinRateForThisAttack // ★★★ spinRate を config オブジェクトに含めて渡す ★★★
     });
-    console.log(`[Targeted Attack] Final Params - Speed:${speed.toFixed(0)}, TargetX:${targetX.toFixed(0)}, Angle:${angleToTargetDeg.toFixed(1)}, SpinRate:${spinRate}`);
+ //   console.log(`[Targeted Attack] Final Params - Speed:${speed.toFixed(0)}, TargetX:${targetX.toFixed(0)}, Angle:${angleToTargetDeg.toFixed(1)}, SpinRate:${spinRate}`);
 
     this.spawnLuciliusProjectile(spawnFromBossX, spawnFromBossY, texture, {
         scale: scale, speed: speed, angleDeg: angleToTargetDeg, spinRate: spinRate
