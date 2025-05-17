@@ -256,7 +256,12 @@ spawnLuciliusProjectile(x, y, textureKey, config = {}) {
         if (projectile.body) {
             this.physics.velocityFromAngle(angleDeg, speed, projectile.body.velocity); // 指定された角度と速度で発射
             projectile.body.setAllowGravity(false);       // 重力無効
-            projectile.body.setCollideWorldBounds(true);  // 画面の境界と衝突する
+             projectile.body.setCollideWorldBounds(config.speed > 0); // 速度がある弾だけ画面端と衝突
+            projectile.body.onWorldBounds = (config.speed > 0);
+            if (config.speed === 0) { // 静止しているブロックの場合
+                projectile.setImmovable(true); // 他のボールなどに動かされないように
+            }
+
             projectile.body.onWorldBounds = true;         // 画面の境界との衝突イベントを有効化 (跳ね返るように)
             // 必要であれば、当たり判定のサイズやオフセットをここで調整
             // projectile.body.setSize(width, height);
