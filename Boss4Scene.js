@@ -372,18 +372,76 @@ startIntroCutscene() {
     }, [], this);
 }
 
+// CommonBossSceneのtriggerVajraOugiをオーバーライドして試練達成を検知
+triggerVajraOugi() {
+    // まず親クラスの奥義効果を実行（ボスへのダメージなど）
+    // super.triggerVajraOugi(); // CommonBossSceneにこのメソッドがあれば
+    // もし CommonBossScene で奥義発動が別の方法で行われている場合は、その処理をここに書くか、
+    // CommonBossScene側で奥義発動時にイベントを発行し、Boss4Sceneでそれをリッスンする形でも良い。
+    // ここでは、CommonBossSceneに triggerVajraOugi があると仮定。
+    // なければ、奥義発動のコアロジック（ボスへのダメージ、SE再生など）をここに直接記述。
 
-// startGameplay (オーバーライド版 - 前回提示の通り)
-// finalizeBossAppearanceAndStart は CommonBossScene のものをそのまま使用するので、Boss4Sceneではオーバーライド不要
-// startSpecificBossMovement (オーバーライド版 - 前回提示の通り、試練中は静止、最終決戦で移動)
-// (その他の Boss4Scene 固有メソッド)
+    let ougiActuallyFired = false;
+    if (this.isVajraSystemActive && this.vajraGauge >= VAJRA_GAUGE_MAX) { // Commonのプロパティを参照
+        console.log("[Boss4Scene Vajra] Attempting to trigger Vajra Ougi (Boss4Scene override).");
+        // 奥義のコア処理 (CommonBossSceneから持ってくるか、superを呼ぶ)
+        this.isVajraSystemActive = false; // 奥義使用後はゲージシステム非アクティブ化
+        this.events.emit('deactivateVajraUI'); // UIに通知
+        if (this.setBallPowerUpState) this.setBallPowerUpState(POWERUP_TYPES.VAJRA, false); // ボールの見た目変更
+        this.updateBallAndPaddleAppearance();
+        if (AUDIO_KEYS.VOICE_VAJRA_TRIGGER) this.sound.play(AUDIO_KEYS.VOICE_VAJRA_TRIGGER);
 
-// startGameplay (オーバーライド版 - 前回提示の通り)
-// finalizeBossAppearanceAndStart は CommonBossScene のものをそのまま使用するので、Boss4Sceneではオーバーライド不要
-// startSpecificBossMovement (オーバーライド版 - 前回提示の通り、試練中は静止、最終決戦で移動)
-// (その他の Boss4Scene 固有メソッド: setupJiEndTimer, setupTrialUI, startNextTrial, etc. は前回提示のものをベースに)
+        if (this.boss?.active && !this.boss.getData('isInvulnerable')) {
+            // 奥義ダメージ (CommonBossSceneのapplyBossDamageを呼ぶ)
+            // 注意: 試練中はダメージ無効にしているので、決着の刻以外ではダメージは通らないが、
+            // 奥義発動の事実としてダメージ処理を試みるのは良い。
+            const ougiDamage = this.bossData.vajraOugiDamage || 7; // bossDataに定義
+            if (this.isFinalBattleActive) { // 最終決戦中のみダメージが通る
+                 super.applyBossDamage(this.boss, ougiDamage, "Vajra Ougi");
+            } else {
+                 console.log("[Boss4Scene Vajra] Vajra Ougi used during trial phase. No actual HP damage to Lucilius.");
+                 // ダメージモーションだけは見せても良いかも
+                 if (this.boss && this.boss.active) {
+                    this.boss.setTintFill(0xffff00); // 金色に光るなど
+                    this.time.delayedCall(300, () => this.boss?.clearTint());
+                 }
+            }
+        }
+        ougiActuallyFired = true;
+        // CommonBossSceneにもtriggerVajraOugiがあるなら、super.triggerVajraOugi(); で上記を置き換える
+    }
 
 
+    // 試練達成判定
+    if (ougiActuallyFired && this.activeTrial && !this.activeTrial.completed && this.activeTrial.id === 4) {
+        console.log("[Trial IV] Vajra Ougi triggered! Trial Condition Met.");
+        this.activeTrial.ougiUsed = true; // 達成フラグを立てる
+        if (this.trialUiText) this.updateTrialProgressUI(this.activeTrial); // UI更新
+        this.completeCurrentTrial(); // 試練完了処理へ
+    } else if (ougiActuallyFired) {
+        console.log("[Boss4Scene Vajra] Ougi fired, but not for current trial or trial already complete.");
+    } else {
+        console.log("[Boss4Scene Vajra] Ougi trigger conditions not met (gauge not full, etc.).");
+    }
+}
+
+// defineTrials で試練IVの情報を更新 (ougiUsedプロパティ追加)
+// defineTrials() {
+//     return [
+//         // ...
+//         { id: 4, name: "天穿つ最終奥義", conditionText: "ヴァジラ奥義を1回発動せよ。", targetItem: POWERUP_TYPES.VAJRA, completed: false, ougiUsed: false },
+//         // ...
+//     ];
+// }
+
+// updateTrialProgressUI で試練IVの進捗表示 (任意)
+// updateTrialProgressUI(trial) {
+//     // ...
+//     if (trial.id === 4) {
+//         progressText = trial.ougiUsed ? "(達成！)" : "(未達成)";
+//     }
+//     // ...
+// }
   // startGameplay (オーバーライド): Commonの処理を呼びつつ、ルシゼロ専用の初期化
 startGameplay() {
     console.log("[Boss4Scene] startGameplay override called.");
