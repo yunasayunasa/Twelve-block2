@@ -3,7 +3,7 @@ import CommonBossScene from './CommonBossScene.js';
 import {
     AUDIO_KEYS, POWERUP_TYPES, TOTAL_BOSSES, GAMEPLAY_START_DELAY,VAJRA_GAUGE_MAX, 
     NORMAL_BALL_SPEED, BALL_SPEED_MODIFIERS, DEFAULT_ATTACK_BRICK_VELOCITY_Y,
-    CUTSCENE_DURATION, POWERUP_ICON_KEYS,POWERUP_SIZE_RATIO,POWERUP_SPEED_Y,
+    CUTSCENE_DURATION, POWERUP_ICON_KEYS,
     // (その他必要な定数を constants.js からインポート)
     // SE_JI_END_BELL, SE_TRIAL_COMPLETE などもAUDIO_KEYS経由で
 } from './constants.js';
@@ -27,8 +27,6 @@ export default class Boss4Scene extends CommonBossScene {
         this.trialsData = [];
         this.activeTrialIndex = -1;
         this.trialUiText = null;
-         this.isTimeFieldTrialActive = false; // Boss4Sceneがtrue/falseする
-this.timeFieldData = null;           // Boss4Sceneが設定する {boundaryY, slowFactor, fastFactor}
 
         this.currentRoute = null;
         this.harmonyCrystal = null;
@@ -173,15 +171,8 @@ this.timeFieldData = null;           // Boss4Sceneが設定する {boundaryY, sl
                 coresData: [],    // 各コアの状態（HPなど）を格納する配列
                 destroyedCoreCount: 0
             },
-            { id: 9, name: "時の超越、歪む流れ",  conditionText: "惑わされることなく、本体にボールを3回当てよ。(0/3)",
-                dropLogic: 'mixedFakeAndReal', // ドロップロジックのタイプ
-                // この試練でドロップするアイテムはHAILAかSHATORAのどちらかの「見た目」
-                // その上で、それが本物か偽物かはランダム
-                baseItemTypesForMix: [POWERUP_TYPES.HAILA, POWERUP_TYPES.SHATORA],
-                completed: false,
-                hitCountTimeField: 0, // ボスへのヒット数
-                requiredHitsTimeField: 3
-            },
+            { id: 9, name: "時の超越、歪む流れの中で", conditionText: "速度変化フィールド内で/n本体にボールを3回当てよ。", 
+                targetItemAlternate: [POWERUP_TYPES.HAILA, POWERUP_TYPES.SHATORA], completed: false, hitCountTimeField: 0, requiredHitsTimeField: 3, /* ...フィールド展開ロジック... */ },
             { id: 10, name: "連鎖する星々の輝き", conditionText: "ライフを失わずにボールを連続3回当てよ。", targetItem: POWERUP_TYPES.INDARA, completed: false, consecutiveHits: 0, requiredConsecutiveHits: 3 },
             { id: 11, name: "虚無の壁", conditionText: "虚無の壁の奥の本体にボールを1回当てよ。", targetItem: POWERUP_TYPES.BIKARA_YIN, completed: false, wallBreachedAndHit: false, /* ...壁生成ロジック... */ },
             { id: 12, name: "終焉の刻 ", conditionText: "決着を付けろ", targetItem: null, completed: false, isFinalBattle: true }
@@ -779,50 +770,10 @@ playSpecificBgm(bgmKey) {
  if (trial.id === 8) {
         this.spawnAbyssCores(trial.coreCount || 3);
     }
-     if (trial.id === 9) { // 時の超越
-        this.activateTimeField(trial);
-    }
 
         if (trial.id === 11) this.spawnVoidWall();
         // 他の試練の準備も同様に
     }
-
-    activateTimeField(trialData) {
-    console.log("[Trial IX] Activating Time Field.");
-    this.isTimeFieldTrialActive = true; // CommonBossSceneのフラグを立てる
-    this.timeFieldData = { // CommonBossSceneに渡すデータ
-        boundaryY: this.gameHeight * (trialData.timeFieldBoundaryYRatio || 0.5),
-        slowFactor: trialData.timeFieldSlowFactor || 0.7,
-        fastFactor: trialData.timeFieldFastFactor || 1.3
-    };
-
-    // 視覚エフェクト生成 (例: 半透明オーバーレイ)
-    this.timeFieldSlowOverlay = this.add.rectangle(0, 0, this.gameWidth, this.timeFieldData.boundaryY, 0x0000ff, 0.1).setOrigin(0,0).setDepth(-1);
-    this.timeFieldFastOverlay = this.add.rectangle(0, this.timeFieldData.boundaryY, this.gameWidth, this.gameHeight - this.timeFieldData.boundaryY, 0xff0000, 0.1).setOrigin(0,0).setDepth(-1);
-
-    if (AUDIO_KEYS.SE_TIME_FIELD_ON) this.sound.play(AUDIO_KEYS.SE_TIME_FIELD_ON);
-}
-// completeCurrentTrial や shutdownScene で timeField を解除する処理
-deactivateTimeField() {
-    console.log("[Trial IX] Deactivating Time Field.");
-    this.isTimeFieldTrialActive = false;
-    this.timeFieldData = null;
-    this.timeFieldSlowOverlay?.destroy(); this.timeFieldSlowOverlay = null;
-    this.timeFieldFastOverlay?.destroy(); this.timeFieldFastOverlay = null;
-    if (AUDIO_KEYS.SE_TIME_FIELD_OFF) this.sound.play(AUDIO_KEYS.SE_TIME_FIELD_OFF);
-    // ボールの速度を通常に戻す処理も必要ならここで行う
-    this.balls?.getChildren().forEach(ball => {
-        if(ball.active && ball.body) {
-            const currentSpeed = ball.body.velocity.length();
-            let baseSpeedWithPowerUp = NORMAL_BALL_SPEED;
-            if (ball.getData('isFast')) baseSpeedWithPowerUp *= (BALL_SPEED_MODIFIERS[POWERUP_TYPES.SHATORA] || 1);
-            if (ball.getData('isSlow')) baseSpeedWithPowerUp *= (BALL_SPEED_MODIFIERS[POWERUP_TYPES.HAILA] || 1);
-            if (Math.abs(currentSpeed - baseSpeedWithPowerUp) > 10) {
-                ball.body.velocity.normalize().scale(baseSpeedWithPowerUp);
-            }
-        }
-    });
-}
 
    // Boss4Scene.js
 spawnAbyssCores(coreCount) {
@@ -1529,11 +1480,11 @@ const targetReflectSpeed = baseReflectSpeed * speedMultiplier;
             }
                 break;
             case 9: // 時の超越
-                if (boss === this.boss && this.isTimeFieldTrialActive) { // フィールド効果中か確認
+                if (boss === this.boss && this.isTimeFieldActive()) {
                     this.activeTrial.hitCountTimeField = (this.activeTrial.hitCountTimeField || 0) + 1;
                     if (this.trialUiText) this.updateTrialProgressUI(this.activeTrial);
                     if (this.activeTrial.hitCountTimeField >= this.activeTrial.requiredHitsTimeField) {
-                        trialJustCompleted = true;
+                        trialJustCompleted = true; // ここも代入先に変更
                     }
                 }
                 break;
@@ -2054,7 +2005,7 @@ updateTrialProgressUI(trial) {
             progressText = ` (${trial.collectedCountForTrial7 || 0}/${(trial.itemsToCollectForTrial7 || []).length})`;
             break;
              case 8: // 深淵より来る核を狙え
-        progressText = ` (: ${trial.hitCoreCount || 0}/${trial.coreCount || 3})`;
+        progressText = ` (破壊コア: ${trial.hitCoreCount || 0}/${trial.coreCount || 3})`;
         break;
         // ... 他の試練の進捗表示 ...
         default: break;
@@ -2141,78 +2092,30 @@ triggerJiEndGameOver() {
     // --- ジエンドタイマー関連メソッド終了 ---
 
     // CommonBossSceneのtriggerPowerUpEffectをオーバーライド
-// Boss4Scene.js
-
 triggerPowerUpEffect(type, itemObject = null) {
-    let effectToApply = type; // 実際に発動する効果のタイプ
-    const originalVisualType = type; // アイテムの見た目上のタイプ (引数で渡ってきたもの)
-    const isFake = itemObject ? itemObject.getData('isFake') : false; // アイテムオブジェクトから偽物フラグ取得
-
-    console.log(`[TriggerEffect Boss4 ENTER] VisualType: ${originalVisualType}, isFake: ${isFake}, ActiveTrialID: ${this.activeTrial?.id}`);
-
-    // --- ▼ 試練IX「惑わしの秘薬」効果反転処理 ▼ ---
-    if (this.activeTrial && !this.activeTrial.completed && this.activeTrial.id === 9 && isFake) {
-        console.log(`[Trial IX Effect] Item looked like ${originalVisualType}, but it's FAKE! Applying opposite.`);
-        if (originalVisualType === POWERUP_TYPES.HAILA) {
-            effectToApply = POWERUP_TYPES.SHATORA;
-        } else if (originalVisualType === POWERUP_TYPES.SHATORA) {
-            effectToApply = POWERUP_TYPES.HAILA;
-        }
-        // (もし他のアイテムも偽物にするなら、ここに追加の反転ロジック)
-        console.log(`[Trial IX Effect] Actual effect to apply: ${effectToApply}`);
-    }
-    // --- ▲ 試練IX 効果反転処理 終了 ▲ ---
-
-
-    // --- ▼ 試練VII「三宝の導き」の収集状況を更新 ▼ ---
-    // 注意: この判定は「実際に発動する効果(effectToApply)」ではなく、「取得したアイテムの見た目(originalVisualType)」で行うべきか、
-    //       あるいは「実際に発動した効果」で集めるのか、仕様によります。
-    //       ここでは「見た目上のアイテムを集める」と仮定します。
+    // ★試練VII「三宝の導き」の収集状況を更新★
     if (this.activeTrial && !this.activeTrial.completed && this.activeTrial.id === 7) {
         const trialData = this.activeTrial;
-        // itemsToCollectForTrial7 には、ビカラ陽、バドラ、マコラが入っている想定
-        const itemIndex = trialData.itemsToCollectForTrial7.indexOf(originalVisualType); // ★originalVisualTypeで判定
+        const itemIndex = trialData.itemsToCollectForTrial7.indexOf(type);
 
         if (itemIndex !== -1 && !trialData.collectedFlagsForTrial7[itemIndex]) {
+            // 目標アイテムであり、かつまだ収集していなければ
             trialData.collectedFlagsForTrial7[itemIndex] = true;
             trialData.collectedCountForTrial7 = (trialData.collectedCountForTrial7 || 0) + 1;
-            console.log(`[Trial VII] Collected (見た目): ${originalVisualType}. Total unique: ${trialData.collectedCountForTrial7}/${trialData.itemsToCollectForTrial7.length}`);
-            if (this.trialUiText) this.updateTrialProgressUI(trialData);
+            console.log(`[Trial VII] Collected: ${type}. Total unique collected: ${trialData.collectedCountForTrial7}/${trialData.itemsToCollectForTrial7.length}`);
+            if (this.trialUiText) this.updateTrialProgressUI(trialData); // UI更新
 
             if (trialData.collectedCountForTrial7 >= trialData.itemsToCollectForTrial7.length) {
-                console.log("[Trial VII] All Sanpo items collected! Completing trial.");
-                // this.completeCurrentTrial(); // ★注意: ここで呼ぶとsuperより先になる
-                                             // 試練達成判定はメソッドの最後にまとめて行う方が安全
+                console.log("[Trial VII] All Sanpo items collected!");
+                this.completeCurrentTrial(); // 試練達成
             }
         }
     }
-    // --- ▲ 試練VII 収集処理 終了 ▲ ---
+    // ★★★------------------------------------★★★
 
-
-    // --- 親の通常のアイテム効果発動処理を呼び出す (effectToApply を渡す) ---
-    // itemObject はここで破棄されるので、親に渡す場合は注意。
-    // もし親のメソッドで itemObject が必要なら、ここで破棄せずに渡す。
-    // CommonBossSceneのtriggerPowerUpEffectがitemObjectを破棄すると仮定。
-    console.log(`[TriggerEffect Boss4] Calling super.triggerPowerUpEffect with ACTUAL effect: ${effectToApply}`);
-    super.triggerPowerUpEffect(effectToApply, itemObject); // ★★★ effectToApply を渡す ★★★
-    // これにより、CommonBossScene側では、実際に発動すべき効果に基づいて処理が行われる。
-    // (例: activateShatora(), activateHaira() などが effectToApply に応じて呼ばれる)
-
-
-    // --- ▼ 試練達成判定 (アイテム効果発動後に行う方が確実な場合もある) ▼ ---
-    // 特に、試練の達成が「特定の効果が発動したこと」に依存する場合など。
-    // 今回の試練VIIは「アイテムを集めること」が条件なので、上記の収集処理内で判定完了でOK。
-    // 試練IXのクリア条件は「ボスに3回当てる」なので、このメソッド内では達成判定しない。
-    // (hitBossメソッド内で別途行う)
-    if (this.activeTrial && !this.activeTrial.completed && this.activeTrial.id === 7) {
-        if (this.activeTrial.collectedCountForTrial7 >= this.activeTrial.itemsToCollectForTrial7.length) {
-            this.completeCurrentTrial(); // 改めてここで呼ぶ
-        }
-    }
-    // --- ▲ 試練達成判定 終了 ▲ ---
-
-    console.log(`[TriggerEffect Boss4 EXIT] Finished processing for visual type: ${originalVisualType}, applied effect: ${effectToApply}`);
+    super.triggerPowerUpEffect(type, itemObject); // 親の通常のアイテム効果発動処理を呼ぶ
 }
+
 
 
     // --- 「十二神将の導き」アイテムドロップ制御 (Commonからオーバーライド) ---
@@ -2234,16 +2137,11 @@ triggerPowerUpEffect(type, itemObject = null) {
         return Phaser.Utils.Array.GetRandom(this.activeTrial.dropCandidateSanpo);
     }
         // 試練IX「時の超越」: ハイラかシャトラを交互
-          if (this.activeTrial.id === 9 && this.activeTrial.dropLogic === 'mixedFakeAndReal') {
-        // 見た目としてハイラかシャトラかをまずランダムに決める
-        const visualType = Phaser.Utils.Array.GetRandom(this.activeTrial.baseItemTypesForMix);
-        // それが本物か偽物かもランダムに決める (50%の確率で偽物)
-        const isFake = Phaser.Math.Between(0, 1) === 0;
-
-        console.log(`[Trial IX Drop] Visual: ${visualType}, IsFake: ${isFake}`);
-        // dropSpecificPowerUp に渡す情報として、オブジェクトで返す
-        return { typeToDrop: visualType, makeItFake: isFake };
-    }
+        if (this.activeTrial.id === 9 && this.activeTrial.targetItemAlternate) {
+            // (交互ドロップのロジックをここに。例: 前回ドロップを記録)
+            // 簡単な例: 破壊されたブロックのX座標で決めるなど
+            return brick.x < this.gameWidth / 2 ? this.activeTrial.targetItemAlternate[0] : this.activeTrial.targetItemAlternate[1];
+        }
 
         // 上記以外で、試練に targetItem が設定されていればそれを返す
         if (this.activeTrial.targetItem) {
@@ -2252,54 +2150,6 @@ triggerPowerUpEffect(type, itemObject = null) {
         return null; // それ以外は通常ドロップ
     }
 
-    // Boss4Scene.js
-dropSpecificPowerUp(x, y, itemDropData) { // itemDropData は { typeToDrop: 'haila', makeItFake: true } のようなオブジェクト
-    let typeToDisplay;
-    let isActuallyFake = false;
-    let customTint = null;
-
-    if (typeof itemDropData === 'object' && itemDropData !== null && itemDropData.typeToDrop) {
-        // getOverrideDropItem からオブジェクトが渡された場合
-        typeToDisplay = itemDropData.typeToDrop;
-        isActuallyFake = itemDropData.makeItFake || false;
-    } else if (typeof itemDropData === 'string') {
-        // 他の試練などから直接タイプ文字列が渡された場合
-        typeToDisplay = itemDropData;
-    } else {
-        console.error("[DropSpecific] Invalid itemDropData:", itemDropData);
-        return;
-    }
-
-    if (!this.powerUps) return;
-    let iconKey = POWERUP_ICON_KEYS[typeToDisplay] || 'whitePixel';
-    const itemSize = this.gameWidth * (POWERUP_SIZE_RATIO || 0.08);
-    let defaultTintColor = (iconKey === 'whitePixel' && typeToDisplay === POWERUP_TYPES.BAISRAVA) ? 0xffd700 : (iconKey === 'whitePixel' ? 0xcccccc : null);
-
-    const powerUpItem = this.powerUps.create(x, y, iconKey)
-        .setDisplaySize(itemSize, itemSize)
-        .setData('actualType', typeToDisplay) // 見た目上のタイプ
-        .setData('isFake', isActuallyFake);   // 偽物かどうかのフラグ
-
-    if (isActuallyFake) {
-        if (typeToDisplay === POWERUP_TYPES.HAILA) customTint = 0xffaaaa; // 偽ハイラは赤っぽく
-        else if (typeToDisplay === POWERUP_TYPES.SHATORA) customTint = 0xaaaaff; // 偽シャトラは青っぽく
-        console.log(`[Fake Item Drop Visual] Dropping FAKE ${typeToDisplay} with tint ${customTint?.toString(16)}`);
-    }
-
-    const finalTintColor = customTint !== null ? customTint : defaultTintColor;
-    if (finalTintColor !== null) {
-        powerUpItem.setTint(finalTintColor);
-    } else {
-        powerUpItem.clearTint();
-    }
-
-    if (powerUpItem.body) {
-        powerUpItem.setVelocity(0, POWERUP_SPEED_Y || 120);
-        powerUpItem.body.setAllowGravity(false).setCollideWorldBounds(false);
-    } else if (powerUpItem) {
-        powerUpItem.destroy();
-    }
-}
 
 
 
