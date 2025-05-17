@@ -105,12 +105,12 @@ export default class Boss4Scene extends CommonBossScene {
         projectileSpinRate: 180,
     },
     radialAttackParamsOrder: { // 秩序ルート: 弾数を増やし、少し速く
-        count: 5, // 5方向全て
+        count: 3, // 5方向全て
         speedMultiplier: 1.1,
         // (オプション) 角度を少し狭めて密度を上げるなども
     },
     radialAttackParamsChaos: { // 混沌ルート: 弾数を減らし、かなり遅く
-        count: 3, // 中央3方向のみなど
+        count: 2, // 中央3方向のみなど
         speedMultiplier: 0.7,
         // (オプション) 角度を広げて避けやすくするなども
     },
@@ -487,76 +487,142 @@ prepareBallForChoice() {
         console.log("[TrialUI] Setup complete.");
     }
 
-    // 次の試練を開始する (または現在の試練のUIを更新) - 攻撃タイマーリセット追加
+   // Boss4Scene.js
+
+// (constructor, init, initializeBossData, defineTrials, createSpecificBoss, applyBossDamage,
+//  startIntroCutscene, startGameplay, setupJiEndTimer, setupTrialUI,
+//  startHarmonyAndDestructionChoice, selectRoute, shatterCrystal,
+//  startFinalBattle, completeCurrentTrial (修正済みと仮定), hitBoss, isPlayerKubiraActive, isTimeFieldActive,
+//  spawnChaosFragments, hitChaosFragment, warpBoss, fireRadialAttack, fireTargetedAttack,
+//  spawnVoidWall, checkTrialCompletion (仮), updateTrialProgressUI (仮),
+//  formatTime, playBellSound, triggerJiEndGameOver, stopAllBossTimers, getOverrideDropItem,
+//  update, shutdownScene, prepareBallForTrial, playSpecificBgm, warpBossToPosition などは前回までのものをベースに)
+
+/**
+ * 次の試練を開始する。UIを更新し、試練ごとの環境を設定し、
+ * 準備時間後にプレイヤー操作を有効化し、ボスの行動を再開させる。
+ */
 startNextTrial() {
+    // --- 1. 次の試練へインデックスを進める ---
     this.activeTrialIndex++;
+    console.log(`[TrialLogic] Attempting to start next trial. New activeTrialIndex: ${this.activeTrialIndex}`);
+
+    // --- 2. 全ての試練が完了したか、または範囲外かチェック ---
     if (this.activeTrialIndex >= this.trialsData.length) {
-        console.error("[TrialLogic] Attempted to start trial beyond available trials.");
-        this.triggerJiEndGameOver();
+        console.error(`[TrialLogic] No more trials left or index out of bounds (Index: ${this.activeTrialIndex}, Total Trials defined: ${this.trialsData.length}). This should ideally lead to final battle or be caught earlier.`);
+        // ここに到達するのは通常、defineTrialsの最後の要素が isFinalBattle: true でない場合など、設計ミス
+        this.triggerJiEndGameOver(); // 予期せぬエラーとしてゲームオーバー
         return;
     }
 
+    // --- 3. 現在の試練データを取得し、クラスプロパティに設定 ---
     const currentTrial = this.trialsData[this.activeTrialIndex];
-    this.activeTrial = currentTrial;
+    this.activeTrial = currentTrial; // activeTrialプロパティを更新
 
-    console.log(`[TrialLogic] Starting Trial ${currentTrial.id}: ${currentTrial.name}`);
-    // 1. 次の試練UI表示
+    if (!currentTrial) { // 万が一 currentTrial が undefined の場合
+        console.error(`[TrialLogic] Failed to get current trial data for index ${this.activeTrialIndex}.`);
+        this.triggerJiEndGameOver();
+        return;
+    }
+    console.log(`[TrialLogic] Starting Trial ${currentTrial.id}: "${currentTrial.name}"`);
+
+    // --- 4. 試練UIを更新 ---
     if (this.trialUiText && this.trialUiText.active) {
         let displayText = `十二の試練：試練 ${currentTrial.id}「${currentTrial.name}」\n`;
         displayText += `${currentTrial.conditionText}`;
-        if (this.trialUiText) this.updateTrialProgressUI(currentTrial); // updateTrialProgressUIでsetTextを呼ぶ
-        else this.trialUiText.setText(displayText);
-        console.log("[TrialLogic] Next trial UI displayed.");
+        // updateTrialProgressUI で進捗表示も初期化（または表示）する
+        if (typeof this.updateTrialProgressUI === 'function') {
+            this.updateTrialProgressUI(currentTrial); // これが setText も行う想定
+        } else {
+            this.trialUiText.setText(displayText); // フォールバック
+        }
+        console.log("[TrialLogic] Trial UI updated for new trial.");
+    } else {
+        console.warn("[TrialLogic] trialUiText not available to update for new trial.");
     }
 
-    // 2. 試練ごとの環境設定
-    this.setupCurrentTrialEnvironment(currentTrial); // 例: 混沌の欠片召喚など
+    // --- 5. ボスの状態をリセット（角度、試練中はまだ無敵のまま） ---
+    if (this.boss && this.boss.active && !currentTrial.isFinalBattle) {
+        this.boss.setAngle(0); // 角度を0に戻す
+        // ボスの無敵状態は、completeCurrentTrialでtrueに設定され、
+        // このメソッドの準備時間終了後にfalseに戻される。
+        console.log(`[TrialLogic] Boss angle reset for Trial ${currentTrial.id}. Boss should still be invulnerable from previous trial completion.`);
+    }
 
-    // 3. ★★★ 3秒間の準備時間タイマー ★★★
-    const preparationTime = 3000; // 3秒
-    console.log(`[TrialLogic] Starting ${preparationTime/1000}s preparation time for trial ${currentTrial.id}.`);
-    // 準備時間中はボスは攻撃もワープもしない (updateSpecificBossBehaviorのガードで対応)
-    // playerControlEnabled はまだ false のまま (completeCurrentTrialでfalseにした)
+    // --- 6. 試練の種類に応じた分岐処理 ---
+    if (currentTrial.isChoiceEvent) { // 試練I: 「調和と破壊の選択」
+        console.log("[TrialLogic] Current trial is a Choice Event. Starting Harmony/Destruction choice.");
+        // 準備時間タイマーなどを一旦クリア (もしあれば)
+        // this.time.removeAllEvents(); // やりすぎると他の重要なタイマーも消えるので注意
+        if (this.preparationTimer) this.preparationTimer.remove();
 
-    this.time.delayedCall(preparationTime, () => {
-        if (this.isGameOver || this.bossDefeated || !this.activeTrial || this.activeTrial.id !== currentTrial.id) {
-            // 準備時間中にゲームが終わったか、別の試練に進んでいたら何もしない
-            console.log("[TrialLogic] Preparation time ended, but game state changed or trial mismatch.");
-            return;
+        this.startHarmonyAndDestructionChoice(); // これがプレイヤー操作やボール準備も行う
+        // startHarmonyAndDestructionChoice の中で playerControlEnabled は true になる
+    } else if (currentTrial.isFinalBattle) { // 試練XII: 「決着の刻」
+        console.log("[TrialLogic] Current trial is the Final Battle. Starting final phase.");
+        if (this.preparationTimer) this.preparationTimer.remove();
+
+        this.startFinalBattle(); // これがボスHP設定、移動開始、プレイヤー操作有効化などを行う
+        this.playerControlEnabled = true; // 念のため
+        // 最終決戦用BGMの再生
+        const finalBgmKey = this.bossData.bgmKeyFinalBattle || AUDIO_KEYS.BGM_LUCILIUS_FINAL_BATTLE;
+        if (finalBgmKey) this.playSpecificBgm(finalBgmKey);
+    } else { // 通常の試練 (試練II ～ XI)
+        console.log("[TrialLogic] Current trial is a standard trial. Setting up environment and preparation time.");
+        this.setupCurrentTrialEnvironment(currentTrial); // 試練ごとのオブジェクト配置など
+
+        // プレイヤー操作は既に有効になっているはず (completeCurrentTrial で false にしていないため)
+        // もし試練クリア演出で操作を止めていた場合は、ここで再度有効化する
+        if (!this.playerControlEnabled) {
+             this.playerControlEnabled = true;
+             console.log("[TrialLogic] Player control RE-ENABLED for standard trial.");
         }
-        console.log(`[TrialLogic] Preparation time for trial ${currentTrial.id} ended. Enabling player control and boss actions.`);
+        this.isBallLaunched = false;    // ボールは常に再発射待ちから開始
+        this.prepareBallForTrial();     // ボールをパドル上などにリセット
 
-        // 4. プレイヤー操作有効化、ボール準備
-        this.playerControlEnabled = true;
-        this.isBallLaunched = false;
-        this.prepareBallForTrial(); // ボールをパドル上などにリセット
+        // --- 準備時間タイマー ---
+        const preparationTime = 3000; // 3秒 (調整可能)
+        console.log(`[TrialLogic] Starting ${preparationTime/1000}s preparation time for trial ${currentTrial.id}.`);
+        // 既存の準備タイマーがあればクリア
+        if (this.preparationTimer) this.preparationTimer.remove();
 
-        // 5. ボス行動開始のためのタイマーリセット
-        this.lastAttackTime = this.time.now;
-        this.lastWarpTime = this.time.now;
-        console.log(`[TrialLogic] Attack/Warp timers reset for trial ${currentTrial.id}.`);
+        this.preparationTimer = this.time.delayedCall(preparationTime, () => {
+            this.preparationTimer = null; // タイマー参照クリア
+            if (this.isGameOver || this.bossDefeated || !this.activeTrial || this.activeTrial.id !== currentTrial.id) {
+                console.log("[TrialLogic PrepTimeEnd] Game state changed or trial mismatch during prep time. Aborting boss activation.");
+                return;
+            }
+            console.log(`[TrialLogic PrepTimeEnd] Preparation time for trial ${currentTrial.id} ended. Activating boss.`);
 
-        // 6. BGM確認・再生
-        let bgmToPlay = this.bossData.bgmKey; /* ... (ルート別BGM判定) ... */
+            // ボスを攻撃可能にし、行動タイマーをリセット
+            if (this.boss && this.boss.active) {
+                this.boss.setData('isInvulnerable', false); // ★ここで無敵解除★
+                console.log(`[TrialLogic PrepTimeEnd] Boss invulnerability REMOVED for trial ${currentTrial.id}.`);
+            }
+            this.lastAttackTime = this.time.now; // 攻撃タイマーリセット
+            this.lastWarpTime = this.time.now;   // ワープタイマーリセット
+            console.log(`[TrialLogic PrepTimeEnd] Attack/Warp timers reset. Boss will now act for trial ${currentTrial.id}.`);
+
+            // (オプション) 新しい試練開始の短いSEや演出
+            // if (AUDIO_KEYS.SE_TRIAL_START) this.sound.play(AUDIO_KEYS.SE_TRIAL_START);
+
+        }, [], this);
+        // --- 準備時間タイマー終了 ---
+
+        // BGMの確認・再生 (ルートによってBGMを変える場合のロジック)
+        let bgmToPlay = this.bossData.bgmKeyDefaultTrials || this.bossData.bgmKey; // bossDataに試練中デフォルトBGMキーを持たせる
+        if (this.currentRoute === 'order' && this.bossData.bgmKeyTrialsOrder) {
+            bgmToPlay = this.bossData.bgmKeyTrialsOrder;
+        } else if (this.currentRoute === 'chaos' && this.bossData.bgmKeyTrialsChaos) {
+            bgmToPlay = this.bossData.bgmKeyTrialsChaos;
+        }
         if (bgmToPlay && (!this.currentBgm || this.currentBgm.key !== bgmToPlay || !this.currentBgm.isPlaying)) {
             this.playSpecificBgm(bgmToPlay);
         } else if (!this.currentBgm || !this.currentBgm.isPlaying) {
-            this.playBossBgm();
+            this.playBossBgm(); // フォールバック
         }
-        console.log(`[TrialLogic] Trial ${currentTrial.id} fully started.`);
-    }, [], this);
-
-    // isChoiceEvent や isFinalBattle の分岐は、この新しいフローに合わせて調整が必要
-    // (startHarmonyAndDestructionChoice や startFinalBattle は、この準備時間後に呼ばれるのではなく、
-    //  この startNextTrial の中で直接それぞれの処理を開始する形になる)
-    // 今回の骨子では、試練Iは isChoiceEvent=true なので、この3秒待ちは発生しない想定。
-    if (currentTrial.isChoiceEvent) {
-        this.time.removeAllEvents(); // 上のdelayedCallをキャンセルする場合
-        this.startHarmonyAndDestructionChoice();
-    } else if (currentTrial.isFinalBattle) {
-        this.time.removeAllEvents();
-        this.startFinalBattle();
     }
+    console.log(`--- Boss4Scene startNextTrial for Trial ID ${currentTrial.id} Complete ---`);
 }
 // 新しいヘルパーメソッド: 試練開始時にボールを準備する
 prepareBallForTrial() {
@@ -1024,9 +1090,15 @@ completeCurrentTrial() {
 
     console.log(`[TrialLogic] Trial ${this.activeTrial.id}「${this.activeTrial.name}」 COMPLETED! Initiating post-trial sequence.`);
     this.activeTrial.completed = true;  // 試練を完了済みにマーク
-    this.playerControlEnabled = false;  // ★演出中はプレイヤー操作を一時的に制限
+ //   this.playerControlEnabled = false;  // ★演出中はプレイヤー操作を一時的に制限
 
     // --- ▼ 試練クリア演出シーケンス (delayedCallで順番に実行) ▼ ---
+// ★★★ 試練クリア演出中はボスを無敵にする ★★★
+    if (this.boss && this.boss.active) {
+        this.boss.setData('isInvulnerable', true);
+        console.log("[Trial Complete] Boss set to INVULNERABLE during post-trial sequence.");
+    }
+    // ★★★------------------------------------★★★
 
     // ステップ1: ルシファーのダメージモーション（HPは減らないフェイク）とSE
     if (this.boss && this.boss.active) {
