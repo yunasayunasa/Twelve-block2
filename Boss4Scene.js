@@ -1587,7 +1587,7 @@ updateTrialProgressUI(trial) {
         case 2: progressText = `(${trial.hitCount || 0}/${trial.requiredHits})`; break;
         case 3: progressText = `(破壊数: ${trial.destroyedCount || 0}/${trial.objectsToDestroy})`; break;
          case 5: // ★★★ 星光の追撃 ★★★
-            progressDetails = ` (${trial.hitCountKubira || 0}/${trial.requiredHitsKubira || 3})`;
+            progressText = ` (${trial.hitCountKubira || 0}/${trial.requiredHitsKubira || 3})`;
             console.log(`[UpdateTrialUI V] Progress: ${trial.hitCountKubira || 0}/${trial.requiredHitsKubira || 3}`);
             break;
         // ... 他の試練の進捗表示 ...
