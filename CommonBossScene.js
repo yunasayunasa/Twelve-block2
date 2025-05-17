@@ -1910,6 +1910,54 @@ returnToTitle() {
         this.updateBallAndPaddleAppearance();
     }
 
+    // CommonBossScene.js クラス内に、他のメソッドと同列に追加してください
+
+/**
+ * プレイヤーが現在クビラのパワーアップ効果を受けているかを判定します。
+ * this.powerUpTimers を参照し、該当するタイマーが存在し、
+ * かつまだ完了していない（進行度が1未満）場合にtrueを返します。
+ * @returns {boolean} クビラ効果がアクティブであればtrue、そうでなければfalse。
+ */
+isPlayerKubiraActive() {
+    // powerUpTimers プロパティが存在し、オブジェクトであることを確認
+    if (this.powerUpTimers && typeof this.powerUpTimers === 'object') {
+        // クビラのタイマーイベントを取得
+        const kubiraTimerEvent = this.powerUpTimers[POWERUP_TYPES.KUBIRA];
+
+        // タイマーイベントが存在し、PhaserのTimerEventのインスタンスであり、
+        // getProgressメソッドを持ち、かつ進行度が1未満（つまり完了していない）かを確認
+        if (kubiraTimerEvent &&
+            kubiraTimerEvent instanceof Phaser.Time.TimerEvent && // より厳密な型チェック
+            typeof kubiraTimerEvent.getProgress === 'function' &&
+            kubiraTimerEvent.getProgress() < 1) {
+            // console.log("[PowerUpCheck] Kubira effect is ACTIVE.");
+            return true;
+        }
+    }
+    // console.log("[PowerUpCheck] Kubira effect is INACTIVE or powerUpTimers not set up correctly.");
+    return false;
+}
+
+// (オプション) より汎用的な判定メソッド
+/**
+ * 指定されたタイプのパワーアップが現在有効かを判定します。
+ * @param {string} powerUpType POWERUP_TYPESのいずれかの値
+ * @returns {boolean} 指定されたパワーアップ効果がアクティブであればtrue、そうでなければfalse。
+ */
+isPowerUpActive(powerUpType) {
+    if (!powerUpType) return false; // タイプ指定がなければfalse
+    if (this.powerUpTimers && typeof this.powerUpTimers === 'object') {
+        const timerEvent = this.powerUpTimers[powerUpType];
+        if (timerEvent &&
+            timerEvent instanceof Phaser.Time.TimerEvent &&
+            typeof timerEvent.getProgress === 'function' &&
+            timerEvent.getProgress() < 1) {
+            return true;
+        }
+    }
+    return false;
+}
+
     // activateMakira メソッド (triggerPowerUpEffect を使うように修正)
     activateMakira() {
         console.log("[Makira] Activating: Collect all on-screen items!");
