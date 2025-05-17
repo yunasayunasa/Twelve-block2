@@ -34,6 +34,7 @@ export default class Boss4Scene extends CommonBossScene {
         this.isChoiceEventActive = false;
         this.chaosFragmentsGroup = null; // 専用グループ
         this.isCompletingTrial = false;
+         this.isSpecialSequenceActive = false; // ★専用演出中フラグ
 
         this.isFinalBattleActive = false;
         this.lastAttackTime = 0;
@@ -55,6 +56,7 @@ export default class Boss4Scene extends CommonBossScene {
           this.chaosFragmentsGroup?.destroy(true, true); // シーン初期化で破棄
     this.chaosFragmentsGroup = null;
     this.isCompletingTrial = false;
+    this.isSpecialSequenceActive = false; // ★リセット
 
         this.jiEndTimerText?.destroy(); this.jiEndTimerText = null;
         this.harmonyCrystal?.destroy(); this.harmonyCrystal = null;
@@ -586,6 +588,13 @@ startNextTrial() {
     const currentTrial = this.trialsData[this.activeTrialIndex];
     this.activeTrial = currentTrial; // activeTrialプロパティを更新
 
+     // ★★★ 他の試練が始まるなら、パラダイスロスト演出は終わっているはずなのでフラグをfalseに ★★★
+    if (currentTrial.id !== 6 && this.isSpecialSequenceActive) { // 試練VI以外でフラグがtrueならリセット
+        console.warn(`[TrialLogic] Resetting isSpecialSequenceActive at start of trial ${currentTrial.id}`);
+        this.isSpecialSequenceActive = false;
+    }
+    // ★★★---------------------------------------------------------------------------★★★
+
     if (!currentTrial) { // 万が一 currentTrial が undefined の場合
         console.error(`[TrialLogic] Failed to get current trial data for index ${this.activeTrialIndex}.`);
         this.triggerJiEndGameOver();
@@ -740,12 +749,11 @@ playSpecificBgm(bgmKey) {
         // 他の試練の準備も同様に
     }
 
-    executeParadiseLostSequence() {
-    console.log("[Trial VI] Starting Paradise Lost sequence.");
-    this.playerControlEnabled = false; // 演出中は完全に操作不能にしても良いかも
-    // (もしボスが通常の攻撃/ワープをしていたら、それを止める)
-    // this.lastAttackTime = Infinity; this.lastWarpTime = Infinity;
-
+    // Boss4Scene.js
+executeParadiseLostSequence() {
+    if (this.isSpecialSequenceActive) return; // 多重実行防止
+    this.isSpecialSequenceActive = true; // ★演出開始
+    console.log("[Trial VI] Starting Paradise Lost sequence. SpecialSequenceActive = true");
     const moveToCenterDuration = 500;
     const flyOffDuration = 300;
     const pauseOffScreenDuration = 500;
@@ -761,22 +769,31 @@ playSpecificBgm(bgmKey) {
             onComplete: () => {
                 if (this.isGameOver || this.bossDefeated) return;
                 this.boss.setVisible(false); // 一旦見えなくする
-                // 1c. 画面中央へ再出現（奥からの接近）
+                // executeParadiseLostSequence の1c部分 (再出現)
                 this.time.delayedCall(pauseOffScreenDuration, () => {
                     if (this.isGameOver || this.bossDefeated) return;
-                    this.boss.setPosition(this.gameWidth / 2, this.gameHeight * 0.1); // 少し上から
-                    this.boss.setScale((this.bossData.widthRatio / (this.boss.texture.source[0].width / this.gameWidth)) * 0.3); // 小さいスケール
-                    this.boss.setAlpha(0).setVisible(true);
+
+                    // ★★★ 再出現の開始位置とスケール ★★★
+                    const reappearStartY = -this.boss.displayHeight / 2; // 画面上部画面外
+                    const reappearStartScale = (this.bossData.widthRatio / (this.boss.texture.source[0].width / this.gameWidth)) * 1.5; // 最初は少し大きめに見せる (奥にいるので)
+                    this.boss.setPosition(this.gameWidth / 2, reappearStartY);
+                    this.boss.setScale(reappearStartScale);
+                    this.boss.setAlpha(0.8).setVisible(true); // 少し半透明で出現開始
+                    // ★★★------------------------------★★★
+
                     // (再出現SE)
+                    console.log("[Trial VI] Boss reappearing from top, moving to center and shrinking...");
                     this.tweens.add({
                         targets: this.boss,
-                        y: this.gameHeight * 0.2, // 元の戦闘Y位置
-                        scale: (this.bossData.widthRatio / (this.boss.texture.source[0].width / this.gameWidth)), // 元のスケール
+                        y: this.gameHeight / 2, // ★画面の完全な中央Yへ★
+                        scale: (this.bossData.widthRatio / (this.boss.texture.source[0].width / this.gameWidth)) * 0.7, // ★最終的に少し小さめのスケールに (チャージ演出用)★
                         alpha: 1,
-                        duration: returnDuration,
-                        ease: 'Power2.easeOut',
-                        onComplete: () => { // ルシファー最終位置到達、チャージ開始
+                        duration: returnDuration, // 0.7秒 (調整可能)
+                        ease: 'Power1.easeOut', // ゆっくりと近づいてくる感じ
+                        onComplete: () => {
                             if (this.isGameOver || this.bossDefeated) return;
+                            // ★ルシファーが画面中央、少し小さめの状態でチャージ開始★
+                            console.log("[Trial VI] Boss reached center, starting Paradise Lost charge.");
                             this.startParadiseLostCharge(chargeDuration);
                         }
                     });
@@ -825,10 +842,28 @@ fireParadiseLost() {
                 if(this.lives > 0) this.loseLife(); else break; // loseLifeは1減らす想定
             }
         }
+        
         // (ダメージ受けたSE/エフェクト)
 
         // 試練達成
         this.activeTrial.paradiseLostTriggered = true; // 達成フラグ
+          // ★★★ 試練達成処理の直前にフラグを戻す ★★★
+        // (completeCurrentTrialの中で次の試練の準備が始まり、
+        //  その準備時間後にボスが行動再開するため、その前に戻す)
+        // this.isSpecialSequenceActive = false;
+        // console.log("[Trial VI] Paradise Lost fired. SpecialSequenceActive = false BEFORE calling completeCurrentTrial.");
+        // ↑ completeCurrentTrial の中で次の試練の準備が始まるので、
+        //   むしろ completeCurrentTrial の中で、次の試練の準備時間タイマーが
+        //   終わってボスが本格的に動き出す直前に false に戻すのが良いかもしれない。
+        //   あるいは、startNextTrial で isChoiceEventでもisFinalBattleでもない試練が始まる際に
+        //   false にする。
+        // 今回は、completeCurrentTrial が呼ばれた後、startNextTrialで次の試練の準備時間に入るので、
+        // その準備時間が終わってからボスが行動を開始する。
+        // よって、SpecialSequenceActive は、このパラダイス・ロストの「攻撃が完了した」時点で false にして良い。
+        this.isSpecialSequenceActive = false;
+        console.log("[Trial VI] Paradise Lost sequence (attack part) finished. SpecialSequenceActive = false.");
+
+
         this.completeCurrentTrial();
 
         // (攻撃エフェクト終了処理)
@@ -1055,8 +1090,12 @@ shatterCrystal(crystal) {
   updateSpecificBossBehavior(time, delta) {
     if (this.isIntroAnimating || !this.playerControlEnabled || !this.boss || !this.boss.active ||
         this.bossDefeated || this.isGameOver || this.isChoiceEventActive || this.isFinalBattleActive ||
-        this.isCompletingTrial) { // ★isCompletingTrial を追加★
-        // ... (最終決戦AI呼び出しなど) ...
+        this.isCompletingTrial || this.isSpecialSequenceActive) { // ★isCompletingTrial を追加★
+          if (this.isFinalBattleActive && !this.isCompletingTrial && !this.isSpecialSequenceActive) { // 最終決戦AIは特別演出中でなければ動く
+            this.updateFinalBattleBossAI(time, delta);
+        }
+        if(this.isSpecialSequenceActive) console.log("[UpdateSpecificBossBehavior] Guarded by isSpecialSequenceActive");
+        
         if(this.isCompletingTrial) console.log("[UpdateSpecificBossBehavior] Paused during trial completion sequence.");if (this.isFinalBattleActive) this.updateFinalBattleBossAI(time, delta);
         return;
     }
