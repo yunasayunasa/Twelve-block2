@@ -2271,6 +2271,46 @@ isBallOnPaddle(ball) {
 // hitPaddle, hitBoss の反射ロジックでも this.currentTrialBallSpeedMultiplier を考慮する必要がある
 // (ボールの最終速度を計算する際に、この倍率を掛ける)
 
+// Boss4Scene.js
+hitPaddle(paddle, ball) {
+    if (!paddle || !ball?.active || !ball.body) return;
+
+    // --- 反射角度計算 (CommonBossSceneのロジックをベースに) ---
+    let diff = ball.x - paddle.x;
+    let influence = Phaser.Math.Clamp(diff / (paddle.displayWidth / 2), -1, 1);
+    let newVx = ((NORMAL_BALL_SPEED || 380) * 0.85) * influence;
+    let newVyAbs = Math.sqrt(Math.max(0, Math.pow((NORMAL_BALL_SPEED || 380), 2) - Math.pow(newVx, 2)));
+    const minVyRatio = 0.3;
+    if (newVyAbs < (NORMAL_BALL_SPEED || 380) * minVyRatio) { /* ... Y最低速度保証 ... */ }
+    let newVy = -newVyAbs;
+
+    // --- パワーアップと試練による速度補正 ---
+    let itemSpeedMultiplier = 1.0;
+    if (ball.getData('isFast')) itemSpeedMultiplier = BALL_SPEED_MODIFIERS[POWERUP_TYPES.SHATORA] || 1.0;
+    else if (ball.getData('isSlow')) itemSpeedMultiplier = BALL_SPEED_MODIFIERS[POWERUP_TYPES.HAILA] || 1.0;
+
+    let trialSpeedMultiplier = 1.0;
+    if (this.isTrialShatoraActive && typeof this.currentTrialBallSpeedMultiplier === 'number') {
+        trialSpeedMultiplier = this.currentTrialBallSpeedMultiplier;
+    }
+
+    const targetSpeed = (NORMAL_BALL_SPEED || 380) * itemSpeedMultiplier * trialSpeedMultiplier;
+    console.log(`[HitPaddle Boss4] ItemMultiplier: ${itemSpeedMultiplier}, TrialMultiplier: ${trialSpeedMultiplier}, TargetSpeed: ${targetSpeed.toFixed(0)}`);
+
+
+    const finalVel = new Phaser.Math.Vector2(newVx, newVy);
+    if (finalVel.lengthSq() === 0) finalVel.set(0, -1);
+    finalVel.normalize().scale(targetSpeed);
+    ball.setVelocity(finalVel.x, finalVel.y);
+
+    // SEとエフェクト、インダラ解除などは super で呼ぶか、Commonからコピー
+    if (AUDIO_KEYS.SE_REFLECT) this.sound.play(AUDIO_KEYS.SE_REFLECT, { volume: 0.8 });
+    this.createImpactParticles(ball.x, paddle.getBounds().top, [240, 300], 0xffffcc, 6); // Commonのメソッド
+    if (ball.getData('isIndaraActive') && typeof this.deactivateIndara === 'function') { // deactivateIndara は Common にある想定
+        this.deactivateIndara(ball);
+    }
+}
+
 
     // updateメソッド (ジエンドタイマー更新など)
     update(time, delta) {
