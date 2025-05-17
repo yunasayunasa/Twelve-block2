@@ -1609,7 +1609,12 @@ completeCurrentTrial() {
     this.isCompletingTrial = true; // ★試練完了処理を開始
     this.activeTrial.completed = true;
    // this.playerControlEnabled = false; // 演出中はプレイヤー操作を一時的に制限
-
+// ★★★ ボスを即座に無敵にする ★★★
+    if (this.boss && this.boss.active) {
+        this.boss.setData('isInvulnerable', true);
+        console.log("[CompleteTrial] Boss set to INVULNERABLE at start of completion sequence.");
+    }
+    // ★★★--------------------------★★★
     console.log(`[TrialLogic] Trial ${this.activeTrial.id}「${this.activeTrial.name}」 MARKED COMPLETED! Initiating post-trial sequence.`);
 
     // ボスの現在の攻撃/ワープタイマーを実質的に停止させる (次の行動を遅らせる)
