@@ -84,6 +84,9 @@ export default class Boss4Scene extends CommonBossScene {
             moveRangeXRatioFinal: 0.7, // 最終決戦時の移動範囲
             moveDurationFinal: 3000,   // 最終決戦時の移動時間
 
+             paradiseLostPillarCount: 7, // パラダイス・ロストの光の柱の数
+    paradiseLostPillarDuration: 550, // 光の柱1本の基本落下時間(ms)
+    lightPillarTexture: 'light_pillar_effect', // ★要アセット＆BootSceneロード
             jiEndCountInitialMinutes: 10,
             jiEndTimerYPosRatio: 0.1,
             jiEndTimerFontSizeRatio: 1 / 15,
@@ -924,7 +927,7 @@ fireParadiseLost() {
         });
     }
     console.log(`[ParadiseLost GFX] ${shockwaveCount} shockwaves scheduled.`);
-
+const pillarCount = this.bossData.paradiseLostPillarCount || 5; // bossDataから取得するかデフォルト値
     // Boss4Scene.js - fireParadiseLost 内の光の柱生成ループ
     for (let i = 0; i < pillarCount; i++) {
         this.time.delayedCall(Phaser.Math.Between(100, 400) + i * 100, () => { // タイミングを少し調整
