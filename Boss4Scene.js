@@ -181,10 +181,19 @@ export default class Boss4Scene extends CommonBossScene {
                 completed: false,
                 hitCountTimeField: 0,
                 requiredHitsTimeField: 3,
+                
                 trialBallSpeedMultiplier: 3.0, // この試練中のボール速度倍率
                 trialJiEndTimerMultiplier: 3.0 }, // この試練中のジエンドタイマー速度倍率
             { id: 10, name: "連鎖する星々の輝き", conditionText: "落とさずに3回当てよ。", targetItem: POWERUP_TYPES.INDARA, completed: false, consecutiveHits: 0, requiredConsecutiveHits: 3 },
-            { id: 11, name: "虚無の壁", conditionText: "虚無の壁の奥の本体にボールを1回当てよ。", targetItem: POWERUP_TYPES.BIKARA_YIN, completed: false, wallBreachedAndHit: false, /* ...壁生成ロジック... */ },
+            { id: 11, name: "虚無の壁", conditionText: "虚無の壁の奥の本体にボールを1回当てよ。", targetItem: POWERUP_TYPES.BIKARA_YIN, completed: false, 
+               wallBlockRows: 4,
+                wallBlockCols: 10,
+                wallBlockWidthRatio: 0.075, // 画面幅の7.5%
+                wallBlockHeight: 18,      // 固定高さ
+                wallBlockSpacingX: 3,
+                wallBlockSpacingY: 3,
+                wallStartYRatio: 0.35, // ルシファー(Y:0.2)の少し下
+                bossHitInThisTrial: false  },// この試練中にボスにヒットしたか
             { id: 12, name: "終焉の刻 ", conditionText: "決着を付けろ", targetItem: null, completed: false, isFinalBattle: true }
         ];
     }
@@ -788,6 +797,52 @@ playSpecificBgm(bgmKey) {
         // 他の試練の準備も同様に
     }
 
+    // Boss4Scene.js
+spawnVoidWall(trialData) {
+    console.log("[Trial XI] Spawning Void Wall.");
+    // ルシファーを画面最上部に固定 (Y座標をさらに上げるなど)
+    if (this.boss && this.boss.active) {
+        this.boss.setY(this.gameHeight * 0.1); // より上に
+        this.boss.setImmovable(true); // 念のため
+        if (this.boss.body) this.boss.body.moves = false;
+        // この試練中はワープも停止させる (updateSpecificBossBehaviorでtrial.idを見て制御)
+        this.activeTrial.bossShouldBeStatic = true; // 仮のフラグ
+    }
+
+    if (this.voidWallBlocksGroup) this.voidWallBlocksGroup.clear(true, true);
+    else this.voidWallBlocksGroup = this.physics.add.group({ immovable: true }); // ブロック自体は動かない
+
+    const rows = trialData.wallBlockRows || 4;
+    const cols = trialData.wallBlockCols || 10;
+    const blockWidth = this.gameWidth * (trialData.wallBlockWidthRatio || 0.075);
+    const blockHeight = trialData.wallBlockHeight || 18;
+    const spacingX = trialData.wallBlockSpacingX || 3;
+    const spacingY = trialData.wallBlockSpacingY || 3;
+    const totalWallWidth = (blockWidth * cols) + (spacingX * (cols - 1));
+    const startX = (this.gameWidth - totalWallWidth) / 2; // 壁全体を中央揃え
+    const startY = this.gameHeight * (trialData.wallStartYRatio || 0.35);
+
+    for (let r = 0; r < rows; r++) {
+        for (let c = 0; c < cols; c++) {
+            const blockX = startX + c * (blockWidth + spacingX) + blockWidth / 2; // 中心X
+            const blockY = startY + r * (blockHeight + spacingY) + blockHeight / 2; // 中心Y
+
+            const wallBlock = this.voidWallBlocksGroup.create(blockX, blockY, 'whitePixel')
+                .setDisplaySize(blockWidth, blockHeight)
+                .setTintFill(0x553377) // 濃い紫色など
+                .setOrigin(0.5)
+                .setData('blockType', 'voidWallBlock'); // 専用タイプ
+            // wallBlock.body.setAllowGravity(false); // group作成時にimmovableなら不要のはず
+        }
+    }
+
+    // ボールと壁ブロックの衝突設定
+    if (this.ballVoidWallCollider) this.ballVoidWallCollider.destroy();
+    this.ballVoidWallCollider = this.physics.add.collider(this.balls, this.voidWallBlocksGroup, this.hitVoidWallBlock, null, this);
+
+    this.activeTrial.bossHitInThisTrial = false; // リセット
+    console.log("[Trial XI] Void Wall spawned. Boss hit flag reset.");
+}
     
 
    // Boss4Scene.js
@@ -1530,11 +1585,13 @@ this.physics.velocityFromAngle(Phaser.Math.RadToDeg(escapeAngleRad), targetSpeed
                 break;
             // --- 他の「ボスにヒット」が条件の試練の case をここに追加 ---
             // 例: 試練XI「虚無の壁を打ち破れ」も、最終的にボスに当てる必要があるのでここで判定
-            case 11: // 虚無の壁
-                if (boss === this.boss && this.activeTrial.voidWallDestroyed) { // voidWallDestroyed は壁破壊時にtrueにするフラグと仮定
-                    this.activeTrial.wallBreachedAndHit = true;
-                    if (this.trialUiText) this.updateTrialProgressUI(this.activeTrial);
-                    trialJustCompleted = true; // 壁破壊後の1ヒットでクリア
+             case 11: // 虚無の壁を打ち破れ
+                if (boss === this.boss && this.activeTrial.id === 11) { // この試練がアクティブか再確認
+                    // 壁召喚後に初めてボスにヒットしたか
+                    // (spawnVoidWallでボスが最上部に移動するので、その後にヒットしたと見なせる)
+                    this.activeTrial.bossHitInThisTrial = true;
+                    if (this.trialUiText) this.updateTrialProgressUI(this.activeTrial); // UI更新 (例: "本体にヒット！")
+                    trialJustCompleted = true;
                 }
                 break;
         }
@@ -1639,6 +1696,18 @@ completeCurrentTrial() {
 if (this.activeTrial && this.activeTrial.id === 9) { // 試練IXが完了した場合
         this.deactivateTrialShatora();
         // ジエンドタイマー速度も元に戻る (次のフレームのupdateで this.activeTrial.id が9でなくなるため)
+    }
+
+    if (this.activeTrial && this.activeTrial.id === 11) { // 試練XIが完了した場合
+        console.log("[Trial XI Complete] Clearing void wall blocks.");
+        this.voidWallBlocksGroup?.clear(true, true); // ?.で安全に
+        if (this.ballVoidWallCollider) this.ballVoidWallCollider.destroy();
+        this.ballVoidWallCollider = null;
+        if (this.boss && this.activeTrial.bossShouldBeStatic) { // もし固定していたなら解除
+            this.activeTrial.bossShouldBeStatic = false;
+            // ボスを元のY座標に戻すか、次の試練で再配置されるのを待つ
+            // this.boss.setY(this.gameHeight * 0.2);
+        }
     }
     // --- ▼ 試練クリア演出シーケンス (delayedCallで順番に実行) ▼ ---
 
@@ -2382,6 +2451,8 @@ loseLife() {
     // シーン終了時の処理
     shutdownScene() {
         super.shutdownScene();
+         this.voidWallBlocksGroup?.destroy(true, true);
+    this.ballVoidWallCollider?.destroy();
         this.jiEndTimerText?.destroy();
         this.trialUiText?.destroy();
         this.harmonyCrystal?.destroy();
