@@ -959,6 +959,77 @@ const targetReflectSpeed = baseReflectSpeed * speedMultiplier;
     }
 }
 
+
+// Boss4Scene.js クラス内に、他のメソッドと同列に追加してください
+
+/**
+ * 現在アクティブな試練を完了としてマークし、報酬処理と次の試練への移行を行う。
+ * このメソッドは、各試練の達成条件が満たされたと判断された箇所から呼び出される。
+ */
+completeCurrentTrial() {
+    // 現在アクティブな試練があり、かつまだ完了していない場合のみ処理
+    if (this.activeTrial && !this.activeTrial.completed) {
+        console.log(`[TrialLogic] Trial ${this.activeTrial.id}「${this.activeTrial.name}」 COMPLETED!`);
+        this.activeTrial.completed = true; // 試練を完了済みにマーク
+
+        // --- 試練クリア時の共通処理 ---
+
+        // 1. 画面内の全ての敵の弾（攻撃ブロック type 'projectile'）を消去
+        if (this.attackBricks) {
+            console.log("[Trial Complete] Clearing all active enemy projectiles.");
+            // グループ内の全ての子をチェックし、'projectile' タイプなら破棄
+            // (壁ブロック 'wall' は残す想定。もし壁も消すなら条件を変える)
+            const projectilesToClear = this.attackBricks.getChildren().filter(
+                brick => brick.active && brick.getData('blockType') === 'projectile'
+            );
+            projectilesToClear.forEach(projectile => projectile.destroy());
+            console.log(`[Trial Complete] Cleared ${projectilesToClear.length} projectiles.`);
+        }
+
+        // 2. 報酬：ビカラ（陽）をドロップ
+        if (this.bossData.trialRewardItem && this.boss && this.boss.active) {
+            console.log(`[Trial Reward] Dropping ${this.bossData.trialRewardItem} at boss location.`);
+            // ボスの足元など、分かりやすい位置にドロップさせる
+            const dropX = this.boss.x;
+            const dropY = this.boss.y + (this.boss.displayHeight / 2) + 30; // ボス下部から少し下
+            this.dropSpecificPowerUp(dropX, dropY, this.bossData.trialRewardItem);
+        }
+
+        // 3. (オプション) 試練達成SEの再生
+        if (AUDIO_KEYS.SE_TRIAL_SUCCESS) { // キーの存在を確認
+            try {
+                this.sound.play(AUDIO_KEYS.SE_TRIAL_SUCCESS);
+                console.log("[Trial Complete] Played trial success SE.");
+            } catch (e) {
+                console.error("[Trial Complete] Error playing trial success SE:", e);
+            }
+        }
+
+        // 4. (オプション) ボスの一時的なリアクション（短い怯みモーションなど）
+        // if (this.boss && this.boss.active && typeof this.boss.play === 'function') {
+        //     this.boss.play('lucilius_trial_cleared_animation'); // 仮のアニメーションキー
+        // }
+
+        // --- 次の試練への移行準備 ---
+        const nextTrialDelay = 1000; // 1秒後に次の試練へ (調整可能)
+        console.log(`[Trial Complete] Scheduling next trial in ${nextTrialDelay}ms.`);
+
+        this.time.delayedCall(nextTrialDelay, () => {
+            if (this.isGameOver || this.bossDefeated) { // 既にゲーム終了していたら何もしない
+                console.log("[Trial Complete] Game already over or boss defeated, not starting next trial.");
+                return;
+            }
+            this.startNextTrial(); // 次の試練を開始するメソッドを呼び出す
+        }, [], this);
+
+    } else if (this.activeTrial && this.activeTrial.completed) {
+        console.warn("[TrialLogic] completeCurrentTrial called, but current trial already marked as completed:", this.activeTrial.name);
+    } else {
+        console.warn("[TrialLogic] completeCurrentTrial called, but no active trial found.");
+    }
+}
+
+
 spawnChaosFragments(count) {
     // this.chaosFragmentsGroup = this.physics.add.group(); // 専用グループ
     // for (let i = 0; i < count; i++) {
