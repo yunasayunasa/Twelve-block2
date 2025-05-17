@@ -831,41 +831,57 @@ fireParadiseLost() {
     this.time.delayedCall(500, () => { // 攻撃エフェクトのピークに合わせてダメージ処理
         if (this.isGameOver || this.bossDefeated) return;
         let damage = 8;
-        if (this.isPlayerAnilaActive()) { // isPlayerAnilaActive()はアニラ効果中か判定するヘルパー
-            damage = 0;
-            console.log("[Trial VI] Paradise Lost negated by Anila!");
-            // (アニラバリアエフェクト)
-        }
-        console.log(`[Trial VI] Player takes ${damage} damage from Paradise Lost.`);
-        if (damage > 0) {
-            for(let i=0; i < damage; i++) { // ライフを複数回減らす
-                if(this.lives > 0) this.loseLife(); else break; // loseLifeは1減らす想定
+       if (this.isPlayerAnilaActive()) {
+            console.log("[Trial VI] Paradise Lost NEGATED by Anila!");
+            // アニラで防いだので、アニラ効果をここで解除する
+            if (typeof this.deactivateAnila === 'function') { // CommonBossSceneにある想定
+                this.deactivateAnila();
+                console.log("[Trial VI] Anila effect consumed by Paradise Lost.");
+            } else {
+                console.warn("[Trial VI] deactivateAnila method not found to consume Anila effect.");
+            }
+            // (アニラバリアエフェクトなど)
+        } else {
+            const damageToTake = 8;
+            console.log(`[Trial VI] Player to take ${damageToTake} damage from Paradise Lost.`);
+            if (this.lives > 0 && !this.isGameOver) { // ゲームオーバー処理中でなければ
+                const previousLives = this.lives;
+                this.lives = Math.max(0, this.lives - damageToTake); // ライフを直接減らす
+                this.events.emit('updateLives', this.lives);      // UI更新
+                console.log(`[Trial VI] Lives changed from ${previousLives} to ${this.lives}`);
+
+                if (this.lives <= 0) {
+                    console.log("[Trial VI] Lives reached 0 after Paradise Lost. Triggering game over.");
+                    // パラダイスロストの演出が完全に終わってからゲームオーバーにしたいので、
+                    // ここでは isGameOver フラグを立てるだけにして、
+                    // completeCurrentTrial の後の delayedCall の代わりに
+                    // triggerJiEndGameOver（またはそれに類するメソッド）を呼ぶのが良いかもしれない。
+                    // あるいは、ここで即時ゲームオーバーにするなら：
+                    // this.isGameOver = true; // isGameOver は CommonBossScene の gameOver でセットされるので、
+                                          // ここでは直接 super.gameOver() を呼ぶ方が一貫するかも。
+                                          // ただし、演出の途中なので注意。
+                    // 一旦、CommonBossSceneのgameOverに任せるため、何もしないでおく。
+                    // loseLifeを呼ばないので、CommonBossSceneのgameOverが呼ばれるトリガーが別途必要になる。
+                    // → パラダイスロストで死んだら、試練達成にはならず、即ゲームオーバーが良い。
+                    this.isGameOver = true; // gameOver状態にする
+                    this.playerControlEnabled = false;
+                    // (パラダイスロストの派手なエフェクトが少し続いた後に)
+                    this.time.delayedCall(1000, () => { // 1秒後
+                        if (this.scene.isActive()) { // まだシーンが生きていれば
+                            super.gameOver(); // Commonのゲームオーバー処理
+                        }
+                    }, [], this);
+                    return; // これ以上試練達成処理に進まない
+                }
             }
         }
-        
         // (ダメージ受けたSE/エフェクト)
 
-        // 試練達成
-        this.activeTrial.paradiseLostTriggered = true; // 達成フラグ
-          // ★★★ 試練達成処理の直前にフラグを戻す ★★★
-        // (completeCurrentTrialの中で次の試練の準備が始まり、
-        //  その準備時間後にボスが行動再開するため、その前に戻す)
-        // this.isSpecialSequenceActive = false;
-        // console.log("[Trial VI] Paradise Lost fired. SpecialSequenceActive = false BEFORE calling completeCurrentTrial.");
-        // ↑ completeCurrentTrial の中で次の試練の準備が始まるので、
-        //   むしろ completeCurrentTrial の中で、次の試練の準備時間タイマーが
-        //   終わってボスが本格的に動き出す直前に false に戻すのが良いかもしれない。
-        //   あるいは、startNextTrial で isChoiceEventでもisFinalBattleでもない試練が始まる際に
-        //   false にする。
-        // 今回は、completeCurrentTrial が呼ばれた後、startNextTrialで次の試練の準備時間に入るので、
-        // その準備時間が終わってからボスが行動を開始する。
-        // よって、SpecialSequenceActive は、このパラダイス・ロストの「攻撃が完了した」時点で false にして良い。
+        // 生き残れば試練達成
+        this.activeTrial.paradiseLostTriggered = true;
         this.isSpecialSequenceActive = false;
         console.log("[Trial VI] Paradise Lost sequence (attack part) finished. SpecialSequenceActive = false.");
-
-
         this.completeCurrentTrial();
-
         // (攻撃エフェクト終了処理)
     }, [], this);
 }
