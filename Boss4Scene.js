@@ -171,8 +171,14 @@ export default class Boss4Scene extends CommonBossScene {
                 coresData: [],    // 各コアの状態（HPなど）を格納する配列
                 destroyedCoreCount: 0
             },
-            { id: 9, name: "時の超越、歪む流れの中で", conditionText: "速度変化フィールド内で/n本体にボールを3回当てよ。", 
-                targetItemAlternate: [POWERUP_TYPES.HAILA, POWERUP_TYPES.SHATORA], completed: false, hitCountTimeField: 0, requiredHitsTimeField: 3, /* ...フィールド展開ロジック... */ },
+            { id: 9, name: "時の超越、加速する世界",
+                conditionText: "加速する世界で3回当てよ。",
+                targetItem: POWERUP_TYPES.HAILA, // この試練中のドロップアイテム
+                completed: false,
+                hitCountTimeField: 0,
+                requiredHitsTimeField: 3,
+                trialBallSpeedMultiplier: 1.5, // この試練中のボール速度倍率
+                trialJiEndTimerMultiplier: 1.5 }, // この試練中のジエンドタイマー速度倍率
             { id: 10, name: "連鎖する星々の輝き", conditionText: "ライフを失わずにボールを連続3回当てよ。", targetItem: POWERUP_TYPES.INDARA, completed: false, consecutiveHits: 0, requiredConsecutiveHits: 3 },
             { id: 11, name: "虚無の壁", conditionText: "虚無の壁の奥の本体にボールを1回当てよ。", targetItem: POWERUP_TYPES.BIKARA_YIN, completed: false, wallBreachedAndHit: false, /* ...壁生成ロジック... */ },
             { id: 12, name: "終焉の刻 ", conditionText: "決着を付けろ", targetItem: null, completed: false, isFinalBattle: true }
@@ -770,10 +776,15 @@ playSpecificBgm(bgmKey) {
  if (trial.id === 8) {
         this.spawnAbyssCores(trial.coreCount || 3);
     }
-
+ if (trial.id === 9) { // 時の超越
+        this.activateTrialShatora(trial.trialBallSpeedMultiplier || 1.5);
+        // ジエンドタイマーの速度変更は update メソッドで trial.trialJiEndTimerMultiplier を参照
+    }
         if (trial.id === 11) this.spawnVoidWall();
         // 他の試練の準備も同様に
     }
+
+    
 
    // Boss4Scene.js
 spawnAbyssCores(coreCount) {
@@ -1593,7 +1604,10 @@ completeCurrentTrial() {
     this.lastAttackTime = this.time.now + 100000; // 非常に大きな値を設定して一時停止
     this.lastWarpTime = this.time.now + 100000;   // 同上
     console.log("[CompleteTrial] Boss action timers temporarily paused.");
-
+if (this.activeTrial && this.activeTrial.id === 9) { // 試練IXが完了した場合
+        this.deactivateTrialShatora();
+        // ジエンドタイマー速度も元に戻る (次のフレームのupdateで this.activeTrial.id が9でなくなるため)
+    }
     // --- ▼ 試練クリア演出シーケンス (delayedCallで順番に実行) ▼ ---
 
      // ステップ1: ルシファーのダメージモーションとSE
@@ -2170,6 +2184,13 @@ if (this.backgroundObject && this.backgroundObject.active) { // 背景オブジ�
             if (this.currentRoute === 'order') speedMultiplier = 0.5;
             else if (this.currentRoute === 'chaos') speedMultiplier = 1.5;
             this.jiEndTimeRemaining -= delta * speedMultiplier;
+
+             // ★試練IXのジエンドタイマー加速★
+        if (this.activeTrial && this.activeTrial.id === 9 && this.activeTrial.trialJiEndTimerMultiplier) {
+            speedMultiplier *= this.activeTrial.trialJiEndTimerMultiplier;
+            console.log(`[JiEndTimer Update] Trial IX active, final speed multiplier: ${speedMultiplier.toFixed(2)}`);
+        }
+        // ★★★----------------------★★★
 
             if (this.jiEndTimerText?.active) this.jiEndTimerText.setText(this.formatTime(this.jiEndTimeRemaining));
 
