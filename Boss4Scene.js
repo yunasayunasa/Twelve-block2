@@ -1436,7 +1436,18 @@ hitBoss(boss, ball) {
         super.hitBoss(boss, ball);
         return;
     }
-
+if (ball.getData('isIndaraActive')) {
+    console.log("[Boss4 hitBoss - TrialPhase] Indara ball hit, temporarily disabling homing.");
+    // this.deactivateIndara(ball); // CommonBossSceneのインダラ解除メソッドを呼ぶか、
+    ball.setData('isIndaraActive', false); // ボール側のフラグを直接操作
+    // (効果時間タイマーも止める必要があるかもしれない)
+    this.time.delayedCall(2000, () => { // 2秒後にホーミング再開 (例)
+        if (ball.active && !ball.getData('isIndaraActive') /* 他の条件も */) {
+            // ball.setData('isIndaraActive', true);
+            // もしactivateIndaraがシーンのプロパティに影響を与えるなら、それを呼ぶ
+        }
+    }, [], this);
+}
     // --- 試練中の処理 ---
     console.log("[Boss4 hitBoss - TrialPhase] Ball hit, reflecting.");
 
