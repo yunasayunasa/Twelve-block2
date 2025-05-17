@@ -1131,7 +1131,9 @@ fireTargetedAttack() {
     const spawnFromBossX = this.boss.x;
     const spawnFromBossY = this.boss.y + (this.boss.displayHeight / 2) * 0.7;
 
-    const projectile = this.spawnLuciliusProjectile(spawnFromBossX, spawnFromBossY, texture, {
+    const angleToTargetRad = Phaser.Math.Angle.Between(spawnFromBossX, spawnFromBossY, targetX, this.gameHeight - 30);
+    const angleToTargetDeg = Phaser.Math.RadToDeg(angleToTargetRad);
+const projectile = this.spawnLuciliusProjectile(spawnFromBossX, spawnFromBossY, texture, {
         scale: scale,
         speed: speed,
         angleDeg: angleToTargetDeg,
