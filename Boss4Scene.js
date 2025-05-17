@@ -163,7 +163,7 @@ export default class Boss4Scene extends CommonBossScene {
                 collectedCountForTrial7: 0, // ★集めた種類の数
                 completed: false
             },
-            { id: 8, name: "深淵より来る核金", conditionText: "全てのアビス・コアを破壊せよ。(0/3)",
+            { id: 8, name: "深淵より来る核金", conditionText: "全てのアビス・コアを破壊せよ。",
                 targetItem: POWERUP_TYPES.SINDARA,
                 completed: false,
                 coreCount: 3,
@@ -766,9 +766,7 @@ playSpecificBgm(bgmKey) {
          else if (trial.id === 6) { // 試練VI「楽園追放」
         this.executeParadiseLostSequence();
     }
-  if (trial.id === 8) {
-        this.spawnAbyssCoresAndGuards(trial.coreCount || 3);
-    }
+ 
 
         if (trial.id === 11) this.spawnVoidWall();
         // 他の試練の準備も同様に
@@ -805,32 +803,36 @@ spawnAbyssCores(coreCount) {
 }
 
 // Boss4Scene.js
+// Boss4Scene.js
 hitAbyssCore(ball, core) {
-    if (!core.active || !this.activeTrial || this.activeTrial.id !== 8 || this.activeTrial.completed) {
-        return;
-    }
+    if (!core.active || !this.activeTrial || this.activeTrial.id !== 8 || this.activeTrial.completed) return;
+
     const coreIndex = core.getData('coreIndex');
-    if (this.activeTrial.coresHit[coreIndex]) return; // 既にヒット済みなら何もしない
+    let currentCoreHp = core.getData('health');
 
-    console.log(`[Trial VIII] Ball hit Abyss Core ${coreIndex}.`);
-    // (コア破壊SE、エフェクト)
-     this.sound.play(AUDIO_KEYS.SE_DESTROY);
-    // this.createImpactParticles(core.x, core.y, ...);
-    core.destroy(); // コアを破壊
+    if (currentCoreHp > 0) {
+        currentCoreHp--;
+        core.setData('health', currentCoreHp);
+        console.log(`[Trial VIII] Abyss Core ${coreIndex} hit. Remaining HP: ${currentCoreHp}`);
 
-    this.activeTrial.coresHit[coreIndex] = true;
-    this.activeTrial.hitCoreCount++;
-    this.updateTrialProgressUI(this.activeTrial);
+        // ヒットエフェクト（色を変える、小さくするなど）
+        this.tweens.add({ targets: core, scale: core.scale * 0.9, duration: 50, yoyo: true });
+        // (ヒットSE)
 
-    if (this.activeTrial.hitCoreCount >= this.activeTrial.coreCount) {
-        console.log("[Trial VIII] All Abyss Cores destroyed.");
-        this.completeCurrentTrial();
-        if (this.ballAbyssCoreCollider) this.ballAbyssCoreCollider.destroy();
-        this.ballAbyssCoreCollider = null;
-        // 残っているかもしれない防御ブロックもクリアする
-        this.attackBricks.getChildren().forEach(brick => {
-            if (brick.active && brick.getData('isCoreGuard')) brick.destroy();
-        });
+        if (currentCoreHp <= 0) {
+            console.log(`[Trial VIII] Abyss Core ${coreIndex} destroyed.`);
+            // (コア破壊SE、エフェクト)
+            core.destroy(); // コアを破壊
+            this.activeTrial.destroyedCoreCount++;
+            this.updateTrialProgressUI(this.activeTrial);
+
+            if (this.activeTrial.destroyedCoreCount >= this.activeTrial.coreCount) {
+                console.log("[Trial VIII] All Abyss Cores destroyed.");
+                this.completeCurrentTrial();
+                if (this.ballAbyssCoreCollider) this.ballAbyssCoreCollider.destroy();
+                this.ballAbyssCoreCollider = null;
+            }
+        }
     }
 }
 
