@@ -201,6 +201,66 @@ applyBossDamage(bossInstance, damageAmount, source = "Unknown") {
     }
 }
 
+// Boss4Scene.js クラス内に、他のメソッドと同列に追加してください
+
+/**
+ * ルシゼロ戦専用の攻撃ブロック（projectile）を生成し、初期設定を行う。
+ * @param {number} x 生成するX座標
+ * @param {number} y 生成するY座標
+ * @param {string} textureKey 使用するテクスチャのキー
+ * @param {object} config 設定オブジェクト（scale, speed, angleDeg など）
+ * @returns {Phaser.Physics.Arcade.Image | null} 生成された攻撃ブロック、または失敗時はnull
+ */
+spawnLuciliusProjectile(x, y, textureKey, config = {}) {
+    // attackBricksグループやボスが存在し、アクティブであることを確認
+    if (!this.attackBricks || !this.boss || !this.boss.active) {
+        console.warn("[SpawnLuciProjectile] Cannot spawn projectile: attackBricks group or boss is not ready/active.");
+        return null;
+    }
+
+    // 設定値にデフォルト値を設定
+    const scale = config.scale || 0.15; // configにscaleがなければ0.15を使用
+    const speed = config.speed || (DEFAULT_ATTACK_BRICK_VELOCITY_Y + 30); // configにspeedがなければデフォルト値
+    const angleDeg = config.angleDeg || 90; // configにangleDegがなければ真下(90度)
+
+    // 攻撃ブロック（projectile）を生成
+    const projectile = this.attackBricks.create(x, y, textureKey);
+
+    if (projectile) {
+        projectile.setScale(scale).setOrigin(0.5, 0.5);
+        projectile.setDepth(1); // 描画深度（ボールと同じか少し手前など、適宜調整）
+
+        // 物理ボディの設定
+        if (projectile.body) {
+            this.physics.velocityFromAngle(angleDeg, speed, projectile.body.velocity); // 指定された角度と速度で発射
+            projectile.body.setAllowGravity(false);       // 重力無効
+            projectile.body.setCollideWorldBounds(true);  // 画面の境界と衝突する
+            projectile.body.onWorldBounds = true;         // 画面の境界との衝突イベントを有効化 (跳ね返るように)
+            // 必要であれば、当たり判定のサイズやオフセットをここで調整
+            // projectile.body.setSize(width, height);
+            // projectile.body.setOffset(offsetX, offsetY);
+        } else {
+            console.error(`[SpawnLuciProjectile] Failed to get physics body for projectile using texture: ${textureKey}. Destroying projectile.`);
+            projectile.destroy(); // 物理ボディがなければオブジェクトを破棄して終了
+            return null;
+        }
+
+        // 共通のデータ設定
+        projectile.setData('blockType', 'projectile');      // これが攻撃弾であることを示す
+        projectile.setData('isGuaranteedDropSource', true); // この弾からはアイテムが確定ドロップする印
+
+        // 回転アニメーションは「勝手に回転していた」とのことなので、ここでは追加しない。
+        // もし個別に回転速度などを設定したい場合は、config.spinRate を受け取り、
+        // ここで Tween を追加する。
+
+        // console.log(`[SpawnLuciProjectile] Successfully created projectile: ${textureKey} at (${x.toFixed(0)},${y.toFixed(0)}) with Angle:${angleDeg.toFixed(1)}, Speed:${speed.toFixed(0)}`);
+        return projectile; // 生成したprojectileオブジェクトを返す
+    } else {
+        console.error(`[SpawnLuciProjectile] Failed to create projectile image with texture: ${textureKey}`);
+        return null; // 生成に失敗したらnullを返す
+    }
+}
+
    // startIntroCutscene: ボス4専用のシンプルなカットイン後、finalizeBossAppearanceAndStartを呼ぶ
 // Boss4Scene.js
 
