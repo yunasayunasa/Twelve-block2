@@ -1125,7 +1125,7 @@ completeCurrentTrial() {
         const damageReactionColor = 0xffaa00; // オレンジっぽい色
 
         // ★★★ damageReactionDuration をここで宣言・初期化 ★★★
-        const damageReactionDuration = 600;   // 点滅を含めた合計時間 (ms) - 調整可能
+        const damageReactionDuration = 3000;   // 点滅を含めた合計時間 (ms) - 調整可能
         // ★★★-------------------------------------------------★★★
 
         const flashInterval = 150;            // 1回の点滅の間隔 (ms)
@@ -1216,7 +1216,7 @@ completeCurrentTrial() {
             }
 
             // ステップ6: 次の試練へ (報酬ドロップやタイマー加算を見せるための遅延)
-            const nextTrialStartDelay = 1200;
+            const nextTrialStartDelay = 2500;
             console.log(`[Trial Complete] Post-trial actions finished. Scheduling next trial in ${nextTrialStartDelay}ms.`);
             this.time.delayedCall(nextTrialStartDelay, () => {
                 this.isCompletingTrial = false; // ★★★ 全ての演出が終わり、次の試練へ進む直前にフラグを下ろす ★★★
