@@ -175,14 +175,14 @@ export default class Boss4Scene extends CommonBossScene {
                 coresData: [],    // 各コアの状態（HPなど）を格納する配列
                 destroyedCoreCount: 0
             },
-            { id: 9, name: "時の超越、加速する世界",
+            { id: 9, name: "加速する世界",
                 conditionText: "加速する世界で3回当てよ。",
                 targetItem: POWERUP_TYPES.HAILA, // この試練中のドロップアイテム
                 completed: false,
                 hitCountTimeField: 0,
                 requiredHitsTimeField: 3,
                 trialBallSpeedMultiplier: 3.0, // この試練中のボール速度倍率
-                trialJiEndTimerMultiplier: 1.5 }, // この試練中のジエンドタイマー速度倍率
+                trialJiEndTimerMultiplier: 3.0 }, // この試練中のジエンドタイマー速度倍率
             { id: 10, name: "連鎖する星々の輝き", conditionText: "ライフを失わずにボールを連続3回当てよ。", targetItem: POWERUP_TYPES.INDARA, completed: false, consecutiveHits: 0, requiredConsecutiveHits: 3 },
             { id: 11, name: "虚無の壁", conditionText: "虚無の壁の奥の本体にボールを1回当てよ。", targetItem: POWERUP_TYPES.BIKARA_YIN, completed: false, wallBreachedAndHit: false, /* ...壁生成ロジック... */ },
             { id: 12, name: "終焉の刻 ", conditionText: "決着を付けろ", targetItem: null, completed: false, isFinalBattle: true }
@@ -1510,7 +1510,7 @@ this.physics.velocityFromAngle(Phaser.Math.RadToDeg(escapeAngleRad), targetSpeed
                 if (boss === this.boss) { // ボス本体へのヒットか確認
                     // isTrialShatoraActive フラグは試練IX中はずっとtrueのはずなので、
                     // 特別な条件は不要で、単純にヒットカウントを増やす。
-                    this.activeTrial.hitCountTimeField = (this.activeTrial.hitCountTimeField || 0) + 1;
+                    this.activeTrial.hitCountTimeField = (this.activeTrial.hitCountTimeField || 0) + 1;console.log(`[Trial IX Hit] Hit count: ${this.activeTrial.hitCountTimeField} / ${this.activeTrial.requiredHitsTimeField}`); // ★ログ追加★
                     if (this.trialUiText) this.updateTrialProgressUI(this.activeTrial);
                     if (this.activeTrial.hitCountTimeField >= this.activeTrial.requiredHitsTimeField) {
                         trialJustCompleted = true;
