@@ -183,9 +183,9 @@ if (AUDIO_KEYS.VOICE_LUCILIUS_APPEAR) {this.load.audio(AUDIO_KEYS.VOICE_LUCILIUS
 if (AUDIO_KEYS.SE_JI_END_BELL) {this.load.audio(AUDIO_KEYS.SE_JI_END_BELL, 'assets/se_ji_end_bell.mp3');}
 
 // --- ▼▼▼ ルシゼロ戦 ジ・エンド演出用動画 ▼▼▼ ---
-        console.log("Loading Ji-End GameOver Video for Boss4...");
+      //  console.log("Loading Ji-End GameOver Video for Boss4...");
         // アセットフォルダ直下に動画ファイルを置く場合
-        this.load.video('gameOverVideo_JiEnd', 'assets/ji_end.mp4');
+       // this.load.video('gameOverVideo_JiEnd', 'assets
         // もし 'assets/videos/' フォルダに入れるなら
         // this.load.video('gameOverVideo_JiEnd', 'assets/videos/ji_end_연출.mp4');
         // --- ▲▲▲ ------------------------------------ ▲▲▲ ---
