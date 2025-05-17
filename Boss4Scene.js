@@ -766,7 +766,9 @@ playSpecificBgm(bgmKey) {
          else if (trial.id === 6) { // 試練VI「楽園追放」
         this.executeParadiseLostSequence();
     }
- 
+ if (trial.id === 8) {
+        this.spawnAbyssCoresAndGuards(trial.coreCount || 3);
+    }
 
         if (trial.id === 11) this.spawnVoidWall();
         // 他の試練の準備も同様に
