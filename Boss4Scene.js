@@ -828,7 +828,7 @@ fireParadiseLost() {
     // (画面フラッシュ this.cameras.main.flash(200, 255, 255, 255, true);)
     // (全画面攻撃エフェクト開始)
 
-    this.time.delayedCall(500, () => { // 攻撃エフェクトのピークに合わせてダメージ処理
+    this.time.delayedCall(600, () => { // 攻撃エフェクトのピークに合わせてダメージ処理
         if (this.isGameOver || this.bossDefeated) return;
         let damage = 8;
        if (this.isPlayerAnilaActive()) {
