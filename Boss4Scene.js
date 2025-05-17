@@ -35,6 +35,8 @@ export default class Boss4Scene extends CommonBossScene {
         this.chaosFragmentsGroup = null; // 専用グループ
         this.isCompletingTrial = false;
          this.isSpecialSequenceActive = false; // ★専用演出中フラグ
+         this.isTrialShatoraActive = false;
+         this.currentTrialBallSpeedMultiplier = 1.0;
 
         this.isFinalBattleActive = false;
         this.lastAttackTime = 0;
@@ -57,6 +59,8 @@ export default class Boss4Scene extends CommonBossScene {
     this.chaosFragmentsGroup = null;
     this.isCompletingTrial = false;
     this.isSpecialSequenceActive = false; // ★リセット
+    this.currentTrialBallSpeedMultiplier = 1.0;
+    this.isTrialShatoraActive = false;
 
         this.jiEndTimerText?.destroy(); this.jiEndTimerText = null;
         this.harmonyCrystal?.destroy(); this.harmonyCrystal = null;
