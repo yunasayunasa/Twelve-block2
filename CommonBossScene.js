@@ -982,7 +982,7 @@ handleBallOverlapBossEject(ball, boss) { // ballはgameObject1, bossはgameObjec
                 (bossObj, ball) => { // ★ processCallback
                     const invulnerable = bossObj.getData('isInvulnerable');
                     // ★★★ このログで isInvulnerable の状態を確認 ★★★
-                    console.log(`[Ball-Boss ProcessCallback] Boss: ${bossObj.texture.key}, isInvulnerable: ${invulnerable}`);
+                  //  console.log(`[Ball-Boss ProcessCallback] Boss: ${bossObj.texture.key}, isInvulnerable: ${invulnerable}`);
                     return !invulnerable; // 無敵でなければ衝突を処理 (trueを返す)
                 },
                 this

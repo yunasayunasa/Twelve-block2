@@ -559,7 +559,7 @@ prepareBallForChoice() {
         this.time.delayedCall(initialDisplayDuration, () => {
             if (this.jiEndTimerText && this.jiEndTimerText.active) {
                 this.jiEndTimerText.setDepth(originalDepth); // 元の深度に戻す
-                console.log(`[JiEndTimer] Depth reset to: ${this.jiEndTimerText.depth} after initial display.`);
+              //  console.log(`[JiEndTimer] Depth reset to: ${this.jiEndTimerText.depth} after initial display.`);
             }
         }, [], this);
 
@@ -1733,7 +1733,7 @@ if (this.activeTrial && this.activeTrial.id === 9) { // 試練IXが完了した�
             if (this.isJiEndTimerRunning) {
                 const timeToAdd = 30 * 1000;
                 this.jiEndTimeRemaining += timeToAdd;
-                console.log(`[Trial Complete] JiEndTimer +${timeToAdd/1000}s.`);
+              //  console.log(`[Trial Complete] JiEndTimer +${timeToAdd/1000}s.`);
                 if (this.jiEndTimerText?.active) this.jiEndTimerText.setText(this.formatTime(this.jiEndTimeRemaining)); // UI即時更新
                 // (タイマー加算SE)
             }
@@ -2333,7 +2333,7 @@ if (this.backgroundObject && this.backgroundObject.active) { // 背景オブジ�
              // ★試練IXのジエンドタイマー加速★
         if (this.activeTrial && this.activeTrial.id === 9 && this.activeTrial.trialJiEndTimerMultiplier) {
             speedMultiplier *= this.activeTrial.trialJiEndTimerMultiplier;
-            console.log(`[JiEndTimer Update] Trial IX active, final speed multiplier: ${speedMultiplier.toFixed(2)}`);
+           // console.log(`[JiEndTimer Update] Trial IX active, final speed multiplier: ${speedMultiplier.toFixed(2)}`);
         }
         // ★★★----------------------★★★
 
