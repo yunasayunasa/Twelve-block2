@@ -549,6 +549,16 @@ startNextTrial() {
         console.log(`[TrialLogic] Boss angle reset for Trial ${currentTrial.id}. Boss should still be invulnerable from previous trial completion.`);
     }
 
+     // ★★★ 新しい試練開始時に isWarping フラグをリセット ★★★
+    if (this.isWarping) {
+        console.warn(`[TrialLogic Start Trial ${currentTrial.id}] Forcibly resetting isWarping from true to false.`);
+        this.isWarping = false;
+        // もし実行中のワープTweenがあれば、ここでキャンセルするのも手
+        // this.tweens.killTweensOf(this.boss, ['angle', 'scaleX', 'scaleY', 'alpha']);
+        // this.boss.setAlpha(1).setAngle(0).setScale(this.boss.getData('targetScaleX') || /*...*/); // 見た目を元に戻す
+    }
+    // ★★★-------------------------------------------------★★
+
     // --- 6. 試練の種類に応じた分岐処理 ---
     if (currentTrial.isChoiceEvent) { // 試練I: 「調和と破壊の選択」
         console.log("[TrialLogic] Current trial is a Choice Event. Starting Harmony/Destruction choice.");
