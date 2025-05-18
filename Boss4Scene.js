@@ -1604,21 +1604,11 @@ this.physics.velocityFromAngle(Phaser.Math.RadToDeg(escapeAngleRad), targetSpeed
 
     // ★★★ インダラ効果中であれば解除する ★★★
         if (ball.getData('isIndaraActive') === true) {
-            console.log("[Boss4 hitBoss - TrialPhase] Indara active, deactivating it.");
-            if (typeof this.deactivateIndara === 'function') { // CommonBossSceneのメソッドを呼ぶ
-                this.deactivateIndara(ball);
-            } else {
-                // もし CommonBossScene に deactivateIndara がない場合のフォールバック
-                // (ただし、setBallPowerUpState や updateBallAppearance は Common にあるはず)
-                this.setBallPowerUpState(POWERUP_TYPES.INDARA, false, ball);
-                this.updateBallAppearance(ball);
-                console.warn("[Boss4 hitBoss - TrialPhase] deactivateIndara method not found, used fallback.");
-            }
-            // インダラ解除後、ボールと攻撃ブロックの衝突挙動を元に戻すために
-            // setColliders() を呼ぶ必要があるかもしれないが、まずは解除だけで様子を見る。
-            // CommonBossScene の setBallPowerUpState が setColliders を適切に呼ぶ設計なら不要。
+            console.log("[Boss4 hitBoss - TrialPhase] Indara active, calling setBallPowerUpState to deactivate.");
+            // isIndaraActive フラグを持つボールは、このメソッドで解除される
+            this.setBallPowerUpState(POWERUP_TYPES.INDARA, false, ball); // ★オーバーライドしたメソッドが呼ばれる★
         }
-        // ★★★------------------------------------★★★
+        // ★★★------------------------------------★★★★
 
 
 
@@ -1696,6 +1686,7 @@ this.physics.velocityFromAngle(Phaser.Math.RadToDeg(escapeAngleRad), targetSpeed
         } else {
             console.log("[HitBoss] Ball hit boss, but warp skipped due to Trial XI static boss.");
         }
+        super.hitBoss(boss, ball); // 親クラスのヒット処理 (ここでもインダラ解除が行われるはず)
     }
 }
 
@@ -2404,6 +2395,42 @@ deactivateIndara(ball) {
     this.updateBallAppearance(ball); // ボールの見た目を元に戻す
     // (必要なら setColliders() を呼び出して、ボールと攻撃ブロックの衝突タイプを再設定)
     // ただし、毎ヒットでsetCollidersは重いので、setBallPowerUpStateで対応できるならそれがベスト
+}
+
+/**
+ * ボールに特定のパワーアップ状態を設定/解除する (CommonBossSceneのメソッドをオーバーライド)。
+ * 特にインダラ解除時にコライダーを再設定する。
+ * @param {string} type パワーアップのタイプ (POWERUP_TYPES)
+ * @param {boolean} isActive 有効にするか無効にするか
+ * @param {Phaser.Physics.Arcade.Image} [specificBall=null] 対象のボール (nullなら全ボール)
+ */
+setBallPowerUpState(type, isActive, specificBall = null) {
+    console.log(`[Boss4 SetBallPowerUp] Type: ${type}, IsActive: ${isActive}, Ball: ${specificBall ? specificBall.name : 'All'}`);
+
+    // まず親クラスの基本的な状態設定処理を呼び出す
+    // (activePowersの更新、ボールの見た目変更フラグ設定など)
+    super.setBallPowerUpState(type, isActive, specificBall);
+
+    // ★★★ インダラ効果が「解除」された場合の特別処理 ★★★
+    if (type === POWERUP_TYPES.INDARA && !isActive) {
+        console.log("[Boss4 SetBallPowerUp] Indara effect DEACTIVATED. Re-setting colliders.");
+        // インダラが解除されたので、ボールと攻撃ブロックの衝突判定を
+        // 「すり抜けない」通常のcolliderに戻す必要がある。
+        // CommonBossSceneのsetColliders()を呼び出すことで、
+        // ballAttackBrickCollider と ballAttackBrickOverlap が適切に再設定されることを期待。
+        this.setColliders(); // ★コライダーを再設定★
+
+        // (オプション) ボールの見た目を確実に元に戻す
+        // super.setBallPowerUpState で既に updateBallAppearance が呼ばれているかもしれないが念のため
+        // const targetBalls = specificBall ? [specificBall] : this.balls?.getChildren() ?? [];
+        // targetBalls.forEach(ball => {
+        //     if (ball?.active) this.updateBallAppearance(ball);
+        // });
+    }
+    // ★★★-------------------------------------------★★★
+
+    // 全体的な見た目更新 (これはsuper.setBallPowerUpStateの後か、その中で呼ばれるべき)
+    // this.updateBallAndPaddleAppearance(); // super側で呼ばれていなければここで
 }
 
 deactivateTrialShatora() {
