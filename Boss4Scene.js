@@ -1812,13 +1812,7 @@ startFinalBattle() {
     // アイテムドロップは「全種100%」になる (getOverrideDropItemでisFinalBattleActiveを見る)
     console.log("[FinalBattle] Item drops will now be all types at 100%.");
 
-    // 最終決戦用BGMに変更
-    const finalBgmKey = this.bossData.bgmKeyFinalBattle || AUDIO_KEYS.BGM_LUCILIUS_FINAL_BATTLE;
-    if (finalBgmKey) {
-        this.playSpecificBgm(finalBgmKey); // BGM切り替えヘルパー
-    } else {
-        console.warn("[FinalBattle] Final BGM key not defined.");
-    }
+    
 
     // (オプション) 最終決戦開始の画面演出（画面フラッシュ、専用SEなど）
     this.cameras.main.flash(500, 200, 200, 255, true); // 赤みがかった強いフラッシュ
