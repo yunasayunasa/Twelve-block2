@@ -89,6 +89,7 @@ this.lastFinalBattleWarpTime = 0;
             widthRatio: 0.35,
             moveRangeXRatioFinal: 0.7, // 最終決戦時の移動範囲
             moveDurationFinal: 3000,   // 最終決戦時の移動時間
+            paradiseLostDamage: 8, // パラダイス・ロストの基本ダメージ
 
              paradiseLostPillarCount: 7, // パラダイス・ロストの光の柱の数
     paradiseLostPillarDuration: 550, // 光の柱1本の基本落下時間(ms)
@@ -937,11 +938,17 @@ hitAbyssCore(ball, core) {
     }
 }
 
-    // Boss4Scene.js
+    // executeParadiseLostSequence (演出シーケンス開始)
 executeParadiseLostSequence() {
-   if (this.isSpecialSequenceActive || this.isGameOver || this.bossDefeated) return; // 多重実行防止とガード
-    this.isSpecialSequenceActive = true; // ★専用演出開始フラグ★
-    console.log("[ParadiseLost Sequence] Starting for Final Battle (or Trial VI).");
+    if (this.isSpecialSequenceActive || this.isGameOver || this.bossDefeated) return;
+    this.isSpecialSequenceActive = true;
+    console.log(`[ParadiseLost Sequence] Starting. FinalBattle mode: ${this.isFinalBattleActive}`);
+
+    // ★★★ パラダイス・ロスト演出開始時にボスを無敵にする ★★★
+    if (this.boss && this.boss.active) {
+        this.boss.setData('isInvulnerable', true);
+        console.log("[ParadiseLost Sequence] Boss set to INVULNERABLE.");
+    }
     const moveToCenterDuration = 500;
     const flyOffDuration = 300;
     const pauseOffScreenDuration = 500;
@@ -1197,29 +1204,32 @@ fireParadiseLost() {
     // ダメージ処理と試練達成 (演出がある程度落ち着くのを待つ)
     // (白フラッシュ300ms + 衝撃波や光の柱の主要部分が終わるまでを想定)
     const damageAndCompletionDelay = 1000; // 1秒後 (調整可能)
-    this.time.delayedCall(damageAndCompletionDelay, () => {
-        if (this.isGameOver || this.bossDefeated || !this.activeTrial || this.activeTrial.id !== 6 || !this.scene.isActive()) {
-            // 試練VI中でない、またはゲームが終わっていたら何もしない
-            if(this.activeTrial && this.activeTrial.id === 6) this.isSpecialSequenceActive = false; // フラグだけ戻す
+     this.time.delayedCall(damageDelay, () => {
+        if (this.isGameOver || this.bossDefeated || !this.scene.isActive()) {
+            this.isSpecialSequenceActive = false;
+            if (this.boss?.active) this.boss.setData('isInvulnerable', false); // 念のため解除
             return;
         }
 
-        console.log("[ParadiseLost] Applying damage and checking trial completion...");
-        let damage = 8;
-        if (this.isPlayerAnilaActive()) { // isPlayerAnilaActive は CommonBossScene に定義済みと仮定
+       
+        let damage = this.bossData.paradiseLostDamage || 8;
+        if (this.isPlayerAnilaActive()) { // isPlayerAnilaActive は CommonBossScene に定義
             damage = 0;
-            console.log("[Trial VI] Paradise Lost NEGATED by Anila!");
-            if (typeof this.deactivateAnila === 'function') this.deactivateAnila(); // アニラ消費
+            console.log("[ParadiseLost] NEGATED by Anila!");
+            if (typeof this.deactivateAnila === 'function') { // deactivateAnila も CommonBossScene に定義
+                this.deactivateAnila(); // ★アニラ効果を消費（解除）★
+                console.log("[ParadiseLost] Anila effect consumed.");
+            }
         }
         console.log(`[Trial VI] Player to take ${damage} damage from Paradise Lost.`);
 
         if (damage > 0) {
             for(let i=0; i < damage; i++) {
-                if(this.lives > 0 && !this.isGameOver) { // isGameOverもチェック
-                    this.loseLife();
-                } else { break; }
+                if(this.lives > 0 && !this.isGameOver) this.loseLife();
+                else break;
             }
         }
+
 
         // ライフが0になった場合のゲームオーバー処理 (loseLife内でgameOverが呼ばれる想定だが念のため)
         if (this.lives <= 0 && !this.isGameOver) {
@@ -1230,24 +1240,38 @@ fireParadiseLost() {
             this.time.delayedCall(500, () => {
                 if (this.scene.isActive()) super.gameOver();
             }, [], this);
-            this.isSpecialSequenceActive = false; // ここでもフラグを下ろす
+             this.isSpecialSequenceActive = false;
+            if (this.boss?.active) this.boss.setData('isInvulnerable', false); // 無敵解除
             return; // 試練達成には進まない
         }
 
-        if (!this.isFinalBattleActive) { // ★試練VIの場合のみ試練達成処理★
-        this.activeTrial.paradiseLostTriggered = true;
+         // パラダイス・ロストの攻撃シーケンスが完了
         this.isSpecialSequenceActive = false;
-        console.log("[Trial VI] Paradise Lost sequence finished. SpecialSequenceActive = false.");
-        this.completeCurrentTrial();
-    } else { // 最終決戦中のパラダイス・ロストの場合
-        this.isSpecialSequenceActive = false; // 演出終了
-        console.log("[FinalBattle] Paradise Lost sequence finished. Resuming normal AI.");
-        // 最終決戦ではパラダイス・ロストは単なる大技の一つ。試練達成はない。
-        // 必要なら、この後に短いクールダウンを設けてから通常のAIに戻る。
+        console.log("[ParadiseLost] Attack sequence finished. SpecialSequenceActive = false.");
+
+        // ★★★ ボスの無敵状態を解除し、行動タイマーをリセット ★★★
+        if (this.boss && this.boss.active) {
+            this.boss.setData('isInvulnerable', false);
+            console.log("[ParadiseLost] Boss invulnerability REMOVED. Boss will resume actions.");
+        }
         this.lastAttackTime = this.time.now; // 次の通常攻撃までのインターバルをリセット
-    }
-    });
+        if (this.isFinalBattleActive) {
+             this.lastFinalBattleWarpTime = this.time.now; // 最終決戦中のワープタイマーもリセット
+        }
+        // ★★★-------------------------------------------------★★★
+
+
+        // 試練VIの場合のみ、試練達成処理へ
+        if (!this.isFinalBattleActive && this.activeTrial && this.activeTrial.id === 6) {
+            this.activeTrial.paradiseLostTriggered = true;
+            this.completeCurrentTrial();
+        } else if (this.isFinalBattleActive) {
+            console.log("[ParadiseLost] Finished in Final Battle. Boss AI continues.");
+            // 最終決戦では、この後 updateFinalBattleBossAI が通常の攻撃/ワープを再開する
+        }
+    }, [], this);
 }
+
 
 
 
@@ -1551,6 +1575,7 @@ startSpecificBossMovement() {
 
 // (オプション) 最終決戦用のボスAIメソッド
 updateFinalBattleBossAI(time, delta) {
+     if (this.isSpecialSequenceActive  ) return; // パラロスト演出中は他の行動しない
     // ここに「決着の刻」のルシファーの攻撃パターンやワープ（もし使うなら）を記述
     console.log("[FinalBattleAI] Updating final battle AI (placeholder)...");
 
@@ -1565,14 +1590,12 @@ updateFinalBattleBossAI(time, delta) {
     }
 
     // --- 3. パラダイス・ロスト (一定時間ごと、かつ他の特別演出中でない場合) ---
-    const paradiseLostInterval = this.bossData.finalBattleParadiseLostInterval || 45000;
-    if (time > this.lastParadiseLostTime + paradiseLostInterval && !this.isWarping && !this.isSpecialSequenceActive) {
-        console.log("[FinalBattleAI] Conditions met to potentially fire Paradise Lost.");
-        // isSpecialSequenceActive は executeParadiseLostSequence の中で true になる
-        this.executeParadiseLostSequence(); // 試練VIで使ったパラダイス・ロストのシーケンスを呼び出す
-        this.lastParadiseLostTime = time; // パラダイス・ロスト開始時間を記録
-        // パラダイス・ロスト実行中は他の攻撃やワープは一旦停止される (isSpecialSequenceActiveフラグによる)
-        return; // パラダイス・ロスト実行に入ったら、このフレームの他の攻撃はしない
+      const paradiseLostInterval = this.bossData.finalBattleParadiseLostInterval || 45000;
+    if (time > this.lastParadiseLostTime + paradiseLostInterval && !this.isWarping) { // isWarpingもチェック
+        console.log("[FinalBattleAI] Triggering Paradise Lost.");
+        this.executeParadiseLostSequence(); // これが isSpecialSequenceActive を true にする
+        this.lastParadiseLostTime = time;
+        return; // パラダイス・ロスト実行に入ったら、このフレームの他のAI処理はスキップ
     }
 
     // --- 4. 通常攻撃 (最終決戦バージョン) ---
