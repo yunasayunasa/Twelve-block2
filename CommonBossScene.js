@@ -1293,7 +1293,7 @@ if (this.isMakiraActive && this.balls && this.familiars && this.familiars.countA
         this.stageClearPopup.add(bgGraphics);
 
         // テキスト
-        const clearMessage = `会議 ${this.currentBossIndex} 終了！`;
+        const clearMessage = `ボス ${this.currentBossIndex} 討伐！`;
         const fontSize = this.calculateDynamicFontSize(40);
         const textStyle = { fontSize: `${fontSize}px`, fill: '#fff', fontFamily: 'MyGameFont, sans-serif', align: 'center' };
         const messageText = this.add.text(0, -this.gameHeight * 0.05, clearMessage, textStyle).setOrigin(0.5);
