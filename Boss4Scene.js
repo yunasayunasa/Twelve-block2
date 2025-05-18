@@ -1575,7 +1575,10 @@ startSpecificBossMovement() {
 
 // (オプション) 最終決戦用のボスAIメソッド
 updateFinalBattleBossAI(time, delta) {
-     if (this.isSpecialSequenceActive  ) return; // パラロスト演出中は他の行動しない
+
+      if (this.isSpecialSequenceActive || this.isCompletingTrial || !this.playerControlEnabled || this.isGameOver || this.bossDefeated) {
+        return;
+    }
     // ここに「決着の刻」のルシファーの攻撃パターンやワープ（もし使うなら）を記述
     console.log("[FinalBattleAI] Updating final battle AI (placeholder)...");
 
@@ -1822,6 +1825,14 @@ startFinalBattle() {
     this.lastAttackTime = this.time.now;
     this.lastWarpTime = this.time.now; // もしワープを使うなら
     console.log("[FinalBattle] Attack/Warp timers reset for final phase.");
+      // ★★★ ここで最終決戦開始直後のフラグ状態を確認 ★★★
+    console.log("--- Flags at start of Final Battle AI activation ---");
+    console.log("isSpecialSequenceActive:", this.isSpecialSequenceActive);
+    console.log("isCompletingTrial:", this.isCompletingTrial);
+    console.log("playerControlEnabled:", this.playerControlEnabled);
+    console.log("isGameOver:", this.isGameOver);
+    console.log("bossDefeated:", this.bossDefeated);
+    console.log("----------------------------------------------------");
 }
 
 // Boss4Scene.js クラス内に、他のメソッドと同列に追加してください
