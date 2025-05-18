@@ -94,7 +94,7 @@ this.lastFinalBattleWarpTime = 0;
              paradiseLostPillarCount: 13, // パラダイス・ロストの光の柱の数
     paradiseLostPillarDuration: 550, // 光の柱1本の基本落下時間(ms)
     lightPillarTexture: 'light_pillar_effect', // ★要アセット＆BootSceneロード
-            jiEndCountInitialMinutes: 10,
+            jiEndCountInitialMinutes: 8,//ジエンドまでの時間
             jiEndTimerYPosRatio: 0.1,
             jiEndTimerFontSizeRatio: 1 / 15,
 
@@ -132,8 +132,8 @@ this.lastFinalBattleWarpTime = 0;
         // (オプション) 角度を広げて避けやすくするなども
     },
     // --- ▲ ------------------------------------ ▲ ---
- finalBattleWarpInterval: 2000,     // 最終決戦中のワープ間隔 (ms) - 例: 8秒ごと
-    finalBattleParadiseLostInterval: 45000, // 最終決戦中のパラダイス・ロスト間隔 (ms) - 例: 45秒ごと
+ finalBattleWarpInterval: 1000,     // 最終決戦中のワープ間隔 (ms) - 例: 8秒ごと
+    finalBattleParadiseLostInterval: 15000, // 最終決戦中のパラダイス・ロスト間隔 (ms) - 例: 45秒ごと
     // ...
     // --- ▼ ターゲット攻撃パラメータのルート別調整（例）▼ ---
     targetedAttackParamsBase: {
@@ -1583,7 +1583,7 @@ updateFinalBattleBossAI(time, delta) {
     console.log("[FinalBattleAI] Updating final battle AI (placeholder)...");
 
      // --- 2. ワープ処理 (一定時間ごと) ---
-    const warpInterval = this.bossData.finalBattleWarpInterval || 8000;
+    const warpInterval = this.bossData.finalBattleWarpInterval || 1000;
     if (time > this.lastFinalBattleWarpTime + warpInterval) {
         if (!this.isWarping) { // 現在ワープ中でなければ
             console.log("[FinalBattleAI] Triggering Warp.");
@@ -1593,7 +1593,7 @@ updateFinalBattleBossAI(time, delta) {
     }
 
     // --- 3. パラダイス・ロスト (一定時間ごと、かつ他の特別演出中でない場合) ---
-      const paradiseLostInterval = this.bossData.finalBattleParadiseLostInterval || 45000;
+      const paradiseLostInterval = this.bossData.finalBattleParadiseLostInterval || 15000;
     if (time > this.lastParadiseLostTime + paradiseLostInterval && !this.isWarping) { // isWarpingもチェック
         console.log("[FinalBattleAI] Triggering Paradise Lost.");
         this.executeParadiseLostSequence(); // これが isSpecialSequenceActive を true にする
@@ -1608,9 +1608,9 @@ updateFinalBattleBossAI(time, delta) {
         if (time > this.lastAttackTime + attackIntervalFinal) {
             const attackType = Phaser.Math.Between(1, 3);
             if (attackType === 1) {
-                this.fireRadialAttack({ count: this.bossData.radialAttackParamsOrder?.count || 7, speedMultiplier: this.bossData.radialAttackParamsOrder?.speedMultiplier || 1.3, angles: [/*より広範囲・多方向*/] });
+                this.fireRadialAttack({ count: this.bossData.radialAttackParamsOrder?.count || 7, speedMultiplier: this.bossData.radialAttackParamsOrder?.speedMultiplier || 2.0, angles: [/*より広範囲・多方向*/] });
             } else if (attackType === 2) {
-                this.fireTargetedAttack({ speedMultiplier: this.bossData.targetedAttackParamsOrder?.speedMultiplier || 1.2 });
+                this.fireTargetedAttack({ speedMultiplier: this.bossData.targetedAttackParamsOrder?.speedMultiplier || 2.0 });
             } else {
               //  this.fireSpecialFinalAttack(); // 新しい最終決戦専用攻撃 (未実装ならコメントアウト)
             }
