@@ -175,66 +175,94 @@ export default class TitleScene extends Phaser.Scene {
         // --- ▲▲▲ ボス選択ドロップダウンリスト 終了 ▲▲▲ ---
 
 
-        // --- ▼ ボスラッシュ開始ボタン ▼ ---
-        const startButtonW = 280;
-        const startButtonH = 70;
-        const startButtonRadius = 15;
-        const startButtonTextStyle = { /* ... */ };
-        // 開始ボタンのY座標を、ドロップダウンやテストボタンとの兼ね合いで調整
-        const startButtonY = dropdownY + domBossSelect.height + 100; // ドロップダウンの下 + さらにテストボタン分のスペースと余白 (要微調整)
-        const startButtonContainer = this.add.container(w / 2, startButtonY);
-        // ... (開始ボタンのグラフィックとテキスト、イベントリスナーは変更なし) ...
-         const startButtonBg = this.add.graphics();
-        startButtonBg.fillStyle(0x4CAF50, 0.8);
-        startButtonBg.fillRoundedRect(-startButtonW / 2, -startButtonH / 2, startButtonW, startButtonH, startButtonRadius);
-        startButtonContainer.add(startButtonBg);
-        const startButtonText = this.add.text(0, 0, 'ボスラッシュ開始', startButtonTextStyle).setOrigin(0.5);
-        startButtonContainer.add(startButtonText);
-        startButtonContainer.setSize(startButtonW, startButtonH).setInteractive({ useHandCursor: true });
-        startButtonContainer.on('pointerover', () => { /* ... */ });
-        startButtonContainer.on('pointerout', () => { /* ... */ });
-        startButtonContainer.on('pointerdown', () => { /* ... (既存の処理) ... */ });
+        // --- ▼▼▼ 各ボタンのY座標を明確に定義 ▼▼▼
+        // スライダーUIのDOM要素 (domSliderElement) とドロップダウンのDOM要素 (domBossSelect) は生成済みとする
+        let currentY = h * 0.45; // スライダーのY座標の目安
 
+        // スライダーの表示 (Y座標は domSliderElement で設定済み)
+        // const domSliderElement = this.add.dom(w / 2, currentY, sliderContainer).setOrigin(0.5);
+        // this.domElements.push(domSliderElement);
+        // currentY += (domSliderElement.height || 100) + 20; // スライダーの高さ分とマージン (仮に高さを100とする)
+                                                        // DOM要素の高さ取得が不安定なため固定値か割合で調整推奨
+        currentY = h * 0.58; // ドロップダウンのY座標 (固定値や画面比率で調整)
 
-        // --- ▼ ボス直行テストボタン (Y座標をドロップダウンの下、開始ボタンの上に調整) ▼ ---
-        const testButtonY = dropdownY + domBossSelect.height + 35; // ドロップダウンの下 + 少し余白 (要微調整)
-        const testButtonStyle = { fontSize: '20px', fill: '#fff', backgroundColor: 'rgba(85,85,85,0.8)', padding: { x: 15, y: 8 }, borderRadius: '5px' };
-        const testButtonHoverStyle = { fill: '#ff0', backgroundColor: 'rgba(119,119,119,0.9)'};
+        // ボス選択ドロップダウンリスト (Y座標を設定)
+        // const domBossSelect = this.add.dom(w / 2, currentY, bossSelectContainerHTML).setOrigin(0.5);
+        // this.domElements.push(domBossSelect);
+        // currentY += (domBossSelect.height || 50) + 30; // ドロップダウンの高さ分とマージン (仮に高さを50とする)
+        currentY = h * 0.68; // 「このボスと戦う」ボタンのY座標
 
-        const initialTestButtonLabel = `テスト: ${bossList.find(b => b.value === this.testStartBossIndex)?.name || `Boss ${this.testStartBossIndex}`}`;
-        this.testButtonTextObject = this.add.text(w / 2, testButtonY, initialTestButtonLabel, testButtonStyle)
+        // --- ▼ 「選択したボスと戦う」ボタン (元テストボタン) ▼ ---
+        const fightSelectedBossButtonY = currentY;
+        const fightSelectedBossButtonStyle = { fontSize: '22px', fill: '#E0E0E0', backgroundColor: 'rgba(0,100,200,0.8)', padding: { x: 20, y: 10 }, borderRadius: '5px' }; // 少し目立つスタイルに
+        const fightSelectedBossButtonHoverStyle = { fill: '#FFF', backgroundColor: 'rgba(0,120,240,0.9)'};
+
+        const initialFightButtonLabel = `このボスと戦う (${bossList.find(b => b.value === this.testStartBossIndex)?.name || `Boss ${this.testStartBossIndex}`})`;
+        this.testButtonTextObject = this.add.text(w / 2, fightSelectedBossButtonY, initialFightButtonLabel, fightSelectedBossButtonStyle)
             .setOrigin(0.5)
             .setInteractive({ useHandCursor: true })
-            .on('pointerover', () => this.testButtonTextObject.setStyle(testButtonHoverStyle))
-            .on('pointerout', () => this.testButtonTextObject.setStyle(testButtonStyle))
+            .on('pointerover', () => this.testButtonTextObject.setStyle(fightSelectedBossButtonHoverStyle))
+            .on('pointerout', () => this.testButtonTextObject.setStyle(fightSelectedBossButtonStyle))
             .on('pointerdown', () => {
-                console.log(`Test Boss ${this.testStartBossIndex} button clicked.`);
+                // ★★★ ドロップダウンで選択されたボスで開始 ★★★
+                console.log(`"Fight Selected Boss" button clicked for Boss ${this.testStartBossIndex}.`);
                 this.sound.play(AUDIO_KEYS.SE_START);
                 this.stopTitleBgm();
-                this.clearDOM(); // DOM要素をクリア
+                this.clearDOM();
 
                 const testData = {
-                    lives: 9,
+                    lives: 9, // 通常の初期ライフでも良い INITIAL_PLAYER_LIVES
                     chaosSettings: { count: this.selectedCount, ratePercent: this.selectedRate },
                     currentBossIndex: this.testStartBossIndex
                 };
                 const targetSceneKey = `Boss${this.testStartBossIndex}Scene`;
-                console.log(`Starting ${targetSceneKey} with test data:`, testData);
+                // ... (シーン開始処理は既存のまま) ...
                 try {
                      if (this.scene.manager.keys[targetSceneKey]) {
                          this.scene.start(targetSceneKey, testData);
-                     } else {
-                         console.error(`Error: Scene '${targetSceneKey}' not found!`);
-                         alert(`エラー: シーン '${targetSceneKey}' が見つかりません。\nmain.jsを確認してください。`);
-                         this.scene.start('TitleScene');
-                     }
-                } catch (e) {
-                     console.error(`Error starting scene ${targetSceneKey}:`, e);
-                     alert(`シーン '${targetSceneKey}' の開始中にエラー。\n開発者コンソールを確認。`);
-                     this.scene.start('TitleScene');
-                }
+                     } else { /* ... エラー処理 ... */ }
+                } catch (e) { /* ... エラー処理 ... */ }
             });
-        // --- ▲ ボス直行テストボタン ▲ ---
+        // currentY += (this.testButtonTextObject.displayHeight || 40) + 30; // 「このボスと戦う」ボタンの高さ分とマージン
+        currentY = h * 0.80; // ボスラッシュ開始ボタンのY座標
+
+        // --- ▼ ボスラッシュ開始ボタン (本来のゲーム開始ボタン) ▼ ---
+        const startButtonW = 280;
+        const startButtonH = 70;
+        const startRushButtonY = currentY; // ★Y座標を明確に設定★
+        const startButtonTextStyle = { fontSize: '32px', fill: '#fff', fontFamily: '"Arial Black", Gadget, sans-serif', shadow: { offsetX: 3, offsetY: 3, color: '#000000', blur: 5, stroke: true, fill: true } };
+        const startButtonContainer = this.add.container(w / 2, startRushButtonY); // ★X座標, Y座標★
+        const startButtonBg = this.add.graphics();
+        startButtonBg.fillStyle(0x4CAF50, 0.8); // Normal color and alpha
+        startButtonBg.fillRoundedRect(-startButtonW / 2, -startButtonH / 2, startButtonW, startButtonH, 15);
+        startButtonContainer.add(startButtonBg);
+        const startButtonText = this.add.text(0, 0, 'ボスラッシュ開始', startButtonTextStyle).setOrigin(0.5);
+        startButtonContainer.add(startButtonText);
+        startButtonContainer.setSize(startButtonW, startButtonH);
+        startButtonContainer.setInteractive({ useHandCursor: true }); // ★インタラクティブ設定★
+
+        startButtonContainer.on('pointerover', () => {
+            startButtonBg.clear().fillStyle(0x8BC34A, 0.95).fillRoundedRect(-startButtonW / 2, -startButtonH / 2, startButtonW, startButtonH, 15);
+        });
+        startButtonContainer.on('pointerout', () => {
+            startButtonBg.clear().fillStyle(0x4CAF50, 0.8).fillRoundedRect(-startButtonW / 2, -startButtonH / 2, startButtonW, startButtonH, 15);
+        });
+
+        // ★★★ クリック処理を正しく設定 ★★★
+        startButtonContainer.on('pointerdown', () => {
+            console.log("Boss Rush Start button clicked.");
+            this.sound.play(AUDIO_KEYS.SE_START);
+            this.stopTitleBgm();
+            this.clearDOM();
+            const startData = {
+                 lives: INITIAL_PLAYER_LIVES,
+                chaosSettings: { count: this.selectedCount, ratePercent: this.selectedRate },
+                currentBossIndex: 1 // ボスラッシュは必ずBoss1から
+            };
+            console.log("Passing data to Boss1Scene for Boss Rush:", startData);
+            this.scene.start('Boss1Scene', startData);
+        });
+        // --- ▲ ボスラッシュ開始ボタン ▲ ---
 
 
         // --- シーン終了処理 ---
