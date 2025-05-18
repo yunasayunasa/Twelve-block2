@@ -1424,34 +1424,40 @@ shatterCrystal(crystal) {
 
 
 
-     // ボスの移動パターン (CommonBossSceneのstartGameplayから呼ばれる)
-    startSpecificBossMovement() {
-        if (this.isFinalBattleActive) {
-            console.log("[Boss4Scene FinalBattle] Lucilius Zero starts moving!");
-            // 最終決戦時の移動ロジック (例: CommonBossSceneの左右移動)
-            const moveWidth = this.gameWidth * (this.bossData.moveRangeXRatioFinal || 0.7) / 2;
-            const leftX = this.gameWidth / 2 - moveWidth;
-            const rightX = this.gameWidth / 2 + moveWidth;
-            this.boss.setX(this.gameWidth / 2); // 中央から開始
+    // Boss4Scene.js
+startSpecificBossMovement() {
+    if (this.isFinalBattleActive) { // ★最終決戦かどうかの分岐★
+        console.log("[Boss4Movement] Final Battle: Lucilius Zero starts moving with attack patterns!");
+        if (this.bossMoveTween) this.tweens.killTweensOf(this.boss); // 既存のTweenがあれば停止
+        this.boss.setAngle(0); // 念のため角度リセット
 
-            const easeFunctions = ['Sine.easeInOut', 'Quad.easeInOut', 'Cubic.easeInOut'];
-            const moveToRight = () => {
-                if (!this.boss?.active || !this.isFinalBattleActive) return;
-                this.bossMoveTween = this.tweens.add({ targets: this.boss, x: rightX, duration: (this.bossData.moveDurationFinal || 3000), ease: Phaser.Utils.Array.GetRandom(easeFunctions), onComplete: moveToLeft });
-            };
-            const moveToLeft = () => {
-                if (!this.boss?.active || !this.isFinalBattleActive) return;
-                this.bossMoveTween = this.tweens.add({ targets: this.boss, x: leftX, duration: (this.bossData.moveDurationFinal || 3000), ease: Phaser.Utils.Array.GetRandom(easeFunctions), onComplete: moveToRight });
-            };
-            moveToRight();
-        } else {
-            console.log("[Boss4Scene TrialPhase] Lucilius Zero remains stationary.");
-            if (this.bossMoveTween) this.tweens.killTweensOf(this.boss); // 既存のTween停止
-            if (this.boss && this.boss.body) {
-                this.boss.setVelocity(0, 0); // 完全に静止
-            }
+        // 最終決戦用の移動パターン (例: CommonBossSceneの左右移動)
+        const moveWidth = this.gameWidth * (this.bossData.moveRangeXRatioFinal || 0.7) / 2;
+        const leftX = this.gameWidth / 2 - moveWidth;
+        const rightX = this.gameWidth / 2 + moveWidth;
+        if (this.boss) this.boss.setX(this.gameWidth / 2); // 中央から開始
+
+        const easeFunctions = ['Sine.easeInOut', 'Quad.easeInOut', 'Cubic.easeInOut'];
+        const moveToRight = () => {
+            if (!this.boss?.active || !this.isFinalBattleActive || this.isGameOver || this.bossDefeated) return;
+            this.bossMoveTween = this.tweens.add({ targets: this.boss, x: rightX, duration: (this.bossData.moveDurationFinal || 3000), ease: Phaser.Utils.Array.GetRandom(easeFunctions), onComplete: moveToLeft });
+        };
+        const moveToLeft = () => {
+            if (!this.boss?.active || !this.isFinalBattleActive || this.isGameOver || this.bossDefeated) return;
+            this.bossMoveTween = this.tweens.add({ targets: this.boss, x: leftX, duration: (this.bossData.moveDurationFinal || 3000), ease: Phaser.Utils.Array.GetRandom(easeFunctions), onComplete: moveToRight });
+        };
+        moveToRight(); // 移動開始
+        // (ここに最終決戦用の攻撃タイマー初期化なども入れても良い)
+        // this.lastAttackTime = this.time.now; // updateFinalBattleBossAI で管理するなら不要
+    } else { // 試練中
+        console.log("[Boss4Movement] Trial Phase: Lucilius Zero remains stationary.");
+        if (this.bossMoveTween) this.tweens.killTweensOf(this.boss);
+        if (this.boss && this.boss.body) {
+            this.boss.setVelocity(0, 0);
+            this.boss.setAngle(0); // 試練開始時にも角度リセット
         }
     }
+}
 
     // ボスの攻撃パターンとワープ - lastAttackTime の更新を確認
 
@@ -1466,19 +1472,21 @@ shatterCrystal(crystal) {
                            this.isCompletingTrial ||   // 試練完了演出中はボスは何もしない
                            this.isSpecialSequenceActive; // パラダイス・ロスト演出中
 
-    if (this.isFinalBattleActive) {
-        if (!blockBossActions) {
+    if (this.isFinalBattleActive) { // ★最終決戦専用AIを呼び出す★
+        if (!this.isCompletingTrial && !this.isSpecialSequenceActive && this.playerControlEnabled && !this.isGameOver && !this.bossDefeated) {
             this.updateFinalBattleBossAI(time, delta);
         }
+        return; // 最終決戦中は以下の試練中ロジックは実行しない
+    }
+
+    if (blockNonFinalAIActions || (this.activeTrial && this.activeTrial.id === 11 && this.activeTrial.bossShouldBeStatic === true)) {
         return;
     }
 
     // ★試練XI中は、blockBossActions が false でも、ワープだけを抑制し、攻撃は許可する★
     // (そのため、試練XI専用のガードはここではなく、ワープ処理の箇所で行う)
 
-    if (blockBossActions) {
-        return;
-    }
+   
     // --- ▲ ガード処理 終了 ▲ ---
 
 
@@ -1537,12 +1545,25 @@ shatterCrystal(crystal) {
 
 // (オプション) 最終決戦用のボスAIメソッド
 updateFinalBattleBossAI(time, delta) {
-    // ここに「決着の刻」のルシファーの動きや攻撃パターンを記述
-    // 例: super.updateSpecificBossBehavior(time, delta); // CommonBossSceneの汎用的な動きや攻撃を使う場合
-    //     または、専用の攻撃タイマーや移動ロジック
+    // ここに「決着の刻」のルシファーの攻撃パターンやワープ（もし使うなら）を記述
     console.log("[FinalBattleAI] Updating final battle AI (placeholder)...");
-    // (時間経過ワープや、専用の最終攻撃など)
+
+    // 例: 試練中より激しい攻撃頻度、新しい攻撃パターンなど
+    const attackIntervalFinal = Phaser.Math.Between(800, 1500); // 仮: 0.8秒～1.5秒間隔
+    if (time > this.lastAttackTime + attackIntervalFinal) {
+        const attackType = Phaser.Math.Between(1, 3); // 3種類の攻撃をランダムに
+        if (attackType === 1) this.fireRadialAttack({ count: 7, speedMultiplier: 1.3, angles: [/*広範囲*/] }); // パラメータを直接渡す例
+        else if (attackType === 2) this.fireTargetedAttack({ speedMultiplier: 1.2 });
+        else this.fireSpecialFinalAttack(); // ★新しい最終決戦用攻撃メソッド★
+
+        this.lastAttackTime = time;
+        // 最終決戦でも攻撃後にワープさせるなら
+        // this.time.delayedCall(this.bossData.warpDelayAfterAttack || 200, this.warpBoss, [], this);
+    }
+    // (時間経過ワープもここに入れるなら)
 }
+
+fireSpecialFinalAttack() { /* TODO: 最終決戦専用の派手な攻撃 */ console.log("[FinalBattleAttack] Firing SPECIAL FINAL ATTACK!"); }
 
    // CommonBossSceneのhitBossをオーバーライド (試練中のワープと、決着の刻の通常のヒット処理)
 // Boss4Scene.js
@@ -1688,6 +1709,55 @@ this.physics.velocityFromAngle(Phaser.Math.RadToDeg(escapeAngleRad), targetSpeed
         }
         super.hitBoss(boss, ball); // 親クラスのヒット処理 (ここでもインダラ解除が行われるはず)
     }
+}
+
+// Boss4Scene.js
+startFinalBattle() {
+    console.log("[FinalBattle] All trials cleared! Starting FINAL BATTLE with Lucilius Zero!");
+    this.isFinalBattleActive = true; // 最終決戦フラグON
+    this.playerControlEnabled = true; // プレイヤー操作は既に有効のはずだが念のため
+    this.isBallLaunched = false;    // ボールは再発射状態から
+    this.prepareBallForTrial();     // ボールを準備
+
+    // ボスにHPを設定し、無敵を解除
+    if (this.boss && this.boss.active) {
+        this.boss.setData('health', this.bossData.finalBattleHp || 5);
+        this.boss.setData('maxHealth', this.bossData.finalBattleHp || 5);
+        this.boss.setData('isInvulnerable', false);
+        console.log(`[FinalBattle] Boss HP set to: ${this.boss.getData('health')}/${this.boss.getData('maxHealth')}. Invulnerable: false.`);
+        // UIにHPを表示
+        this.events.emit('updateBossHp', this.boss.getData('health'), this.boss.getData('maxHealth'));
+        this.boss.clearTint(); // 以前のTintが残っていればクリア
+        this.boss.setAngle(0);   // 角度もリセット
+    } else {
+        console.error("[FinalBattle] Boss not available to start final battle!");
+        this.triggerJiEndGameOver(); // ボスがいないならエラーとしてゲームオーバー
+        return;
+    }
+
+    // ボスを動けるようにする (startSpecificBossMovementで実際の動きを開始)
+    if (this.boss.body) this.boss.body.moves = true;
+    this.startSpecificBossMovement(); // これが最終決戦用の移動パターンを開始する
+
+    // アイテムドロップは「全種100%」になる (getOverrideDropItemでisFinalBattleActiveを見る)
+    console.log("[FinalBattle] Item drops will now be all types at 100%.");
+
+    // 最終決戦用BGMに変更
+    const finalBgmKey = this.bossData.bgmKeyFinalBattle || AUDIO_KEYS.BGM_LUCILIUS_FINAL_BATTLE;
+    if (finalBgmKey) {
+        this.playSpecificBgm(finalBgmKey); // BGM切り替えヘルパー
+    } else {
+        console.warn("[FinalBattle] Final BGM key not defined.");
+    }
+
+    // (オプション) 最終決戦開始の画面演出（画面フラッシュ、専用SEなど）
+    this.cameras.main.flash(500, 200, 200, 255, true); // 赤みがかった強いフラッシュ
+    if (AUDIO_KEYS.SE_FINAL_BATTLE_START) this.sound.play(AUDIO_KEYS.SE_FINAL_BATTLE_START); // 仮のSEキー
+
+    // 攻撃/ワープタイマーをリセットして、最終決戦用のAIがすぐに動き出せるようにする
+    this.lastAttackTime = this.time.now;
+    this.lastWarpTime = this.time.now; // もしワープを使うなら
+    console.log("[FinalBattle] Attack/Warp timers reset for final phase.");
 }
 
 // Boss4Scene.js クラス内に、他のメソッドと同列に追加してください
@@ -2343,9 +2413,9 @@ triggerPowerUpEffect(type, itemObject = null) {
     getOverrideDropItem(brick) {
         if (!this.activeTrial || this.isFinalBattleActive || this.isChoiceEventActive || !brick.getData('blockType')) {
             // 「決着の刻」、選択中、または通常の攻撃ブロックでない場合は通常ドロップ
-            if (this.isFinalBattleActive) { // 最終決戦は全アイテム100%ドロップ
-                return Phaser.Utils.Array.GetRandom(Object.values(POWERUP_TYPES));
-            }
+              if (this.isFinalBattleActive) { // ★最終決戦中は全アイテム100%ドロップ★
+        return Phaser.Utils.Array.GetRandom(Object.values(POWERUP_TYPES));
+    }
             return null;
         }
 
@@ -2595,6 +2665,26 @@ loseLife() {
         }
     }
     // ★★★------------------------------------★★★
+}
+
+// Boss4Scene.js
+// CommonBossSceneのdefeatBossをオーバーライド
+defeatBoss(bossObject) {
+    if (this.isFinalBattleActive && this.bossDefeated) return; // 重複防止
+
+    if (this.isFinalBattleActive) { // 最終決戦で倒された場合
+        console.log("[Boss4Scene] Lucilius Zero (Final Form) DEFEATED! Triggering Game Clear!");
+        this.bossDefeated = true; // CommonBossSceneのフラグも立てる
+        this.playerControlEnabled = false;
+        // (派手な撃破演出はここか、triggerGameClearの前)
+        // 例: this.playLuciliusDefeatAnimation();
+        this.triggerGameClear(); // ★CommonBossSceneの全クリ処理を呼ぶ★
+    } else {
+        // 試練中にこのメソッドが呼ばれることは通常ないはず
+        // (試練達成はcompleteCurrentTrialで処理されるため)
+        console.warn("[Boss4Scene] defeatBoss called during trial phase unexpectedly.");
+        super.defeatBoss(bossObject); // 念のため親を呼ぶ
+    }
 }
 
     // シーン終了時の処理
