@@ -179,8 +179,32 @@ this.load.video('gameOverVideo_JiEnd', 'assets/ji_end.mp4');
 // 音声 (AUDIO_KEYS に定義したキーを使ってロード)
 if (AUDIO_KEYS.BGM_LUCILIUS_PHASE1) {
     this.load.audio(AUDIO_KEYS.BGM_LUCILIUS_PHASE1, 'assets/bgm_lucilius_phase1.mp3');
+
+
 }
 if (AUDIO_KEYS.VOICE_LUCILIUS_APPEAR) {this.load.audio(AUDIO_KEYS.VOICE_LUCILIUS_APPEAR, 'assets/voice_lucilius_appear.mp3');}
+if (AUDIO_KEYS.SE_PARADISE_LOST_CHARGE) this.load.audio(AUDIO_KEYS.SE_PARADISE_LOST_CHARGE, 'assets/paradise_lost_charge.mp3'); // 「パラダイス・ロスト」チャージSE
+if (AUDIO_KEYS.SE_PARADISE_LOST_EXECUTE) this.load.audio(AUDIO_KEYS.SE_PARADISE_LOST_EXECUTE, 'assets/paradise_lost_execute.mp3');// 「パラダイス・ロスト」発動SE
+
+if (AUDIO_KEYS.SE_TRIAL_ANNOUNCE) this.load.audio(AUDIO_KEYS.SE_TRIAL_ANNOUNCE, 'assets/trial_announce.mp3');           // 新しい試練が提示される時のSE
+if (AUDIO_KEYS.SE_TRIAL_SUCCESS) this.load.audio(AUDIO_KEYS.SE_TRIAL_SUCCESS, 'assets/trial_success.mp3');             // 試練達成時の成功SE
+
+if (AUDIO_KEYS.VOICE_LUCILIUS_RANDOM_1) this.load.audio(AUDIO_KEYS.VOICE_LUCILIUS_RANDOM_1, 'assets/lucilius_random_1.mp3');   // ルシゼロランダムボイス1
+if (AUDIO_KEYS.VOICE_LUCILIUS_RANDOM_1) this.load.audio(AUDIO_KEYS.VOICE_LUCILIUS_RANDOM_2, 'assets/lucilius_random_2.mp3');   // ルシゼロランダムボイス1
+if (AUDIO_KEYS.VOICE_LUCILIUS_RANDOM_1) this.load.audio(AUDIO_KEYS.VOICE_LUCILIUS_RANDOM_3, 'assets/lucilius_random_3.mp3');   // ルシゼロランダムボイス1
+if (AUDIO_KEYS.VOICE_LUCILIUS_RANDOM_1) this.load.audio(AUDIO_KEYS.VOICE_LUCILIUS_RANDOM_4, 'assets/lucilius_random_4.mp3');   // ルシゼロランダムボイス1
+
+if (AUDIO_KEYS.VOICE_LUCILIUS_DAMAGE) this.load.audio(AUDIO_KEYS.VOICE_LUCILIUS_DAMAGE, 'assets/lucilius_damage.mp3');       // ルシゼロ被ダメージボイス (決着の刻)
+if (AUDIO_KEYS.VOICE_LUCILIUS_DEFEAT) this.load.audio(AUDIO_KEYS.VOICE_LUCILIUS_DEFEAT, 'assets/lucilius_defeat.mp3');       // ルシゼロ撃破ボイス (決着の刻)
+
+if (AUDIO_KEYS.SE_VOID_WALL_BREAK) this.load.audio(AUDIO_KEYS.SE_VOID_WALL_BREAK, 'assets/se_destroy.mp3');             // 虚無の壁ブロック破壊音
+if (AUDIO_KEYS.SE_ABYSS_CORE_DESTROY) this.load.audio(AUDIO_KEYS.SE_ABYSS_CORE_DESTROY, 'assets/se_destroy.mp3');     // アビス・コア破壊SE
+if (AUDIO_KEYS.SE_CHAOS_FRAGMENT_DESTROY) this.load.audio(AUDIO_KEYS.SE_CHAOS_FRAGMENT_DESTROY, 'assets/se_destroy.mp3'); // 混沌の欠片 破壊SE
+if (AUDIO_KEYS.SE_LUCILIUS_INVULNERABLE_HIT) this.load.audio(AUDIO_KEYS.SE_LUCILIUS_INVULNERABLE_HIT, 'assets/lucilius_invul_hit.mp3'); // 試練中ボスにボールが当たった時の無効音
+
+if (AUDIO_KEYS.SE_FINAL_BATTLE_START) this.load.audio(AUDIO_KEYS.SE_FINAL_BATTLE_START, 'assets/se_final_battle_start.mp3');             // 虚無の壁ブロック破壊音
+
+
 // ... 他の音声ファイルも同様にロード ...
 if (AUDIO_KEYS.SE_JI_END_BELL) {this.load.audio(AUDIO_KEYS.SE_JI_END_BELL, 'assets/se_ji_end_bell.mp3');}
 

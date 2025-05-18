@@ -168,6 +168,9 @@ BGM_KING_SLIME: 'bgm_king_slime',                   // キングスライム戦B
     VOICE_LUCILIUS_DAMAGE: 'voice_lucilius_damage',       // ルシゼロ被ダメージボイス (決着の刻)
     VOICE_LUCILIUS_DEFEAT: 'voice_lucilius_defeat',       // ルシゼロ撃破ボイス (決着の刻)
     VOICE_LUCILIUS_RANDOM_1: 'voice_lucilius_random_1',   // ルシゼロランダムボイス1
+   VOICE_LUCILIUS_RANDOM_1: 'voice_lucilius_random_2',   // ルシゼロランダムボイス1
+   VOICE_LUCILIUS_RANDOM_1: 'voice_lucilius_random_3',   // ルシゼロランダムボイス1
+   VOICE_LUCILIUS_RANDOM_1: 'voice_lucilius_random_4',   // ルシゼロランダムボイス1
     // VOICE_LUCILIUS_RANDOM_2: 'voice_lucilius_random_2',   // 必要に応じて追加
     VOICE_LUCILIUS_TRIAL_START: 'voice_lucilius_trial_start', // 新しい試練開始時のセリフなど (任意)
     VOICE_LUCILIUS_TRIAL_COMPLETE: 'voice_lucilius_trial_complete', // 試練達成時のセリフなど (任意)
@@ -191,7 +194,14 @@ BGM_KING_SLIME: 'bgm_king_slime',                   // キングスライム戦B
     SE_LUCILIUS_ATTACK_RADIAL: 'se_lucilius_attack_radial', // 放射攻撃SE
     SE_LUCILIUS_ATTACK_TARGET: 'se_lucilius_attack_target', // ターゲット攻撃SE
     SE_LUCILIUS_INVULNERABLE_HIT: 'se_lucilius_invul_hit', // 試練中ボスにボールが当たった時の無効音 (任意)
-    BGM_LUCILIUS_PHASE1: 'bgm_lucilius_phase1.mp3'
+    BGM_LUCILIUS_PHASE1: 'bgm_lucilius_phase1.mp3',
+SE_FINAL_BATTLE_START:'se_final_battle_start',
+
+    //追加
+    SE_VOID_WALL_BREAK: 'se_void_wall_break',             // 虚無の壁ブロック破壊音
+   SE_ABYSS_CORE_DESTROY: 'se_abyss_core_destroy',     // アビス・コア破壊SE
+     SE_CHAOS_FRAGMENT_DESTROY: 'se_chaos_fragment_destroy', // 混沌の欠片 破壊SE
+
 };
 
 // --- ボス戦共通のデフォルト値 ---

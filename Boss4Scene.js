@@ -243,7 +243,8 @@ applyBossDamage(bossInstance, damageAmount, source = "Unknown") {
 
         // (オプション) もし、試練中にボスにボールが当たった際に、
         // 何か特別なSE（金属音のような、効いていない感じの音）を鳴らしたい場合はここで再生可能。
-        // try { if (AUDIO_KEYS.SE_LUCILIUS_INVULNERABLE_HIT) this.sound.play(AUDIO_KEYS.SE_LUCILIUS_INVULNERABLE_HIT); } catch(e){}
+         try { if (AUDIO_KEYS.SE_LUCILIUS_INVULNERABLE_HIT) 
+         this.sound.play(AUDIO_KEYS.SE_LUCILIUS_INVULNERABLE_HIT); } catch(e){}
 
         // ボスへのヒットエフェクト（赤点滅など）も行わない。
         // ただし、ボールの反射自体は hitBoss で行われる。
@@ -737,7 +738,7 @@ startNextTrial() {
             console.log(`[TrialLogic PrepTimeEnd] Attack/Warp timers reset. Boss will now act for trial ${currentTrial.id}.`);
 
             // (オプション) 新しい試練開始の短いSEや演出
-            // if (AUDIO_KEYS.SE_TRIAL_START) this.sound.play(AUDIO_KEYS.SE_TRIAL_START);
+            if (AUDIO_KEYS.SE_TRIAL_ANNOUNCE) this.sound.play(AUDIO_KEYS.SE_TRIAL_ANNOUNCE);
 
         }, [], this);
         // --- 準備時間タイマー終了 ---
@@ -1819,7 +1820,7 @@ startFinalBattle() {
 
     // (オプション) 最終決戦開始の画面演出（画面フラッシュ、専用SEなど）
     this.cameras.main.flash(500, 200, 200, 255, true); // 赤みがかった強いフラッシュ
-   // if (AUDIO_KEYS.SE_FLASH_IMPACT_COMMON) this.sound.play(AUDIO_KEYS.SE_FINAL_BATTLE_START); // 仮のSEキー
+   this.sound.play(AUDIO_KEYS.SE_FINAL_BATTLE_START); // 仮のSEキー
 
     // 攻撃/ワープタイマーをリセットして、最終決戦用のAIがすぐに動き出せるようにする
     this.lastAttackTime = this.time.now;
