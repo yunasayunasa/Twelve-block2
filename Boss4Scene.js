@@ -846,6 +846,22 @@ spawnVoidWall(trialData) {
     console.log("[Trial XI] Void Wall spawned. Boss hit flag reset.");
 }
     
+// Boss4Scene.js
+hitVoidWallBlock(ball, wallBlock) {
+    if (!wallBlock.active) return;
+    console.log("[Trial XI] Ball hit Void Wall Block.");
+    // (破壊SE、シンプルな破片パーティクルなど)
+    // this.sound.play('se_void_block_break');
+    // this.createImpactParticles(wallBlock.x, wallBlock.y, [0,360], 0x553377, 5);
+    wallBlock.destroy();
+    this.increaseVajraGauge(); // ヴァジラゲージは増やす
+
+    // 全ての壁ブロックが破壊されたかチェック (クリア条件ではないが、何らかのボーナスがあっても良い)
+    if (this.voidWallBlocksGroup && this.voidWallBlocksGroup.countActive(true) === 0) {
+        console.log("[Trial XI] All Void Wall blocks destroyed!");
+        // (特別なSEやエフェクトなど)
+    }
+}
 
    // Boss4Scene.js
 spawnAbyssCores(coreCount) {
