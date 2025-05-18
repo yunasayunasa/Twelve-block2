@@ -2540,32 +2540,13 @@ hitAttackBrick(brick, ball) {
 
     const targetSpeed = (NORMAL_BALL_SPEED || 380) * speedMultiplier * sceneSpecificSpeedMultiplier;
 
-    // 反射方向の決定
-    let newVx = ball.body.velocity.x;
-    let newVy = -ball.body.velocity.y;
-
-    // X方向の微調整 (speedMultiplier を使用)
-    const xAdjustFactor = 30; // 固定値でも良い
-    if (ball.x < brick.x - brick.displayWidth / 4) newVx -= xAdjustFactor * speedMultiplier;
-    else if (ball.x > brick.x + brick.displayWidth / 4) newVx += xAdjustFactor * speedMultiplier;
-
-    const minAbsVy = targetSpeed * 0.2;
-    if (Math.abs(newVy) < minAbsVy) {
-        newVy = minAbsVy * Math.sign(newVy || (ball.y < brick.y ? 1 : -1));
-    }
-    if (Math.abs(newVx) > targetSpeed * 0.95) {
-        newVx = targetSpeed * 0.95 * Math.sign(newVx);
-    }
-
-    const newVelocity = new Phaser.Math.Vector2(newVx, newVy);
-    if (newVelocity.lengthSq() > 0) {
-        newVelocity.normalize().scale(targetSpeed);
-    } else {
-        newVelocity.set(Phaser.Math.Between(-50, 50), ball.y < brick.y ? -targetSpeed : targetSpeed);
-    }
-    ball.setVelocity(newVelocity.x, newVelocity.y);
-    console.log(`[HitAttackBrick] Ball velocity set. TargetSpeed: ${targetSpeed.toFixed(1)}, NewV: (${newVelocity.x.toFixed(1)}, ${newVelocity.y.toFixed(1)})`);
-
+   // hitAttackBrick の反射ロジック (対策A)
+const reflectAngleRad = Phaser.Math.Angle.BetweenPoints(brick, ball); // ブロック中心からボール中心への角度
+// この角度に targetSpeed で速度を設定する (ブロックから離れる方向)
+try {
+    this.physics.velocityFromAngle(Phaser.Math.RadToDeg(reflectAngleRad), targetSpeed, ball.body.velocity);
+    console.log(`[HitAttackBrick] Ball reflected (Center Eject). Angle: ${Phaser.Math.RadToDeg(reflectAngleRad).toFixed(1)}, Speed: ${targetSpeed.toFixed(1)}`);
+} catch (e) { /* ... */ }
     this.destroyAttackBrickAndDropItem(brick);
 }
 
