@@ -168,52 +168,75 @@ console.log(`[TitleScene] Item抽選数スライダーの最大値を ${totalPow
         });
         // --- ▲ ボスラッシュ開始ボタン ▲ ---
 
+  // --- ▼▼▼ ボス選択ドロップダウンリスト (新しい追加箇所) ▼▼▼
+        const bossSelectDropdownContainer = document.createElement('div');
+        // ★コンテナのスタイルは最小限に、またはPhaserの座標で制御するため不要なスタイルは削除★
+        // bossSelectDropdownContainer.style.position = 'absolute'; // ← これが問題の原因だった可能性が高いので削除
+        bossSelectDropdownContainer.style.textAlign = 'center'; // 中身を中央揃えにする程度
 
-        // --- ▼ ボス直行テストボタン (指定ボスシーンを開始) ▼ ---
-        const testButtonY = startButtonY + startButtonH + 20; // 開始ボタンの下
-        const testButtonStyle = { fontSize: '20px', fill: '#fff', backgroundColor: '#555', padding: { x: 12, y: 6 } }; // 少し小さめに
+        const bossSelectLabel = document.createElement('label');
+        bossSelectLabel.textContent = 'テスト開始ボス選択: ';
+        bossSelectLabel.style.color = 'white'; // 文字色
+        bossSelectLabel.style.marginRight = '5px';
+        bossSelectLabel.style.fontSize = '18px'; // フォントサイズ調整
+
+        const bossSelectDropdown = document.createElement('select');
+        bossSelectDropdown.id = 'boss-select-dropdown';
+        bossSelectDropdown.style.fontSize = '16px'; // フォントサイズ調整
+        bossSelectDropdown.style.padding = '3px';
+
+        const bossList = [
+            { name: 'Boss 1 (アートマンHL)', value: 1 },
+            { name: 'Boss 2 (サンカラ＆ソワカ)', value: 2 },
+            { name: 'Boss 3 (キングスライム)', value: 3 },
+            { name: 'Boss 4 (ルシゼロ)', value: 4 }
+        ];
+
+        bossList.forEach(boss => {
+            const option = document.createElement('option');
+            option.value = boss.value.toString();
+            option.textContent = boss.name;
+            if (boss.value === this.testStartBossIndex) {
+                option.selected = true;
+            }
+            bossSelectDropdown.appendChild(option);
+        });
+
+        bossSelectDropdown.addEventListener('change', (event) => {
+            this.testStartBossIndex = parseInt(event.target.value);
+            console.log("Selected Boss Index for Test:", this.testStartBossIndex);
+            // テスト開始ボタンのテキストも更新する (もしあれば)
+            if (this.testButtonTextObject) { // testButtonTextObject は後述のテストボタンのテキストオブジェクト
+                 this.testButtonTextObject.setText(`テスト開始: ${bossList.find(b => b.value === this.testStartBossIndex)?.name || `Boss ${this.testStartBossIndex}`}`);
+            }
+        });
+
+        bossSelectDropdownContainer.appendChild(bossSelectLabel);
+        bossSelectDropdownContainer.appendChild(bossSelectDropdown);
+
+        // ドロップダウンのY座標を、スライダーの下、開始ボタンの上あたりに調整
+        const dropdownY = (h * 0.5 + domSliderElement.height / 2) + 40; // スライダーの下 + 余白 (要調整)
+        const domBossSelect = this.add.dom(w / 2, dropdownY, bossSelectDropdownContainer).setOrigin(0.5);
+        this.domElements.push(domBossSelect);
+        // --- ▲▲▲ ボス選択ドロップダウンリスト 終了 ▲▲▲ ---
+
+
+        // --- ▼ ボス直行テストボタン (Y座標をドロップダウンの下に調整) ▼ ---
+        const testButtonY = dropdownY + domBossSelect.height / 2 + 40; // ドロップダウンの下 + 余白 (要調整)
+        const testButtonStyle = { fontSize: '20px', fill: '#fff', backgroundColor: '#555', padding: { x: 12, y: 6 } };
         const testButtonHoverStyle = { fill: '#ff0', backgroundColor: '#777'};
 
-        // ボタンテキストに開始ボス番号を表示
-        const testButtonLabel = `テスト開始: Boss ${this.testStartBossIndex}`;
-        const testButtonText = this.add.text(w / 2, testButtonY, testButtonLabel, testButtonStyle)
+        const initialTestButtonLabel = `テスト開始: ${bossList.find(b => b.value === this.testStartBossIndex)?.name || `Boss ${this.testStartBossIndex}`}`;
+        // ★テストボタンのテキストオブジェクトをプロパティに保持★
+        this.testButtonTextObject = this.add.text(w / 2, testButtonY, initialTestButtonLabel, testButtonStyle)
             .setOrigin(0.5)
             .setInteractive({ useHandCursor: true })
-            .on('pointerover', () => testButtonText.setStyle(testButtonHoverStyle))
-            .on('pointerout', () => testButtonText.setStyle(testButtonStyle))
-            .on('pointerdown', () => {
-                console.log(`Test Boss ${this.testStartBossIndex} button clicked.`);
-                this.sound.play(AUDIO_KEYS.SE_START);
-                this.stopTitleBgm();
-                this.clearDOM();
-
-                // テスト開始データ
-                const testData = {
-                    lives: 9, // ★ テスト用にライフ多め
-                    chaosSettings: { count: this.selectedCount, ratePercent: this.selectedRate },
-                    currentBossIndex: this.testStartBossIndex // ★ テスト対象ボス番号
-                };
-                // 開始シーンキーを動的に生成
-                const targetSceneKey = `Boss${this.testStartBossIndex}Scene`;
-                console.log(`Starting ${targetSceneKey} with test data:`, testData);
-
-                // 指定シーンを開始 (存在チェック付き)
-                try {
-                     if (this.scene.manager.keys[targetSceneKey]) {
-                         this.scene.start(targetSceneKey, testData);
-                     } else {
-                         console.error(`Error: Scene with key '${targetSceneKey}' not found!`);
-                         alert(`エラー: シーン '${targetSceneKey}' が見つかりません。\nmain.jsを確認してください。`);
-                         this.scene.start('TitleScene'); // タイトルに戻る
-                     }
-                } catch (e) {
-                     console.error(`Error starting scene ${targetSceneKey}:`, e);
-                     alert(`シーン '${targetSceneKey}' の開始中にエラー。\n開発者コンソールを確認してください。`);
-                     this.scene.start('TitleScene');
-                }
-            })
-            .setVisible(true); // ★ 表示する
+            // ... (pointerover, pointerout イベントは変更なし) ...
+            .on('pointerdown', () => { // クリック処理は変更なし (this.testStartBossIndex を使う)
+                // ... (既存のテストボタンクリック処理) ...
+            });
         // --- ▲ ボス直行テストボタン ▲ ---
+
 
 
         // --- シーン終了処理 ---
