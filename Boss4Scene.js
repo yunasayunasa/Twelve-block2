@@ -75,7 +75,7 @@ this.lastFinalBattleWarpTime = 0;
         console.log("--- Boss4Scene initializeBossData (Lucilius Zero) ---");
         this.bossData = {
             health: Infinity,
-            finalBattleHp: 5,
+            finalBattleHp: 10,
             textureKey: 'boss_lucilius_stand',
             negativeKey: 'boss_lucilius_negative',
               backgroundKey: 'gameBackground_Boss4',
@@ -88,7 +88,7 @@ this.lastFinalBattleWarpTime = 0;
             cutsceneText: 'VS ダークラプチャー・ゼロ', // Commonのカットシーンで使われる場合
             widthRatio: 0.35,
             moveRangeXRatioFinal: 0.7, // 最終決戦時の移動範囲
-            moveDurationFinal: 3000,   // 最終決戦時の移動時間
+            moveDurationFinal: 1000,   // 最終決戦時の移動時間
             paradiseLostDamage: 8, // パラダイス・ロストの基本ダメージ
 
              paradiseLostPillarCount: 7, // パラダイス・ロストの光の柱の数
@@ -1822,7 +1822,7 @@ startFinalBattle() {
 
     // (オプション) 最終決戦開始の画面演出（画面フラッシュ、専用SEなど）
     this.cameras.main.flash(500, 200, 200, 255, true); // 赤みがかった強いフラッシュ
-    if (AUDIO_KEYS.SE_FINAL_BATTLE_START) this.sound.play(AUDIO_KEYS.SE_FINAL_BATTLE_START); // 仮のSEキー
+    if (AUDIO_KEYS.SE_FLASH_IMPACT_COMMON) this.sound.play(AUDIO_KEYS.SE_FINAL_BATTLE_START); // 仮のSEキー
 
     // 攻撃/ワープタイマーをリセットして、最終決戦用のAIがすぐに動き出せるようにする
     this.lastAttackTime = this.time.now;
@@ -2736,24 +2736,27 @@ loseLife() {
     }
     // ★★★------------------------------------★★★
 }
-
 // Boss4Scene.js
+
 // CommonBossSceneのdefeatBossをオーバーライド
 defeatBoss(bossObject) {
-    if (this.isFinalBattleActive && this.bossDefeated) return; // 重複防止
+    // isFinalBattleActive や this.bossDefeated のチェックは CommonBossScene の defeatBoss の冒頭でも行われるはず
+    // なので、ここではシンプルに super を呼ぶだけでも良いかもしれない。
+    // ただし、最終ボスであることの特別なログなどはここにあっても良い。
 
     if (this.isFinalBattleActive) { // 最終決戦で倒された場合
-        console.log("[Boss4Scene] Lucilius Zero (Final Form) DEFEATED! Triggering Game Clear!");
-        this.bossDefeated = true; // CommonBossSceneのフラグも立てる
-        this.playerControlEnabled = false;
-        // (派手な撃破演出はここか、triggerGameClearの前)
-        // 例: this.playLuciliusDefeatAnimation();
-        this.triggerGameClear(); // ★CommonBossSceneの全クリ処理を呼ぶ★
+        console.log(`[Boss4Scene] Lucilius Zero (Boss ${this.currentBossIndex}) defeated in Final Battle!`);
+        // ★★★ CommonBossScene の標準デフィート演出を開始させる ★★★
+        super.defeatBoss(bossObject);
+        // ★★★-------------------------------------------------★★★
+        // この後、CommonBossScene の defeatBoss -> startBossShakeAndFade ->
+        // (showStageClearPopup ではなく) handleBossDefeatCompletion -> triggerGameClear
+        // という流れになることを期待する。
+        // triggerGameClear() をここで直接呼ばない。
     } else {
-        // 試練中にこのメソッドが呼ばれることは通常ないはず
-        // (試練達成はcompleteCurrentTrialで処理されるため)
-        console.warn("[Boss4Scene] defeatBoss called during trial phase unexpectedly.");
-        super.defeatBoss(bossObject); // 念のため親を呼ぶ
+        // 試練中にこのメソッドが呼ばれることは通常ないはずだが、念のため親を呼ぶ
+        console.warn("[Boss4Scene] defeatBoss called unexpectedly during trial phase.");
+        super.defeatBoss(bossObject);
     }
 }
 
