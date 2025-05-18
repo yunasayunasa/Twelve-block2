@@ -2513,19 +2513,36 @@ triggerPowerUpEffect(type, itemObject = null) {
 
 activateTrialShatora(multiplier) {
     console.log(`[Trial IX] Activating permanent Shatora effect. Multiplier: ${multiplier}`);
-    this.isTrialShatoraActive = true; // シーンプロパティで状態を管理
-    this.currentTrialBallSpeedMultiplier = multiplier; // 現在の試練の速度倍率を保存
+     this.isTrialShatoraActive = true;
+    this.currentTrialBallSpeedMultiplier = multiplier;
 
-    // 既存のボール全ての速度を変更
-    this.balls?.getChildren().forEach(ball => {
-        if (ball.active && ball.body) {
-            const currentDirection = ball.body.velocity.clone().normalize();
-            const newSpeed = (NORMAL_BALL_SPEED || 380) * this.currentTrialBallSpeedMultiplier;
-            ball.setVelocity(currentDirection.x * newSpeed, currentDirection.y * newSpeed);
-        }
-    });
-    // (ボールの見た目をシャトラ状態にする this.setBallPowerUpState(POWERUP_TYPES.SHATORA, true) なども行うと良い)
-    this.updateBallAndPaddleAppearance(); // 見た目更新
+    // ★★★ プレイヤー操作とボール発射状態を明確にする ★★★
+    this.playerControlEnabled = true; // 試練中は操作可能
+    this.isBallLaunched = false;    // 発射待ち状態にする
+    // ★★★-----------------------------------------★★★
+
+    // 既存のボール全ての速度を変更 & パドル上に戻す
+    if (this.balls) {
+        this.balls.getChildren().forEach(ball => {
+            if (ball.active && ball.body) {
+                // まずパドル上に戻して速度を0にする
+                if (this.paddle?.active) {
+                    ball.setVelocity(0,0).setPosition(this.paddle.x, this.paddle.y - (this.paddle.displayHeight / 2) - ball.displayHeight / 2);
+                }
+                // その後、試練IXの速度を適用するか、launchBallに任せるか。
+                // launchBallで速度設定するので、ここではリセットだけでOK。
+            }
+        });
+    }
+    this.updateBallAndPaddleAppearance(); // 見た目更新 (シャトラアイコンなど)
+    if (AUDIO_KEYS.SE_TIME_FIELD_ON) try { this.sound.play(AUDIO_KEYS.SE_TIME_FIELD_ON); } catch(e){}
+    console.log("[Trial IX Effect] Permanent Shatora activated. Player can launch.");
+
+    // --- ▼▼▼ 強制ランチが必要な場合 ▼▼▼ ---
+    // もし試練IX開始と同時にボールを自動発射させたいなら、ここでlaunchBallを呼ぶ
+     console.log("[Trial IX] Attempting forced launch at trial start.");
+     this.launchBall();
+    // --- ▲▲▲ ---
 }
 
 deactivateIndara(ball) {
@@ -2596,28 +2613,54 @@ deactivateTrialShatora() {
 
 // launchBall をオーバーライドして、試練IX中は強制的に高速で発射
 launchBall() {
-    if (this.isTrialShatoraActive && this.currentTrialBallSpeedMultiplier) {
-        console.log("[LaunchBall Override] Trial IX active, launching with speed multiplier.");
+    console.log(`[LaunchBall Boss4] Called. isTrialShatoraActive: ${this.isTrialShatoraActive}, currentTrialBallSpeedMultiplier: ${this.currentTrialBallSpeedMultiplier}`);
+    if (this.isTrialShatoraActive && typeof this.currentTrialBallSpeedMultiplier === 'number') {
+        console.log(`[LaunchBall Override] Trial IX active. isBallLaunched: ${this.isBallLaunched}, playerControlEnabled: ${this.playerControlEnabled}, ActiveBalls: ${this.balls?.countActive(true)}`);
         if (!this.isBallLaunched && this.playerControlEnabled && this.balls?.countActive(true) > 0) {
-            const baseSpeedY = BALL_INITIAL_VELOCITY_Y || -380; // constants.js から
+            const baseSpeedY = BALL_INITIAL_VELOCITY_Y || -380;
             const finalSpeedY = baseSpeedY * this.currentTrialBallSpeedMultiplier;
-            const baseSpeedXRange = BALL_INITIAL_VELOCITY_X_RANGE || [-180, 180];
-            const finalSpeedX = Phaser.Math.Between(baseSpeedXRange[0] * this.currentTrialBallSpeedMultiplier, baseSpeedXRange[1] * this.currentTrialBallSpeedMultiplier);
 
+            // X速度の計算を見直し (より安全に)
+            const baseSpeedXAbs = Math.abs(Phaser.Math.Between(BALL_INITIAL_VELOCITY_X_RANGE[0], BALL_INITIAL_VELOCITY_X_RANGE[1]));
+            let finalSpeedX = Phaser.Math.RND.pick([-1, 1]) * baseSpeedXAbs * this.currentTrialBallSpeedMultiplier;
+            // X速度が0にならないように最低値を設定 (任意)
+            if (Math.abs(finalSpeedX) < 50 * this.currentTrialBallSpeedMultiplier) {
+                finalSpeedX = (finalSpeedX >= 0 ? 1 : -1) * 50 * this.currentTrialBallSpeedMultiplier;
+            }
+
+            console.log(`[LaunchBall Override] Calculated Speeds -> finalSpeedX: ${finalSpeedX.toFixed(1)}, finalSpeedY: ${finalSpeedY.toFixed(1)}`);
+
+            let ballLaunchedThisCall = false;
             this.balls.getChildren().forEach(ball => {
-                if (ball.active && !this.isBallOnPaddle(ball)) { // パドル上にないボールは既に動いているとみなす
-                    // 既に動いているボールの速度を維持するか、ここで再設定するかは設計次第
-                } else if (ball.active) { // パドル上のボールを発射
+                if (ball.active && this.isBallOnPaddle(ball)) { // パドル上のボールのみ発射
                     ball.setVelocity(finalSpeedX, finalSpeedY);
+                    console.log(`[LaunchBall Override] Ball ${ball.name} launched with V(${finalSpeedX.toFixed(1)}, ${finalSpeedY.toFixed(1)})`);
+                    ballLaunchedThisCall = true;
+                } else if (ball.active && !this.isBallOnPaddle(ball) && this.isTrialShatoraActive) {
+                    // 既に動いているボールも試練IXの速度に合わせる (オプション)
+                    const currentDirection = ball.body.velocity.clone().normalize();
+                    const newSpeed = (NORMAL_BALL_SPEED || 380) * this.currentTrialBallSpeedMultiplier;
+                    ball.setVelocity(currentDirection.x * newSpeed, currentDirection.y * newSpeed);
+                     console.log(`[LaunchBall Override] Existing ball ${ball.name} speed adjusted for Trial IX.`);
                 }
             });
-            this.isBallLaunched = true;
-            if (AUDIO_KEYS.SE_LAUNCH) this.sound.play(AUDIO_KEYS.SE_LAUNCH);
+
+            if (ballLaunchedThisCall) {
+                this.isBallLaunched = true;
+                if (AUDIO_KEYS.SE_LAUNCH) this.sound.play(AUDIO_KEYS.SE_LAUNCH);
+                console.log("[LaunchBall Override] Ball launch confirmed. isBallLaunched set to true.");
+            } else {
+                console.log("[LaunchBall Override] No ball was on paddle to launch this call.");
+            }
+        } else {
+            console.log("[LaunchBall Override] Conditions not met for launch.");
         }
     } else {
+        console.log("[LaunchBall Boss4] Trial IX not active or multiplier not set, calling super.launchBall().");
         super.launchBall(); // 通常の発射処理
     }
 }
+
 // (isBallOnPaddle(ball) はパドル上にボールがあるか判定するヘルパー)
 // (isBallOnPaddle(ball) ヘルパーメソッド - ボールがパドル上にあるか判定)
 isBallOnPaddle(ball) {
