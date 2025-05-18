@@ -147,7 +147,7 @@ export default class CommonBossScene extends Phaser.Scene {
         this.gameHeight = 0;
         this.currentBgm = null;
         this.lastPlayedVoiceTime = {};
-        this.voiceThrottleTime = 500;
+        this.voiceThrottleTime = 2000;
 
         this.dynamicBottomMargin = 0; // ★ 動的な下部マージン用プロパティ
 
