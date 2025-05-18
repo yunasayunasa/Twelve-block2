@@ -2397,6 +2397,15 @@ activateTrialShatora(multiplier) {
     this.updateBallAndPaddleAppearance(); // 見た目更新
 }
 
+deactivateIndara(ball) {
+    if (!ball?.active || !ball.getData('isIndaraActive')) return;
+    console.log(`[DeactivateIndara] Deactivating Indara for ball: ${ball.name}`);
+    this.setBallPowerUpState(POWERUP_TYPES.INDARA, false, ball); // ボールからインダラ状態を解除
+    this.updateBallAppearance(ball); // ボールの見た目を元に戻す
+    // (必要なら setColliders() を呼び出して、ボールと攻撃ブロックの衝突タイプを再設定)
+    // ただし、毎ヒットでsetCollidersは重いので、setBallPowerUpStateで対応できるならそれがベスト
+}
+
 deactivateTrialShatora() {
     if (!this.isTrialShatoraActive) return;
     console.log("[Trial IX] Deactivating permanent Shatora effect.");
