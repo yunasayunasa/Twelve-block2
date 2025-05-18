@@ -122,12 +122,12 @@ this.lastFinalBattleWarpTime = 0;
         projectileSpinRate: 180,
     },
     radialAttackParamsOrder: { // 秩序ルート: 弾数を増やし、少し速く
-        count: 3, // 5方向全て
+        count: 2, // 5方向全て
         speedMultiplier: 1.3,
         // (オプション) 角度を少し狭めて密度を上げるなども
     },
     radialAttackParamsChaos: { // 混沌ルート: 弾数を減らし、かなり遅く
-        count: 2, // 中央3方向のみなど
+        count: 1, // 中央3方向のみなど
         speedMultiplier: 0.5,
         // (オプション) 角度を広げて避けやすくするなども
     },
