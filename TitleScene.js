@@ -118,9 +118,16 @@ export default class TitleScene extends Phaser.Scene {
         const domSliderElement = this.add.dom(w / 2, h * 0.45, sliderContainer).setOrigin(0.5); // Y位置を少し上げる
         this.domElements.push(domSliderElement);
 
-        countSlider.addEventListener('input', (event) => { /* ... */ });
-        rateSlider.addEventListener('input', (event) => { /* ... */ });
-
+        countSlider.addEventListener('input', (event) => {
+            this.selectedCount = parseInt(event.target.value);
+            countValueSpan.textContent = this.selectedCount.toString();
+            console.log("Selected Count:", this.selectedCount); // ★デバッグログ追加
+        });
+        rateSlider.addEventListener('input', (event) => {
+            this.selectedRate = parseInt(event.target.value);
+            rateValueSpan.textContent = this.selectedRate.toString() + '%';
+            console.log("Selected Rate:", this.selectedRate); // ★デバッグログ追加
+        });
 
         // --- ▼▼▼ ボス選択ドロップダウンリスト ▼▼▼ ---
         const bossSelectContainerHTML = document.createElement('div');
@@ -128,7 +135,7 @@ export default class TitleScene extends Phaser.Scene {
         bossSelectContainerHTML.style.textAlign = 'center';
 
         const bossSelectLabel = document.createElement('label');
-        bossSelectLabel.textContent = 'テスト開始ボス: ';
+        bossSelectLabel.textContent = '好きなボスから: ';
         bossSelectLabel.style.color = 'white';
         bossSelectLabel.style.fontSize = '18px';
         bossSelectLabel.style.marginRight = '5px';
@@ -140,10 +147,10 @@ export default class TitleScene extends Phaser.Scene {
         bossSelectDropdown.style.borderRadius = '3px';
 
         const bossList = [
-            { name: 'Boss 1 (アートマンHL)', value: 1 },
-            { name: 'Boss 2 (サンカラ＆ソワカ)', value: 2 },
-            { name: 'Boss 3 (キングスライム)', value: 3 },
-            { name: 'Boss 4 (ルシゼロ)', value: 4 }
+            { name: ' (アートマンHL)', value: 1 },
+            { name: ' (サンカラ＆ソワカ)', value: 2 },
+            { name: ' (キングスライム)', value: 3 },
+            { name: ' (ダークラプチャーゼロ)', value: 4 }
         ];
 
         bossList.forEach(boss => {
@@ -161,7 +168,7 @@ export default class TitleScene extends Phaser.Scene {
             console.log("Selected Boss Index for Test:", this.testStartBossIndex);
             if (this.testButtonTextObject) { // テストボタンのテキストを更新
                  const selectedBoss = bossList.find(b => b.value === this.testStartBossIndex);
-                 this.testButtonTextObject.setText(`テスト: ${selectedBoss ? selectedBoss.name : `Boss ${this.testStartBossIndex}`}`);
+                 this.testButtonTextObject.setText(`このボスから: ${selectedBoss ? selectedBoss.name : `Boss ${this.testStartBossIndex}`}`);
             }
         });
 
