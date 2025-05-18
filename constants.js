@@ -168,9 +168,9 @@ BGM_KING_SLIME: 'bgm_king_slime',                   // キングスライム戦B
     VOICE_LUCILIUS_DAMAGE: 'voice_lucilius_damage',       // ルシゼロ被ダメージボイス (決着の刻)
     VOICE_LUCILIUS_DEFEAT: 'voice_lucilius_defeat',       // ルシゼロ撃破ボイス (決着の刻)
     VOICE_LUCILIUS_RANDOM_1: 'voice_lucilius_random_1',   // ルシゼロランダムボイス1
-   VOICE_LUCILIUS_RANDOM_1: 'voice_lucilius_random_2',   // ルシゼロランダムボイス1
-   VOICE_LUCILIUS_RANDOM_1: 'voice_lucilius_random_3',   // ルシゼロランダムボイス1
-   VOICE_LUCILIUS_RANDOM_1: 'voice_lucilius_random_4',   // ルシゼロランダムボイス1
+   VOICE_LUCILIUS_RANDOM_2: 'voice_lucilius_random_2',   // ルシゼロランダムボイス1
+   VOICE_LUCILIUS_RANDOM_3: 'voice_lucilius_random_3',   // ルシゼロランダムボイス1
+   VOICE_LUCILIUS_RANDOM_4: 'voice_lucilius_random_4',   // ルシゼロランダムボイス1
     // VOICE_LUCILIUS_RANDOM_2: 'voice_lucilius_random_2',   // 必要に応じて追加
     VOICE_LUCILIUS_TRIAL_START: 'voice_lucilius_trial_start', // 新しい試練開始時のセリフなど (任意)
     VOICE_LUCILIUS_TRIAL_COMPLETE: 'voice_lucilius_trial_complete', // 試練達成時のセリフなど (任意)
