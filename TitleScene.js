@@ -8,7 +8,7 @@ export default class TitleScene extends Phaser.Scene {
         this.selectedRate = 50;
         this.domElements = [];
         this.currentBgm = null;
-        this.testStartBossIndex = 4; // 初期値はルシゼロ
+        this.testStartBossIndex = 1; // 初期値はルシゼロ
 
         this.testButtonTextObject = null; // ★テストボタンのテキストオブジェクトを保持するプロパティ
      }
@@ -27,7 +27,7 @@ export default class TitleScene extends Phaser.Scene {
         this.playTitleBgm();
 
         // --- タイトルロゴ ---
-        this.add.text(w / 2, h * 0.15, 'はちゃめちゃ！\n十二神将会議！\n-ボスラッシュ-', {
+        this.add.text(w / 2, h * 0.15, 'はちゃめちゃ！\n十二神将会議2！\n〜ぼすらっしゅ！〜', {
             fontSize: `${Math.min(48, w / 10)}px`, // フォントサイズを画面幅にも少し連動
             fontFamily: '"Comic Sans MS", "Chalkduster", "Arial Rounded MT Bold", sans-serif',
             fill: '#FFD700',
