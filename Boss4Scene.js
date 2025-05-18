@@ -23,7 +23,8 @@ export default class Boss4Scene extends CommonBossScene {
         ];
         this.playedBellTimings = {};
         this.jiEndVideoKey = 'gameOverVideo_JiEnd';
-
+this.lastFinalBattleWarpTime = 0; // 最終決戦中のワープ用タイマー
+    this.lastParadiseLostTime = 0;  // 最終決戦中のパラダイス・ロスト用タイマ
         this.trialsData = [];
         this.activeTrialIndex = -1;
         this.trialUiText = null;
@@ -61,7 +62,8 @@ export default class Boss4Scene extends CommonBossScene {
     this.isSpecialSequenceActive = false; // ★リセット
     this.currentTrialBallSpeedMultiplier = 1.0;
     this.isTrialShatoraActive = false;
-
+this.lastFinalBattleWarpTime = 0;
+    this.lastParadiseLostTime = 0;
         this.jiEndTimerText?.destroy(); this.jiEndTimerText = null;
         this.harmonyCrystal?.destroy(); this.harmonyCrystal = null;
         this.destructionCrystal?.destroy(); this.destructionCrystal = null;
@@ -129,7 +131,9 @@ export default class Boss4Scene extends CommonBossScene {
         // (オプション) 角度を広げて避けやすくするなども
     },
     // --- ▲ ------------------------------------ ▲ ---
-
+ finalBattleWarpInterval: 8000,     // 最終決戦中のワープ間隔 (ms) - 例: 8秒ごと
+    finalBattleParadiseLostInterval: 45000, // 最終決戦中のパラダイス・ロスト間隔 (ms) - 例: 45秒ごと
+    // ...
     // --- ▼ ターゲット攻撃パラメータのルート別調整（例）▼ ---
     targetedAttackParamsBase: {
         projectileSpeed: DEFAULT_ATTACK_BRICK_VELOCITY_Y + 40,
@@ -935,9 +939,9 @@ hitAbyssCore(ball, core) {
 
     // Boss4Scene.js
 executeParadiseLostSequence() {
-    if (this.isSpecialSequenceActive) return; // 多重実行防止
-    this.isSpecialSequenceActive = true; // ★演出開始
-    console.log("[Trial VI] Starting Paradise Lost sequence. SpecialSequenceActive = true");
+   if (this.isSpecialSequenceActive || this.isGameOver || this.bossDefeated) return; // 多重実行防止とガード
+    this.isSpecialSequenceActive = true; // ★専用演出開始フラグ★
+    console.log("[ParadiseLost Sequence] Starting for Final Battle (or Trial VI).");
     const moveToCenterDuration = 500;
     const flyOffDuration = 300;
     const pauseOffScreenDuration = 500;
@@ -1230,13 +1234,21 @@ fireParadiseLost() {
             return; // 試練達成には進まない
         }
 
-        // 生き残れば試練達成
-        this.activeTrial.paradiseLostTriggered = true; // 試練内の達成フラグ
-        this.isSpecialSequenceActive = false; // ★専用演出終了フラグを下ろす
-        console.log("[Trial VI] Paradise Lost sequence (attack part) finished. SpecialSequenceActive = false.");
-        this.completeCurrentTrial(); // 試練完了処理へ
-    }, [], this);
+        if (!this.isFinalBattleActive) { // ★試練VIの場合のみ試練達成処理★
+        this.activeTrial.paradiseLostTriggered = true;
+        this.isSpecialSequenceActive = false;
+        console.log("[Trial VI] Paradise Lost sequence finished. SpecialSequenceActive = false.");
+        this.completeCurrentTrial();
+    } else { // 最終決戦中のパラダイス・ロストの場合
+        this.isSpecialSequenceActive = false; // 演出終了
+        console.log("[FinalBattle] Paradise Lost sequence finished. Resuming normal AI.");
+        // 最終決戦ではパラダイス・ロストは単なる大技の一つ。試練達成はない。
+        // 必要なら、この後に短いクールダウンを設けてから通常のAIに戻る。
+        this.lastAttackTime = this.time.now; // 次の通常攻撃までのインターバルをリセット
+    }
+    });
 }
+
 
 
     // 「調和と破壊」の選択イベントを開始
@@ -1542,20 +1554,49 @@ updateFinalBattleBossAI(time, delta) {
     // ここに「決着の刻」のルシファーの攻撃パターンやワープ（もし使うなら）を記述
     console.log("[FinalBattleAI] Updating final battle AI (placeholder)...");
 
-    // 例: 試練中より激しい攻撃頻度、新しい攻撃パターンなど
-    const attackIntervalFinal = Phaser.Math.Between(800, 1500); // 仮: 0.8秒～1.5秒間隔
-    if (time > this.lastAttackTime + attackIntervalFinal) {
-        const attackType = Phaser.Math.Between(1, 3); // 3種類の攻撃をランダムに
-        if (attackType === 1) this.fireRadialAttack({ count: 7, speedMultiplier: 1.3, angles: [/*広範囲*/] }); // パラメータを直接渡す例
-        else if (attackType === 2) this.fireTargetedAttack({ speedMultiplier: 1.2 });
-        else this.fireSpecialFinalAttack(); // ★新しい最終決戦用攻撃メソッド★
-
-        this.lastAttackTime = time;
-        // 最終決戦でも攻撃後にワープさせるなら
-        // this.time.delayedCall(this.bossData.warpDelayAfterAttack || 200, this.warpBoss, [], this);
+     // --- 2. ワープ処理 (一定時間ごと) ---
+    const warpInterval = this.bossData.finalBattleWarpInterval || 8000;
+    if (time > this.lastFinalBattleWarpTime + warpInterval) {
+        if (!this.isWarping) { // 現在ワープ中でなければ
+            console.log("[FinalBattleAI] Triggering Warp.");
+            this.warpBoss(); // 試練中と同じリッチなワープ
+            this.lastFinalBattleWarpTime = time; // ワープ開始時間を記録 (warpBossの完了時でも良い)
+        }
     }
-    // (時間経過ワープもここに入れるなら)
+
+    // --- 3. パラダイス・ロスト (一定時間ごと、かつ他の特別演出中でない場合) ---
+    const paradiseLostInterval = this.bossData.finalBattleParadiseLostInterval || 45000;
+    if (time > this.lastParadiseLostTime + paradiseLostInterval && !this.isWarping && !this.isSpecialSequenceActive) {
+        console.log("[FinalBattleAI] Conditions met to potentially fire Paradise Lost.");
+        // isSpecialSequenceActive は executeParadiseLostSequence の中で true になる
+        this.executeParadiseLostSequence(); // 試練VIで使ったパラダイス・ロストのシーケンスを呼び出す
+        this.lastParadiseLostTime = time; // パラダイス・ロスト開始時間を記録
+        // パラダイス・ロスト実行中は他の攻撃やワープは一旦停止される (isSpecialSequenceActiveフラグによる)
+        return; // パラダイス・ロスト実行に入ったら、このフレームの他の攻撃はしない
+    }
+
+    // --- 4. 通常攻撃 (最終決戦バージョン) ---
+    // (パラダイス・ロストのシーケンスが動いていない場合のみ攻撃)
+    if (!this.isSpecialSequenceActive) {
+        const attackIntervalFinal = Phaser.Math.Between(700, 1300); // 試練中よりかなり短い間隔
+        if (time > this.lastAttackTime + attackIntervalFinal) {
+            const attackType = Phaser.Math.Between(1, 3);
+            if (attackType === 1) {
+                this.fireRadialAttack({ count: this.bossData.radialAttackParamsOrder?.count || 7, speedMultiplier: this.bossData.radialAttackParamsOrder?.speedMultiplier || 1.3, angles: [/*より広範囲・多方向*/] });
+            } else if (attackType === 2) {
+                this.fireTargetedAttack({ speedMultiplier: this.bossData.targetedAttackParamsOrder?.speedMultiplier || 1.2 });
+            } else {
+              //  this.fireSpecialFinalAttack(); // 新しい最終決戦専用攻撃 (未実装ならコメントアウト)
+            }
+            this.lastAttackTime = time;
+            // 攻撃後のワープは、時間経過ワープがあるのでここでは必須ではないかも。入れるなら確率で。
+            // if (Phaser.Math.Between(0, 2) === 0) { // 33%の確率で攻撃後ワープ
+            //     this.time.delayedCall(this.bossData.warpDelayAfterAttack || 200, this.warpBoss, [], this);
+            // }
+        }
+    }
 }
+
 
 fireSpecialFinalAttack() { /* TODO: 最終決戦専用の派手な攻撃 */ console.log("[FinalBattleAttack] Firing SPECIAL FINAL ATTACK!"); }
 
