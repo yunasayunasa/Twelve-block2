@@ -1203,7 +1203,7 @@ fireParadiseLost() {
 
     // ダメージ処理と試練達成 (演出がある程度落ち着くのを待つ)
     // (白フラッシュ300ms + 衝撃波や光の柱の主要部分が終わるまでを想定)
-    const damageAndCompletionDelay = 1000; // 1秒後 (調整可能)
+    const damageDelay = 800; // 演出とダメージ処理の間の遅延
      this.time.delayedCall(damageDelay, () => {
         if (this.isGameOver || this.bossDefeated || !this.scene.isActive()) {
             this.isSpecialSequenceActive = false;
