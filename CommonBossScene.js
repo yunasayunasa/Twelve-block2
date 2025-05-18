@@ -86,6 +86,11 @@ export default class CommonBossScene extends Phaser.Scene {
         this.paddleInvulnerableTimer = null; // ★ パドル無敵タイマー用
         this.isPaddleInvulnerable = false;   // ★ パドル無敵フラグ
         this.wasAnilaJustDeactivatedByBallLoss = false; // ★ このフラグは不要にする
+        this.lastPlayedItemVoiceTime = 0;
+    this.lastPlayedBossVoiceTime = 0;
+
+    this.itemVoiceMargin = 300;  // アイテムボイスは0.3秒は連続で鳴らない
+    this.bossVoiceMargin = 1500; // ボス関連ボイスは1.5秒は連続で鳴らない (調整可能)
 
         // --- ボス関連 ---
         this.boss = null;
@@ -190,6 +195,8 @@ export default class CommonBossScene extends Phaser.Scene {
            // ★ 初期ライフを INITIAL_PLAYER_LIVES から設定し、MAX_PLAYER_LIVES を超えないようにする
         this.lives = Math.min(data?.lives ?? INITIAL_PLAYER_LIVES, MAX_PLAYER_LIVES);
         console.log(`Initial lives set to: ${this.lives} (Max: ${MAX_PLAYER_LIVES})`);
+        this.lastPlayedItemVoiceTime = 0; // シーン開始/リスタート時にリセット
+    this.lastPlayedBossVoiceTime = 0;
       
         this.bossMoveTween?.stop(); this.bossMoveTween = null;
         this.randomVoiceTimer?.remove(); this.randomVoiceTimer = null;

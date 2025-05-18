@@ -82,7 +82,12 @@ this.lastFinalBattleWarpTime = 0;
             voiceAppear: AUDIO_KEYS.VOICE_LUCILIUS_APPEAR,
             voiceDamage: AUDIO_KEYS.VOICE_LUCILIUS_DAMAGE,
             voiceDefeat: AUDIO_KEYS.VOICE_LUCILIUS_DEFEAT,
-            voiceRandom: AUDIO_KEYS.VOICE_LUCILIUS_RANDOM_1 ? [AUDIO_KEYS.VOICE_LUCILIUS_RANDOM_1] : [],
+            voiceRandom: AUDIO_KEYS.VOICE_LUCILIUS_RANDOM_1 ? [AUDIO_KEYS. AUDIO_KEYS.VOICE_LUCILIUS_RANDOM_1, // 1つ目のランダムボイスキー
+        AUDIO_KEYS.VOICE_LUCILIUS_RANDOM_2, // 2つ目のランダムボイスキー
+        AUDIO_KEYS.VOICE_LUCILIUS_RANDOM_3  
+        AUDIO_KEYS.VOICE_LUCILIUS_RANDOM_4
+        // 3つ目のランダムボイスキー (もしあれば)
+        ] : [],
             bgmKey: AUDIO_KEYS.BGM_LUCILIUS_PHASE1, // 初期BGM
             // (ルート選択後や最終決戦でBGMを変える場合は、別途ロジックが必要)
             cutsceneText: 'VS ダークラプチャー・ゼロ', // Commonのカットシーンで使われる場合
