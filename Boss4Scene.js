@@ -182,7 +182,7 @@ this.lastFinalBattleWarpTime = 0;
             },
             { id: 9, name: "加速する世界",
                 conditionText: "高低速世界でボールを3度当てよ",
-                targetItem: POWERUP_TYPES.HAILA,SHATORA, // この試練中のドロップアイテム
+                targetItem: POWERUP_TYPES.HAILA, // この試練中のドロップアイテム
                 completed: false,
                 hitCountTimeField: 0,
                 requiredHitsTimeField: 3,
@@ -1820,7 +1820,7 @@ startFinalBattle() {
 
     // (オプション) 最終決戦開始の画面演出（画面フラッシュ、専用SEなど）
     this.cameras.main.flash(500, 200, 200, 255, true); // 赤みがかった強いフラッシュ
-   //this.sound.play(AUDIO_KEYS.SE_FINAL_BATTLE_START); // 仮のSEキー
+   this.sound.play(AUDIO_KEYS.SE_FINAL_BATTLE_START); // 仮のSEキー
 
     // 攻撃/ワープタイマーをリセットして、最終決戦用のAIがすぐに動き出せるようにする
     this.lastAttackTime = this.time.now;
