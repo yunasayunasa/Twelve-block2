@@ -82,7 +82,7 @@ this.lastFinalBattleWarpTime = 0;
             voiceAppear: AUDIO_KEYS.VOICE_LUCILIUS_APPEAR,
             voiceDamage: AUDIO_KEYS.VOICE_LUCILIUS_DAMAGE,
             voiceDefeat: AUDIO_KEYS.VOICE_LUCILIUS_DEFEAT,
-            voiceRandom: [AUDIO_KEYS. AUDIO_KEYS.VOICE_LUCILIUS_RANDOM_1, // 1つ目のランダムボイスキー
+            voiceRandom: [AUDIO_KEYS.VOICE_LUCILIUS_RANDOM_1, // 1つ目のランダムボイスキー
         AUDIO_KEYS.VOICE_LUCILIUS_RANDOM_2, // 2つ目のランダムボイスキー
         AUDIO_KEYS.VOICE_LUCILIUS_RANDOM_3, 
         AUDIO_KEYS.VOICE_LUCILIUS_RANDOM_4
