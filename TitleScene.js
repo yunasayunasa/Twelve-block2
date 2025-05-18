@@ -135,7 +135,7 @@ export default class TitleScene extends Phaser.Scene {
         bossSelectContainerHTML.style.textAlign = 'center';
 
         const bossSelectLabel = document.createElement('label');
-        bossSelectLabel.textContent = '好きなボスから: ';
+        bossSelectLabel.textContent = '好きなボスかららっしゅ！: ';
         bossSelectLabel.style.color = 'white';
         bossSelectLabel.style.fontSize = '18px';
         bossSelectLabel.style.marginRight = '5px';
@@ -243,7 +243,7 @@ export default class TitleScene extends Phaser.Scene {
         startButtonBg.fillStyle(0x4CAF50, 0.8); // Normal color and alpha
         startButtonBg.fillRoundedRect(-startButtonW / 2, -startButtonH / 2, startButtonW, startButtonH, 15);
         startButtonContainer.add(startButtonBg);
-        const startButtonText = this.add.text(0, 0, 'ボスラッシュ開始', startButtonTextStyle).setOrigin(0.5);
+        const startButtonText = this.add.text(0, 0, '最初かららっしゅ！', startButtonTextStyle).setOrigin(0.5);
         startButtonContainer.add(startButtonText);
         startButtonContainer.setSize(startButtonW, startButtonH);
         startButtonContainer.setInteractive({ useHandCursor: true }); // ★インタラクティブ設定★
