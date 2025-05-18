@@ -2148,7 +2148,7 @@ isPowerUpActive(powerUpType) {
         const now = this.time.now;
         if (voiceKey && typeof voiceKey === 'string' && (now - (this.lastPlayedVoiceTime[voiceKey] || 0) > this.voiceThrottleTime)) {
             try {
-                this.sound.play(voiceKey);
+                this.tryPlayItemVoice(voiceKey);
                 this.lastPlayedVoiceTime[voiceKey] = now;
                 console.log(`[PowerUpVoice] Playing: ${voiceKey}`);
             } catch (e) { console.error(`Error playing power-up voice ${voiceKey}:`, e); }
@@ -2156,6 +2156,34 @@ isPowerUpActive(powerUpType) {
             console.log(`[PowerUpVoice] No voice key defined for power-up type: ${type}`);
         }
     }
+
+    /**
+ * アイテム取得ボイスをマージンを考慮して再生試行します。
+ * @param {string} voiceKey 再生する音声のキー
+ * @param {object} [soundConfig] this.sound.playに渡す追加のコンフィグ
+ * @returns {boolean} 再生された場合はtrue
+ */
+tryPlayItemVoice(voiceKey, soundConfig = {}) {
+    if (!voiceKey || !this.sound.manager || !this.cache.audio.has(voiceKey)) {
+        // console.warn(`[PlayItemVoice] Invalid key or sound system not ready: ${voiceKey}`);
+        return false;
+    }
+    const now = this.time.now;
+    if (now - this.lastPlayedItemVoiceTime > this.itemVoiceMargin) {
+        try {
+            this.sound.play(voiceKey, soundConfig);
+            this.lastPlayedItemVoiceTime = now;
+            // console.log(`[PlayItemVoice] Playing: ${voiceKey}`);
+            return true;
+        } catch (e) {
+            console.error(`[PlayItemVoice] Error playing ${voiceKey}:`, e);
+            return false;
+        }
+    } else {
+        // console.log(`[PlayItemVoice] Skipped (margin): ${voiceKey}`);
+        return false;
+    }
+}
     // --- ▲ パワーアップ関連メソッド ▲ ---
 
      // launchBall の再確認
