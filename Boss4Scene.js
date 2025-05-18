@@ -800,15 +800,21 @@ playSpecificBgm(bgmKey) {
     }}
 
     // Boss4Scene.js
+// Boss4Scene.js
 spawnVoidWall(trialData) {
-    console.log("[Trial XI] Spawning Void Wall.");
-    // ルシファーを画面最上部に固定 (Y座標をさらに上げるなど)
+    console.log("[Trial XI] Spawning Void Wall. Boss will attack but not warp.");
     if (this.boss && this.boss.active) {
-        this.boss.setY(this.gameHeight * 0.1); // より上に
-        this.boss.setImmovable(true); // 念のため
+        this.boss.setY(this.gameHeight * 0.1); // 画面最上部に固定
+        this.boss.setImmovable(true);
         if (this.boss.body) this.boss.body.moves = false;
-        // この試練中はワープも停止させる (updateSpecificBossBehaviorでtrial.idを見て制御)
-        this.activeTrial.bossShouldBeStatic = true; // 仮のフラグ
+
+        if (this.activeTrial && this.activeTrial.id === 11) {
+            this.activeTrial.bossShouldBeStatic = true; // ★このフラグを「ワープしない」という意味で使う★
+            // (あるいは、this.activeTrial.canBossWarp = false; のような新しいフラグでも良い)
+        }
+        // ★攻撃タイマーはリセットして、攻撃できるようにする★
+        this.lastAttackTime = this.time.now;
+        console.log(`[Trial XI] Boss attack timer reset. LastAttackTime: ${this.lastAttackTime.toFixed(0)}`);
     }
 
     if (this.voidWallBlocksGroup) this.voidWallBlocksGroup.clear(true, true);
@@ -1450,8 +1456,7 @@ shatterCrystal(crystal) {
     // ボスの攻撃パターンとワープ - lastAttackTime の更新を確認
 
   updateSpecificBossBehavior(time, delta) {
-    // --- ▼ ガード処理 ▼ ---
-    // (この部分は前回のものでほぼOKですが、isFinalBattleActiveの扱いを少し整理)
+       // --- ▼ ガード処理 ▼ ---
     let blockBossActions = this.isIntroAnimating ||
                            !this.playerControlEnabled ||
                            !this.boss || !this.boss.active ||
@@ -1459,14 +1464,23 @@ shatterCrystal(crystal) {
                            this.isGameOver ||
                            this.isChoiceEventActive || // 選択イベント中はボスは何もしない
                            this.isCompletingTrial ||   // 試練完了演出中はボスは何もしない
-                           this.isSpecialSequenceActive; // パラダイス・ロスト演出中はボスは何もしない
+                           this.isSpecialSequenceActive; // パラダイス・ロスト演出中
 
-    if (this.isFinalBattleActive) { // 最終決戦モード
-        if (!blockBossActions) { // 最終決戦中でも、他のガード条件に引っかからなければAI実行
+    if (this.isFinalBattleActive) {
+        if (!blockBossActions) {
             this.updateFinalBattleBossAI(time, delta);
         }
-        return; // 最終決戦中は、以下の試練中ロジックは実行しない
+        return;
     }
+
+    // ★試練XI中は、blockBossActions が false でも、ワープだけを抑制し、攻撃は許可する★
+    // (そのため、試練XI専用のガードはここではなく、ワープ処理の箇所で行う)
+
+    if (blockBossActions) {
+        return;
+    }
+    // --- ▲ ガード処理 終了 ▲ ---
+
 
     // 試練XI「虚無の壁」中はボスを静止させ、攻撃もワープもしないようにする
     if (this.activeTrial && this.activeTrial.id === 11 && this.activeTrial.bossShouldBeStatic === true) {
@@ -1494,9 +1508,8 @@ shatterCrystal(crystal) {
     // --- ▲ 時間経過によるワープ 終了 ▲ ---
 
 
-    // --- ▼ 攻撃処理 (試練II以降、最終決戦前、かつ試練XIのボス静止中でない場合) ▼ ---
-    // activeTrialIndex は 0 から始まるので、試練IIはインデックス 1
-    if (this.activeTrialIndex >= 1) { // 試練I「調和と破壊」選択後から
+     // --- ▼ 攻撃処理 (試練II以降、最終決戦前) ▼ ---
+    if (this.activeTrialIndex >= 1) {
         const attackIntervalConfig = this.currentRoute === 'order' ?
             (this.bossData.attackIntervalOrder || {min:1800, max:2800}) :
             (this.bossData.attackIntervalChaos || {min:3500, max:5500});
@@ -1512,12 +1525,13 @@ shatterCrystal(crystal) {
             console.log(`[Attack] Attack executed. Next attack possible after ${interval}ms. Updated lastAttackTime: ${this.lastAttackTime.toFixed(0)}`);
 
             // 攻撃後に少し遅れてワープ (試練XI中でなければ)
-            // if (!this.activeTrial?.bossShouldBeStatic) { // このチェックは warpBoss 側で行っても良い
+            if (!(this.activeTrial && this.activeTrial.id === 11 && this.activeTrial.bossShouldBeStatic === true)) { // ★試練XIのワープ禁止★
                  this.time.delayedCall(this.bossData.warpDelayAfterAttack || 300, this.warpBoss, [], this);
-            // }
+            } else {
+                console.log("[UpdateSpecificBossBehavior] Attack occurred, but warp skipped due to Trial XI static boss.");
+            }
         }
     }
-    // --- ▲ 攻撃処理 終了 ▲ ---
 }
 
 
@@ -1675,9 +1689,13 @@ this.physics.velocityFromAngle(Phaser.Math.RadToDeg(escapeAngleRad), targetSpeed
         this.completeCurrentTrial();
     }
 
-    // ボスをワープさせる (試練中のみ、かつボス本体へのヒット時)
+     // ボスをワープさせる (試練中のみ、かつボス本体へのヒット時、かつ試練XI中でなければ)
     if (!this.isFinalBattleActive && boss === this.boss) {
-        this.time.delayedCall(this.bossData.warpDelayAfterHit || 100, this.warpBoss, [], this);
+        if (!(this.activeTrial && this.activeTrial.id === 11 && this.activeTrial.bossShouldBeStatic === true)) { // ★試練XIのワープ禁止★
+            this.time.delayedCall(this.bossData.warpDelayAfterHit || 100, this.warpBoss, [], this);
+        } else {
+            console.log("[HitBoss] Ball hit boss, but warp skipped due to Trial XI static boss.");
+        }
     }
 }
 
@@ -1778,6 +1796,22 @@ if (this.activeTrial && this.activeTrial.id === 9) { // 試練IXが完了した�
             this.activeTrial.bossShouldBeStatic = false;
             // ボスを元のY座標に戻すか、次の試練で再配置されるのを待つ
             // this.boss.setY(this.gameHeight * 0.2);
+        }
+    }
+    
+    if (this.activeTrial && this.activeTrial.id === 11) {
+        console.log("[Trial XI Complete] Resetting bossShouldBeStatic flag and clearing void wall.");
+        if (this.activeTrial.bossShouldBeStatic) {
+            this.activeTrial.bossShouldBeStatic = false; // ★ボス静止フラグOFF★
+        }
+        this.voidWallBlocksGroup?.clear(true, true);
+        if (this.ballVoidWallCollider) this.ballVoidWallCollider.destroy();
+        this.ballVoidWallCollider = null;
+        // ボスを元のY座標に戻す (次の試練で再配置されるが、念のため)
+        if (this.boss && this.boss.active) {
+            // this.boss.setY(this.gameHeight * 0.2); // 元の基本Y座標
+            // あるいは、warpBossToPosition でスムーズに戻しても良い
+            this.warpBossToPosition(this.gameWidth / 2, this.gameHeight * 0.2, 300);
         }
     }
     // --- ▼ 試練クリア演出シーケンス (delayedCallで順番に実行) ▼ ---
