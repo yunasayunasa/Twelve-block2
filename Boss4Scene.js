@@ -1681,14 +1681,7 @@ ball.y += Math.sin(escapeAngleRad) * correctionDistance;
 // その後、速度設定
 this.physics.velocityFromAngle(Phaser.Math.RadToDeg(escapeAngleRad), targetSpeed, ball.body.velocity);
 
-    // ★★★ インダラ効果中であれば解除する ★★★
-        if (ball.getData('isIndaraActive') === true) {
-            console.log("[Boss4 hitBoss - TrialPhase] Indara active, calling setBallPowerUpState to deactivate.");
-            // isIndaraActive フラグを持つボールは、このメソッドで解除される
-            this.setBallPowerUpState(POWERUP_TYPES.INDARA, false, ball); // ★オーバーライドしたメソッドが呼ばれる★
-        }
-        // ★★★------------------------------------★★★★
-
+    
 
 
     // --- ▼ 試練達成判定 (ボールがボスに当たることが条件の試練) ▼ ---

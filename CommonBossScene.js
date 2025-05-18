@@ -322,16 +322,7 @@ export default class CommonBossScene extends Phaser.Scene {
             this.updateBallFall();
             this.updateAttackBricks();
             
-            this.balls?.getMatching('active', true).forEach(ball => {
-                 if (ball.getData('isIndaraActive') && this.boss && this.boss.active && ball.body) {
-                     const direction = Phaser.Math.Angle.BetweenPoints(ball.body.center, this.boss.body.center);
-                     const homingSpeed = NORMAL_BALL_SPEED * INDARA_HOMING_SPEED_MULTIPLIER;
-                     this.physics.velocityFromAngle(Phaser.Math.RadToDeg(direction), homingSpeed, ball.body.velocity);
-                 }
-                
-
-
-            });
+           
         }
 
           // startIntroCutscene メソッドを復活させ、最後に fusionIntro を呼ぶ
@@ -1564,7 +1555,7 @@ returnToTitle() {
                 if (type === POWERUP_TYPES.KUBIRA) ball.setData('isKubiraActive', isActive);
                 if (type === POWERUP_TYPES.SHATORA) ball.setData('isFast', isActive);
                 if (type === POWERUP_TYPES.HAILA) ball.setData('isSlow', isActive);
-                if (type === POWERUP_TYPES.INDARA) ball.setData('isIndaraActive', isActive);
+             //   if (type === POWERUP_TYPES.INDARA) ball.setData('isIndaraActive', isActive);
                 if (type === POWERUP_TYPES.BIKARA) { ball.setData('isBikaraPenetrating', isActive); if (!isActive && this.bikaraTimers[ball.name]) { this.bikaraTimers[ball.name].remove(); delete this.bikaraTimers[ball.name]; } }
                 if (type === POWERUP_TYPES.SINDARA) ball.setData('isSindaraActive', isActive);
                 if (type === POWERUP_TYPES.ANCHIRA) ball.setData('isAnchiraActive', isActive);
@@ -1674,8 +1665,69 @@ returnToTitle() {
     }
     activateBikara() { this.balls?.getMatching('active', true).forEach(ball => { if (this.bikaraTimers[ball.name]) this.bikaraTimers[ball.name].remove(); this.setBallPowerUpState(POWERUP_TYPES.BIKARA, true, ball); this.bikaraTimers[ball.name] = this.time.delayedCall(POWERUP_DURATION[POWERUP_TYPES.BIKARA], () => this.deactivateBikara(ball), [], this); }); this.updateBallAndPaddleAppearance(); this.setColliders(); }
     deactivateBikara(ball) { if (!ball?.active || !ball.getData('isBikaraPenetrating')) return; this.setBallPowerUpState(POWERUP_TYPES.BIKARA, false, ball); this.setColliders(); this.updateBallAppearance(ball); }
-    activateIndara() { this.balls?.getMatching('active', true).forEach(ball => this.setBallPowerUpState(POWERUP_TYPES.INDARA, true, ball)); this.updateBallAndPaddleAppearance(); this.setColliders(); }
-    deactivateIndara(ball) { if (!ball?.active || !ball.getData('isIndaraActive')) return; this.setBallPowerUpState(POWERUP_TYPES.INDARA, false, ball); this.setColliders(); this.updateBallAppearance(ball); }
+  activateIndara() {
+    console.log("[ActivateIndara] Applying one-time homing effect to all active balls.");
+    if (!this.boss || !this.boss.active || !this.balls) {
+        console.warn("[ActivateIndara] Boss or balls not available. Skipping effect.");
+        return;
+    }
+
+    // (オプション) インダラ取得のボイスやSE
+    // this.playPowerUpVoice(POWERUP_TYPES.INDARA);
+
+    const activeBalls = this.balls.getMatching('active', true);
+    if (activeBalls.length === 0) {
+        console.log("[ActivateIndara] No active balls to apply homing to.");
+        return;
+    }
+
+    activeBalls.forEach(ball => {
+        if (ball.body) {
+            const currentSpeed = ball.body.velocity.length(); // 現在のボールの速さを維持する
+            // または、インダラ専用の固定速度にする場合は以下のように
+            // let homingSpeed = (NORMAL_BALL_SPEED || 380) * (this.bossData.indaraSpeedMultiplier || 1.1); // bossDataで倍率指定
+            // if (ball.getData('isFast')) homingSpeed *= (BALL_SPEED_MODIFIERS[POWERUP_TYPES.SHATORA] || 1);
+            // if (ball.getData('isSlow')) homingSpeed *= (BALL_SPEED_MODIFIERS[POWERUP_TYPES.HAILA] || 1);
+            // homingSpeed = Phaser.Math.Clamp(homingSpeed, NORMAL_BALL_SPEED * 0.5, NORMAL_BALL_SPEED * 2.5); // 速度をClamp
+
+            const angleToBossRad = Phaser.Math.Angle.BetweenPoints(ball, this.boss); // ボールからボスへの角度
+            
+            try {
+                // 現在の速さを維持しつつ方向だけ変える場合
+                const newVelocity = new Phaser.Math.Vector2();
+                this.physics.velocityFromAngle(Phaser.Math.RadToDeg(angleToBossRad), currentSpeed, newVelocity);
+                ball.setVelocity(newVelocity.x, newVelocity.y);
+                
+                // 固定速度にする場合
+                // this.physics.velocityFromAngle(Phaser.Math.RadToDeg(angleToBossRad), homingSpeed, ball.body.velocity);
+
+                console.log(`[ActivateIndara] Ball ${ball.name} direction changed towards boss. New V approx angle: ${Phaser.Math.RadToDeg(angleToBossRad).toFixed(1)}`);
+            } catch (e) {
+                console.error("[ActivateIndara] Error setting velocity for homing ball:", e);
+            }
+
+            // (オプション) インダラ効果が一瞬であることを示すエフェクトをボールに
+            // 例えば、一瞬だけ色を変えてすぐ戻すなど
+            // const originalTint = ball.tintTopLeft;
+            // ball.setTint(0x00ff00); // 緑色に
+            // this.time.delayedCall(100, () => {
+            //     if (ball.active) ball.clearTint().setTint(originalTint); // 元に戻す
+            // });
+        }
+    });
+
+    // ボールの見た目更新 (もしインダラアイコンを一瞬表示するなら、この後すぐに解除処理が必要)
+    // 今回は持続的な状態フラグは不要なので、setBallPowerUpState(INDARA, true) は呼ばないか、
+    // 呼んでもすぐにfalseにする。
+    // this.setBallPowerUpState(POWERUP_TYPES.INDARA, true); // アイコン表示のため一時的に
+    // this.updateBallAndPaddleAppearance();
+    // this.time.delayedCall(150, () => { // 0.15秒後にアイコンを消す
+    //     this.setBallPowerUpState(POWERUP_TYPES.INDARA, false);
+    //     this.updateBallAndPaddleAppearance();
+    // });
+
+    // setColliders() の呼び出しは不要 (ボールの衝突特性は変わらないため)
+} deactivateIndara(ball) { if (!ball?.active || !ball.getData('isIndaraActive')) return; this.setBallPowerUpState(POWERUP_TYPES.INDARA, false, ball); this.setColliders(); this.updateBallAppearance(ball); }
     // アニラ有効化メソッド (完全版)
     activateAnila() {
         // 既に見た目効果がアクティブならタイマーをリセットするだけ
@@ -2181,11 +2233,7 @@ isPowerUpActive(powerUpType) {
         // パドルヒットエフェクト（ボールの下端あたり）
         this.createImpactParticles(ball.x, paddle.getBounds().top, [240, 300], 0xffffcc, 6);
 
-        // --- パドルヒットで解除される効果 ---
-        if (ball.getData('isIndaraActive') === true) {
-            console.log("[HitPaddle] Deactivating Indara due to paddle hit.");
-            this.deactivateIndara(ball); // インダラ解除
-        }
+       
     }
 
       // ★★★ 新しいメソッド：パドルとボスが接触した際の共通処理 ★★★
@@ -2294,10 +2342,7 @@ isPowerUpActive(powerUpType) {
         this.applyBossDamage(boss, damage, "Ball Hit");
 
         // --- ボールへの影響 ---
-        if (ball.getData('isIndaraActive') === true) {
-            console.log("[HitBoss] Indara ball hit, deactivating Indara effect.");
-            this.deactivateIndara(ball);
-        } else if (ball.active && ball.body) { // ボールがまだ存在し、インダラでない場合のみ跳ね返す
+       if (ball.active && ball.body) { // ボールがまだ存在し、インダラでない場合のみ跳ね返す
             console.log("[HitBoss] Calculating reflection velocity...");
             let speedMultiplier = 1.0;
             if (ball.getData('isFast') === true) { speedMultiplier = BALL_SPEED_MODIFIERS[POWERUP_TYPES.SHATORA]; }
