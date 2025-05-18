@@ -123,16 +123,16 @@ this.lastFinalBattleWarpTime = 0;
     },
     radialAttackParamsOrder: { // 秩序ルート: 弾数を増やし、少し速く
         count: 3, // 5方向全て
-        speedMultiplier: 1.1,
+        speedMultiplier: 1.3,
         // (オプション) 角度を少し狭めて密度を上げるなども
     },
     radialAttackParamsChaos: { // 混沌ルート: 弾数を減らし、かなり遅く
-        count: 1, // 中央3方向のみなど
-        speedMultiplier: 0.7,
+        count: 2, // 中央3方向のみなど
+        speedMultiplier: 0.5,
         // (オプション) 角度を広げて避けやすくするなども
     },
     // --- ▲ ------------------------------------ ▲ ---
- finalBattleWarpInterval: 8000,     // 最終決戦中のワープ間隔 (ms) - 例: 8秒ごと
+ finalBattleWarpInterval: 2000,     // 最終決戦中のワープ間隔 (ms) - 例: 8秒ごと
     finalBattleParadiseLostInterval: 45000, // 最終決戦中のパラダイス・ロスト間隔 (ms) - 例: 45秒ごと
     // ...
     // --- ▼ ターゲット攻撃パラメータのルート別調整（例）▼ ---
@@ -1630,6 +1630,27 @@ hitBoss(boss, ball) {
         if(this.isCompletingTrial) console.log("[HitBoss] Ignoring hit, trial completion in progress.");
         return;
     }
+       // ★★★ ボールごとのヒットクールダウンを導入 ★★★
+    const now = this.time.now;
+    const lastHitTime = ball.getData('lastHitBossTime') || 0;
+    const hitCooldown = 200; // 0.2秒間は同じボールからの連続ヒットを無視 (調整可能)
+
+    if (now - lastHitTime < hitCooldown) {
+        // console.log(`[Boss4 hitBoss] Ball ${ball.name} hit boss too soon. Ignoring.`);
+        // クールダウン中は反射だけさせるか、何もしないか
+        // ここでは、反射はさせるが試練カウントは進めない、としてみる
+        if (!this.isFinalBattleActive) { // 試練中のみこの簡易反射
+            const escapeAngleRad = Phaser.Math.Angle.Between(boss.x, boss.y, ball.x, ball.y);
+            // targetSpeedの計算は省略 (前のクールダウン外の処理と同じものを想定)
+            const tempTargetSpeed = (NORMAL_BALL_SPEED || 380) * (ball.getData('isFast') ? (BALL_SPEED_MODIFIERS[POWERUP_TYPES.SHATORA] || 1) : (ball.getData('isSlow') ? (BALL_SPEED_MODIFIERS[POWERUP_TYPES.HAILA] || 1) : 1)) * (this.isTrialShatoraActive ? (this.currentTrialBallSpeedMultiplier || 1) : 1);
+            this.physics.velocityFromAngle(Phaser.Math.RadToDeg(escapeAngleRad), tempTargetSpeed, ball.body.velocity);
+        } else {
+            super.hitBoss(boss, ball); // 最終決戦なら通常のヒット
+        }
+        return;
+    }
+    ball.setData('lastHitBossTime', now); // ヒット時刻を記録
+    // ★★★------------------------------------★★★
       let trialJustCompleted = false;
     console.log(`[Boss4 hitBoss Start] Initial trialJustCompleted: ${trialJustCompleted}, ActiveTrialID: ${this.activeTrial?.id}`);
 
@@ -1655,33 +1676,31 @@ if (ball.getData('isIndaraActive')) {
 
     
 
-    // ボール反射ロジック
+  // hitBoss 内の試練中の反射ロジック (修正案B)
     let speedMultiplier = 1.0;
-    if (ball.getData('isFast') === true && BALL_SPEED_MODIFIERS && POWERUP_TYPES) {
-        speedMultiplier = BALL_SPEED_MODIFIERS[POWERUP_TYPES.SHATORA] || 1.0;
-    } else if (ball.getData('isSlow') === true && BALL_SPEED_MODIFIERS && POWERUP_TYPES) {
-        speedMultiplier = BALL_SPEED_MODIFIERS[POWERUP_TYPES.HAILA] || 1.0;
-    }
-    // ★試練IX中は、ボールの基本速度自体が currentTrialBallSpeedMultiplier で上がっているはずなので、
-    //  ここでの targetSpeed 計算は、その加速された状態を基準にするか、
-    //  あるいは、NORMAL_BALL_SPEED に直接 currentTrialBallSpeedMultiplier を掛けてから、
-    //  さらにアイテムの speedMultiplier を掛けるか、仕様を明確にする必要があります。
-    //  ここでは、アイテム効果と試練効果が乗算されると仮定します。
+    // ... (speedMultiplier の計算) ...
     let baseSpeedForReflection = NORMAL_BALL_SPEED || 380;
-    if (this.isTrialShatoraActive && typeof this.currentTrialBallSpeedMultiplier === 'number') { // 試練IXのシャトラ効果
+    if (this.isTrialShatoraActive && typeof this.currentTrialBallSpeedMultiplier === 'number') {
         baseSpeedForReflection *= this.currentTrialBallSpeedMultiplier;
     }
     const targetSpeed = baseSpeedForReflection * speedMultiplier;
 
-    // hitBoss 内の試練中の反射ロジック (対策B - 位置補正追加)
-const escapeAngleRad = Phaser.Math.Angle.Between(boss.x, boss.y, ball.x, ball.y);
-const correctionDistance = 2; // わずかな補正距離
-ball.x += Math.cos(escapeAngleRad) * correctionDistance; // ボスから離れる方向に少しだけ移動
-ball.y += Math.sin(escapeAngleRad) * correctionDistance;
-// その後、速度設定
-this.physics.velocityFromAngle(Phaser.Math.RadToDeg(escapeAngleRad), targetSpeed, ball.body.velocity);
+    // ボールからボスへの角度を計算 (これが押し出す方向の基準になる)
+    const angleFromBallToBossRad = Phaser.Math.Angle.BetweenPoints(ball, boss);
+    // その反対方向（ボスからボールを離す方向）へ速度を設定
+    const escapeAngleDeg = Phaser.Math.RadToDeg(angleFromBallToBossRad) + 180; // 180度反対
 
-    
+    // ★位置補正は一旦削除または非常に慎重に★
+    // const correctionDistance = 1;
+    // ball.x += Math.cos(Phaser.Math.DegToRad(escapeAngleDeg)) * correctionDistance;
+    // ball.y += Math.sin(Phaser.Math.DegToRad(escapeAngleDeg)) * correctionDistance;
+
+    try {
+        this.physics.velocityFromAngle(escapeAngleDeg, targetSpeed, ball.body.velocity);
+        console.log(`[Boss4 hitBoss - TrialPhase] Ball reflected (Center Eject). Angle: ${escapeAngleDeg.toFixed(1)}, Speed: ${targetSpeed.toFixed(1)}`);
+    } catch (e) {
+        console.error("[Boss4 hitBoss - TrialPhase] Error setting ball velocity for reflection:", e);
+    }
 
 
     // --- ▼ 試練達成判定 (ボールがボスに当たることが条件の試練) ▼ ---
