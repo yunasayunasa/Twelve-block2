@@ -181,8 +181,8 @@ this.lastFinalBattleWarpTime = 0;
                 destroyedCoreCount: 0
             },
             { id: 9, name: "加速する世界",
-                conditionText: "ボールを2度当てよ",
-                targetItem: POWERUP_TYPES.HAILA, // この試練中のドロップアイテム
+                conditionText: "高低速世界でボールを3度当てよ",
+                targetItem: POWERUP_TYPES.HAILA,SHATORA, // この試練中のドロップアイテム
                 completed: false,
                 hitCountTimeField: 0,
                 requiredHitsTimeField: 3,
