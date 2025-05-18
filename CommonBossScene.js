@@ -2510,25 +2510,83 @@ tryPlayItemVoice(voiceKey, soundConfig = {}) {
         }
     }
 
-    hitAttackBrick(brick, ball) { if (!brick?.active || !ball?.active) return;
-           // ★★★ ボールが未発射の場合の処理を追加 ★★★
-    if (!this.isBallLaunched) {
-        console.log("[HitAttackBrick] Hit by brick while ball was NOT launched. Launching ball now.");
-        // ボールに初期速度（またはブロックからの反発速度）を与えて発射済みにする
-        // ここでは例として、ブロックの真下に少し跳ねるような速度を与える
-        const initialVy = ATTACK_BRICK_VELOCITY_Y * 0.5; // ブロック落下速度の半分で上に
-        const initialVx = Phaser.Math.Between(-50, 50); // 少し左右にランダム
-        ball.setVelocity(initialVx, initialVy);
-        this.isBallLaunched = true; // ★ 発射済みフラグを立てる
-        this.sound.play(AUDIO_KEYS.SE_LAUNCH); // 発射音
-
-        // 通常のブロック破壊処理も行う
-        this.destroyAttackBrickAndDropItem(brick);
-        return; // この後のボール速度維持処理などはスキップ
+    // CommonBossScene.js
+hitAttackBrick(brick, ball) {
+    if (!brick?.active || !ball?.active || !ball.body) { // ball.body もチェック
+        return;
     }
-    // ★★★------------------------------------★★★
 
-         this.destroyAttackBrickAndDropItem(brick); }
+    // ボールが未発射の場合の処理
+    if (!this.isBallLaunched) {
+        console.log("[HitAttackBrick] Hit while ball not launched. Launching.");
+        const initialVy = (DEFAULT_ATTACK_BRICK_VELOCITY_Y || 180) * 0.5; // constantsから取得
+        const initialVx = Phaser.Math.Between(-50, 50);
+        ball.setVelocity(initialVx, initialVy);
+        this.isBallLaunched = true;
+        if (AUDIO_KEYS.SE_LAUNCH) this.sound.play(AUDIO_KEYS.SE_LAUNCH);
+        this.destroyAttackBrickAndDropItem(brick); // ブロック破壊とアイテムドロップ
+        return;
+    }
+
+    // --- ▼▼▼ ボール反射ロジックを追加 ▼▼▼ ---
+    console.log(`[HitAttackBrick] Ball hit projectile. Applying reflection. Brick type: ${brick.getData('blockType')}`);
+
+    // 1. 基本的な反射速度を計算 (アイテム効果や試練効果も考慮)
+    let itemSpeedMultiplier = 1.0;
+    if (ball.getData('isFast')) itemSpeedMultiplier = BALL_SPEED_MODIFIERS[POWERUP_TYPES.SHATORA] || 1.0;
+    else if (ball.getData('isSlow')) itemSpeedMultiplier = BALL_SPEED_MODIFIERS[POWERUP_TYPES.HAILA] || 1.0;
+
+    let trialSpeedMultiplier = 1.0;
+    // Boss4Sceneの試練IXのような特殊な速度変更がある場合、それを考慮
+    // (CommonBossSceneから直接Boss4Sceneのプロパティを参照するのは良くないので、
+    //  汎用的な仕組みにするか、Boss4Sceneでこのメソッドをオーバーライドして対応するのが適切)
+    // ここでは、最も汎用的なケースとして、アイテム効果のみを考慮した反射とする。
+    // もしシーンごとに反射速度を変えたいなら、BossXSceneでこのメソッドをオーバーライドする。
+    // (あるいは、this.getCurrentTrialSpeedMultiplier() のようなフックメソッドを作る)
+    if (this.scene.key === 'Boss4Scene' && this.isTrialShatoraActive && typeof this.currentTrialBallSpeedMultiplier === 'number') {
+         trialSpeedMultiplier = this.currentTrialBallSpeedMultiplier;
+    }
+
+    const targetSpeed = (NORMAL_BALL_SPEED || 380) * itemSpeedMultiplier * trialSpeedMultiplier;
+
+    // 2. 反射方向を決定
+    //    単純なY軸反転だと、真上から来た弾に当たると真上に戻るだけになる。
+    //    ブロックのどの面に当たったかで反射角を変えるのが理想だが、複雑。
+    //    ここでは、ボールの現在の速度をベースに、Yを反転させ、
+    //    Xはブロックの中心とボールの位置関係で少し調整する。
+    let newVx = ball.body.velocity.x;
+    let newVy = -ball.body.velocity.y; // 基本はY反転
+
+    // ボールがブロックの中心より左右どちらにあるかでX方向の跳ね返りを少し加える (任意)
+    if (ball.x < brick.x - brick.displayWidth / 4) newVx -= 30 * speedMultiplier; // 左端に近ければ左へ少し
+    else if (ball.x > brick.x + brick.displayWidth / 4) newVx += 30 * speedMultiplier; // 右端に近ければ右へ少し
+
+    // Y方向の最低速度を保証
+    const minAbsVy = targetSpeed * 0.2;
+    if (Math.abs(newVy) < minAbsVy) {
+        newVy = minAbsVy * Math.sign(newVy || (ball.y < brick.y ? 1 : -1)); // 衝突位置で向き決定
+    }
+    // X方向の速度が速すぎる場合、Y方向の速度が確保されるように調整 (任意)
+    if (Math.abs(newVx) > targetSpeed * 0.95) {
+        newVx = targetSpeed * 0.95 * Math.sign(newVx);
+    }
+
+
+    // 3. 新しい速度を設定
+    const newVelocity = new Phaser.Math.Vector2(newVx, newVy);
+    if (newVelocity.lengthSq() > 0) {
+        newVelocity.normalize().scale(targetSpeed);
+    } else { // 完全に停止した場合のフォールバック
+        // ブロックの上か下かによって、反対方向に飛ばす
+        newVelocity.set(Phaser.Math.Between(-50, 50), ball.y < brick.y ? -targetSpeed : targetSpeed);
+    }
+    ball.setVelocity(newVelocity.x, newVelocity.y);
+    console.log(`[HitAttackBrick] Ball velocity set to: vx=${newVelocity.x.toFixed(1)}, vy=${newVelocity.y.toFixed(1)}`);
+    // --- ▲▲▲ ボール反射ロジック 終了 ▲▲▲ ---
+
+    // ブロック破壊とアイテムドロップ処理 (これは変更なし)
+    this.destroyAttackBrickAndDropItem(brick);
+}
     handleBallAttackBrickOverlap(brick, ball) { if (!brick?.active || !ball?.active) return;
            // ★★★ ボールが未発射の場合の処理を追加 ★★★
     if (!this.isBallLaunched) {
