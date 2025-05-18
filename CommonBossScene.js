@@ -991,7 +991,40 @@ handleBallOverlapBossEject(ball, boss) { // ballはgameObject1, bossはgameObjec
         } else {
             console.log("[SetColliders] Ball-Boss collider SKIPPED due to conditions.");
         }
-        this.safeDestroyCollider(this.ballAttackBrickCollider); this.safeDestroyCollider(this.ballAttackBrickOverlap);
+         this.safeDestroyCollider(this.ballAttackBrickCollider);
+    this.safeDestroyCollider(this.ballAttackBrickOverlap);
+    this.ballAttackBrickCollider = null;
+    this.ballAttackBrickOverlap = null;
+
+    let needsCollider = false; // 通常衝突が必要なボールがあるか
+    let needsOverlap = false;  // すり抜けが必要なボールがあるか
+
+    this.balls?.getMatching('active', true).forEach(ball => {
+        if (ball.getData('isIndaraActive') || ball.getData('isBikaraPenetrating')) {
+            needsOverlap = true;
+        } else {
+            needsCollider = true;
+        }
+    });
+
+    if (needsCollider && this.attackBricks && this.balls) {
+        this.ballAttackBrickCollider = this.physics.add.collider(
+            this.attackBricks,
+            this.balls,
+            this.hitAttackBrick, // 通常の衝突コールバック
+            (brick, ball) => !ball.getData('isIndaraActive') && !ball.getData('isBikaraPenetrating'), // すり抜け効果がないボールのみ
+            this
+        );
+    }
+    if (needsOverlap && this.attackBricks && this.balls) {
+        this.ballAttackBrickOverlap = this.physics.add.overlap(
+            this.attackBricks,
+            this.balls,
+            this.handleBallAttackBrickOverlap, // すり抜け時のコールバック
+            (brick, ball) => ball.getData('isIndaraActive') || ball.getData('isBikaraPenetrating'), // すり抜け効果があるボールのみ
+            this
+        );
+    }
         this.safeDestroyCollider(this.paddlePowerUpOverlap); this.safeDestroyCollider(this.paddleAttackBrickCollider);
         this.safeDestroyCollider(this.makiraBeamBossOverlap);this.safeDestroyCollider(this.paddleBossOverlap, "paddleBossOverlap"); // ★ 新しい参照用
           this.safeDestroyCollider(this.ballFamiliarCollider);
@@ -1035,7 +1068,7 @@ if (this.isMakiraActive && this.balls && this.familiars && this.familiars.countA
         if (this.paddle && this.attackBricks) this.paddleAttackBrickCollider = this.physics.add.collider(this.paddle, this.attackBricks, this.handlePaddleHitByAttackBrick, null, this);
       //  if (this.makiraBeams && this.boss) this.makiraBeamBossOverlap = this.physics.add.overlap(this.makiraBeams, this.boss, this.hitBossWithMakiraBeam, (beam, b) => !b.getData('isInvulnerable'), this);
 
-        let needsCollider = false, needsOverlap = false;
+     
         this.balls?.getMatching('active', true).forEach(ball => {
             if (ball.getData('isIndaraActive') || ball.getData('isBikaraPenetrating')) needsOverlap = true;
             else needsCollider = true;
