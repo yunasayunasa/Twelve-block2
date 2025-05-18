@@ -176,7 +176,7 @@ export default class Boss4Scene extends CommonBossScene {
                 destroyedCoreCount: 0
             },
             { id: 9, name: "加速する世界",
-                conditionText: "ボールを一度当てよ",
+                conditionText: "ボールを2度当てよ",
                 targetItem: POWERUP_TYPES.HAILA, // この試練中のドロップアイテム
                 completed: false,
                 hitCountTimeField: 0,
@@ -1544,6 +1544,8 @@ if (ball.getData('isIndaraActive')) {
     // --- 試練中の処理 ---
     console.log("[Boss4 hitBoss - TrialPhase] Ball hit, reflecting.");
 
+    
+
     // ボール反射ロジック
     let speedMultiplier = 1.0;
     if (ball.getData('isFast') === true && BALL_SPEED_MODIFIERS && POWERUP_TYPES) {
@@ -1569,6 +1571,25 @@ ball.x += Math.cos(escapeAngleRad) * correctionDistance; // ボスから離れ�
 ball.y += Math.sin(escapeAngleRad) * correctionDistance;
 // その後、速度設定
 this.physics.velocityFromAngle(Phaser.Math.RadToDeg(escapeAngleRad), targetSpeed, ball.body.velocity);
+
+    // ★★★ インダラ効果中であれば解除する ★★★
+        if (ball.getData('isIndaraActive') === true) {
+            console.log("[Boss4 hitBoss - TrialPhase] Indara active, deactivating it.");
+            if (typeof this.deactivateIndara === 'function') { // CommonBossSceneのメソッドを呼ぶ
+                this.deactivateIndara(ball);
+            } else {
+                // もし CommonBossScene に deactivateIndara がない場合のフォールバック
+                // (ただし、setBallPowerUpState や updateBallAppearance は Common にあるはず)
+                this.setBallPowerUpState(POWERUP_TYPES.INDARA, false, ball);
+                this.updateBallAppearance(ball);
+                console.warn("[Boss4 hitBoss - TrialPhase] deactivateIndara method not found, used fallback.");
+            }
+            // インダラ解除後、ボールと攻撃ブロックの衝突挙動を元に戻すために
+            // setColliders() を呼ぶ必要があるかもしれないが、まずは解除だけで様子を見る。
+            // CommonBossScene の setBallPowerUpState が setColliders を適切に呼ぶ設計なら不要。
+        }
+        // ★★★------------------------------------★★★
+
 
 
     // --- ▼ 試練達成判定 (ボールがボスに当たることが条件の試練) ▼ ---
