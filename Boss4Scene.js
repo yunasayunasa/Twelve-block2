@@ -1463,45 +1463,39 @@ startSpecificBossMovement() {
 
   updateSpecificBossBehavior(time, delta) {
        // --- ▼ ガード処理 ▼ ---
+       
+     // --- ▼ ガード処理用の変数をここで宣言・設定 ▼ ---
     let blockBossActions = this.isIntroAnimating ||
                            !this.playerControlEnabled ||
                            !this.boss || !this.boss.active ||
                            this.bossDefeated ||
                            this.isGameOver ||
-                           this.isChoiceEventActive || // 選択イベント中はボスは何もしない
-                           this.isCompletingTrial ||   // 試練完了演出中はボスは何もしない
-                           this.isSpecialSequenceActive; // パラダイス・ロスト演出中
-
-    if (this.isFinalBattleActive) { // ★最終決戦専用AIを呼び出す★
-        if (!this.isCompletingTrial && !this.isSpecialSequenceActive && this.playerControlEnabled && !this.isGameOver && !this.bossDefeated) {
+                           this.isChoiceEventActive || // 選択イベント中は通常のボス行動はしない
+                           this.isCompletingTrial ||   // 試練完了演出中も同様
+                           this.isSpecialSequenceActive; // パラダイス・ロスト演出中も同様
+      if (this.isFinalBattleActive) { // 最終決戦モードか？
+        // 最終決戦中でも、他の基本的なガード条件（ゲームオーバーなど）は blockBossActions でチェックされる
+        if (!blockBossActions) { // ゲームオーバーや演出中でなければAI実行
             this.updateFinalBattleBossAI(time, delta);
         }
-        return; // 最終決戦中は以下の試練中ロジックは実行しない
+        return; // 最終決戦中は、以下の試練中ロジックは実行しない
     }
 
-    if (blockNonFinalAIActions || (this.activeTrial && this.activeTrial.id === 11 && this.activeTrial.bossShouldBeStatic === true)) {
-        return;
-    }
-
-    // ★試練XI中は、blockBossActions が false でも、ワープだけを抑制し、攻撃は許可する★
-    // (そのため、試練XI専用のガードはここではなく、ワープ処理の箇所で行う)
-
-   
-    // --- ▲ ガード処理 終了 ▲ ---
-
-
-    // 試練XI「虚無の壁」中はボスを静止させ、攻撃もワープもしないようにする
+    // 試練XI「虚無の壁」中でボスが静止すべき場合も、通常の攻撃/ワープをブロック
     if (this.activeTrial && this.activeTrial.id === 11 && this.activeTrial.bossShouldBeStatic === true) {
-        // console.log("[UpdateSpecificBossBehavior] Trial XI active and bossShouldBeStatic is true. No attacks or standard warps.");
-        // (もし壁召喚中に何か特別なことをするならここに)
+        // console.log("[UpdateSpecificBossBehavior] Trial XI: Boss is static, no standard actions.");
         return; // 通常の攻撃/ワープ処理をスキップ
     }
 
+    // 上記以外のガード条件でブロックされていれば、ここでリターン
     if (blockBossActions) {
+        // (どのフラグでブロックされたかを知りたい場合は、個別のログをここに書く)
         // if (this.isCompletingTrial) console.log("[UpdateSpecificBossBehavior] Paused during trial completion sequence.");
-        // if (this.isSpecialSequenceActive) console.log("[UpdateSpecificBossBehavior] Guarded by isSpecialSequenceActive");
         return;
     }
+
+
+  
     // --- ▲ ガード処理 終了 ▲ ---
 
 
@@ -1516,8 +1510,8 @@ startSpecificBossMovement() {
     // --- ▲ 時間経過によるワープ 終了 ▲ ---
 
 
-     // --- ▼ 攻撃処理 (試練II以降、最終決戦前) ▼ ---
-    if (this.activeTrialIndex >= 1) {
+        // --- ▼ 攻撃処理 (試練II以降、最終決戦前、かつ試練XIのボス静止中でない場合) ▼ ---
+    if (this.activeTrialIndex >= 1) { // 試練I「調和と破壊」選択後から
         const attackIntervalConfig = this.currentRoute === 'order' ?
             (this.bossData.attackIntervalOrder || {min:1800, max:2800}) :
             (this.bossData.attackIntervalChaos || {min:3500, max:5500});
@@ -1530,16 +1524,16 @@ startSpecificBossMovement() {
                 this.fireTargetedAttack();
             }
             this.lastAttackTime = time;
-            console.log(`[Attack] Attack executed. Next attack possible after ${interval}ms. Updated lastAttackTime: ${this.lastAttackTime.toFixed(0)}`);
+            // console.log(`[Attack] Attack executed. Next attack possible after ${interval}ms. Updated lastAttackTime: ${this.lastAttackTime.toFixed(0)}`);
 
             // 攻撃後に少し遅れてワープ (試練XI中でなければ)
-            if (!(this.activeTrial && this.activeTrial.id === 11 && this.activeTrial.bossShouldBeStatic === true)) { // ★試練XIのワープ禁止★
-                 this.time.delayedCall(this.bossData.warpDelayAfterAttack || 300, this.warpBoss, [], this);
-            } else {
-                console.log("[UpdateSpecificBossBehavior] Attack occurred, but warp skipped due to Trial XI static boss.");
-            }
+            // (warpBossメソッドの冒頭で試練XIのワープ禁止ガードがあるので、ここでの個別チェックは必須ではない)
+            this.time.delayedCall(this.bossData.warpDelayAfterAttack || 300, this.warpBoss, [], this);
         }
     }
+    // --- ▲ 攻撃処理 終了 ▲ ---
+
+    // (時間経過によるワープは現在コメントアウト中のはず)
 }
 
 
