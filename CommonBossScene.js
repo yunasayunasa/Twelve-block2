@@ -2136,59 +2136,26 @@ isPowerUpActive(powerUpType) {
         const copiedType = Phaser.Utils.Array.GetRandom(MAKORA_COPYABLE_POWERS);
         this.time.delayedCall(MAKORA_COPY_DELAY, () => { this.setBallPowerUpState(POWERUP_TYPES.MAKORA, false); const activateMethodName = `activate${copiedType.charAt(0).toUpperCase() + copiedType.slice(1)}`; if (typeof this[activateMethodName] === 'function') this[activateMethodName](); else { console.warn(`[Makora] No activate function ${activateMethodName} for ${copiedType}`); this.updateBallAndPaddleAppearance(); } }, [], this);
     }
-    // CommonBossScene.js またはパワーアップボイスを管理するクラス内
+     playPowerUpVoice(type) {
+        let voiceKey = AUDIO_KEYS[`VOICE_${type.toUpperCase()}`];
+        // 特殊なキー名へのマッピング（例）
+        if (type === POWERUP_TYPES.VAJRA) voiceKey = AUDIO_KEYS.VOICE_VAJRA_GET;
+        if (type === POWERUP_TYPES.BIKARA) voiceKey = AUDIO_KEYS.VOICE_BIKARA_YIN; // デフォルトは陰
+        if (type === POWERUP_TYPES.BIKARA_YANG) voiceKey = AUDIO_KEYS.VOICE_BIKARA_YANG;
+        if (type === POWERUP_TYPES.BADRA) voiceKey = AUDIO_KEYS.VOICE_BADRA;
 
-// constructor や init でプロパティ初期化
-// this.lastPlayedPowerUpVoiceTime = {}; // パワーアップボイスキーごとの最終再生時刻
-// this.powerUpVoiceMargin = 300;       // パワーアップボイスのデフォルトマージン
 
-/**
- * パワーアップ取得ボイスをマージンを考慮して再生試行します。
- * 同じパワーアップボイスキーの音声が指定されたマージン時間内に既に再生されていた場合は再生しません。
- * @param {string} voiceKey 再生するパワーアップボイスのキー
- * @param {object} [soundConfig] this.sound.playに渡す追加のコンフィグ
- * @returns {boolean} 音声が再生された場合はtrue、スキップされた場合はfalse
- */
-playPowerUpVoice(voiceKey, soundConfig = {}) {
-    // voiceKeyの有効性チェック
-    if (!voiceKey || typeof voiceKey !== 'string') {
-        console.warn("[PlayPowerUpVoice] Invalid voiceKey provided:", voiceKey);
-        return false;
-    }
-    if (!this.sound.manager) { // サウンドマネージャーの準備確認
-        console.warn("[PlayPowerUpVoice] Sound manager not ready.");
-        return false;
-    }
-    if (!this.cache.audio.has(voiceKey)) { // キャッシュに存在するか確認
-        console.warn(`[PlayPowerUpVoice] Audio key not found in cache: ${voiceKey}`);
-        return false;
-    }
-
-    const now = this.time.now;
-    // this.lastPlayedPowerUpVoiceTime が初期化されていることを確認
-    this.lastPlayedPowerUpVoiceTime = this.lastPlayedPowerUpVoiceTime || {};
-    // this.powerUpVoiceMargin が初期化されていることを確認
-    const margin = this.powerUpVoiceMargin === undefined ? 300 : this.powerUpVoiceMargin; // デフォルトマージン
-
-    const lastPlayTime = this.lastPlayedPowerUpVoiceTime[voiceKey] || 0;
-
-    if (now - lastPlayTime > margin) {
-        try {
-            // ★★★ Phaserの sound.play を直接呼び出す ★★★
-            this.sound.play(voiceKey, soundConfig);
-            // ★★★--------------------------------------★★★
-            this.lastPlayedPowerUpVoiceTime[voiceKey] = now; // 最終再生時刻を更新
-            console.log(`[PlayPowerUpVoice] Playing: ${voiceKey}`);
-            return true;
-        } catch (e) {
-            console.error(`[PlayPowerUpVoice] Error playing power-up voice ${voiceKey}:`, e);
-            return false;
+        const now = this.time.now;
+        if (voiceKey && typeof voiceKey === 'string' && (now - (this.lastPlayedVoiceTime[voiceKey] || 0) > this.voiceThrottleTime)) {
+            try {
+                this.sound.play(voiceKey);
+                this.lastPlayedVoiceTime[voiceKey] = now;
+                console.log(`[PowerUpVoice] Playing: ${voiceKey}`);
+            } catch (e) { console.error(`Error playing power-up voice ${voiceKey}:`, e); }
+        } else if (!voiceKey) {
+            console.log(`[PowerUpVoice] No voice key defined for power-up type: ${type}`);
         }
-    } else {
-        // console.log(`[PlayPowerUpVoice] Skipped (cooldown): ${voiceKey}. Margin: ${margin}ms`);
-        return false;
     }
-}
 
     /**
  * アイテム取得ボイスをマージンを考慮して再生試行します。
