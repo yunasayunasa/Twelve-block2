@@ -91,7 +91,7 @@ this.lastFinalBattleWarpTime = 0;
             moveDurationFinal: 1000,   // 最終決戦時の移動時間
             paradiseLostDamage: 8, // パラダイス・ロストの基本ダメージ
 
-             paradiseLostPillarCount: 7, // パラダイス・ロストの光の柱の数
+             paradiseLostPillarCount: 13, // パラダイス・ロストの光の柱の数
     paradiseLostPillarDuration: 550, // 光の柱1本の基本落下時間(ms)
     lightPillarTexture: 'light_pillar_effect', // ★要アセット＆BootSceneロード
             jiEndCountInitialMinutes: 10,
@@ -109,8 +109,8 @@ this.lastFinalBattleWarpTime = 0;
             trialRewardItem: POWERUP_TYPES.BIKARA_YANG,
 
              // --- ▼ 攻撃頻度の調整 ▼ ---
-    attackIntervalOrder: { min: 2200, max: 3500 }, // 秩序: 2.2秒～3.5秒間隔 (以前より少し遅く)
-    attackIntervalChaos: { min: 4500, max: 7000 }, // 混沌: 4.5秒～7秒間隔 (かなり遅く)
+    attackIntervalOrder: { min: 5000, max: 7500 }, // 秩序: 2.2秒～3.5秒間隔 (以前より少し遅く)
+    attackIntervalChaos: { min: 11000, max: 15000 }, // 混沌: 4.5秒～7秒間隔 (かなり遅く)
     // --- ▲ ------------------ ▲ ---
 
     // --- ▼ 放射攻撃パラメータのルート別調整（例）▼ ---
@@ -1549,8 +1549,8 @@ startSpecificBossMovement() {
         // --- ▼ 攻撃処理 (試練II以降、最終決戦前、かつ試練XIのボス静止中でない場合) ▼ ---
     if (this.activeTrialIndex >= 1) { // 試練I「調和と破壊」選択後から
         const attackIntervalConfig = this.currentRoute === 'order' ?
-            (this.bossData.attackIntervalOrder || {min:1800, max:2800}) :
-            (this.bossData.attackIntervalChaos || {min:3500, max:5500});
+            (this.bossData.attackIntervalOrder || {min:5000, max:7500}) :
+            (this.bossData.attackIntervalChaos || {min:7500, max:11000});
         const interval = Phaser.Math.Between(attackIntervalConfig.min, attackIntervalConfig.max);
 
         if (time > this.lastAttackTime + interval) {
@@ -2725,12 +2725,12 @@ if (this.backgroundObject && this.backgroundObject.active) { // 背景オブジ�
     console.log(`Background Update - Visible: ${this.backgroundObject.visible}, Alpha: ${this.backgroundObject.alpha}, Depth: ${this.backgroundObject.depth}`);
     // this.backgroundObject.setAlpha(1); // ★テスト用
 }
-        super.update(time, delta); // CommonBossSceneのupdateを呼ぶ (ボス行動など)
+        super.update(time, delta); // CommonBossSceneのupdateを呼ぶ (ボス行動など)ジエンドタイマー調整もここ
 
         if (this.isJiEndTimerRunning && !this.isGameOver && !this.bossDefeated) {
             let speedMultiplier = 1.0;
             if (this.currentRoute === 'order') speedMultiplier = 0.5;
-            else if (this.currentRoute === 'chaos') speedMultiplier = 1.5;
+            else if (this.currentRoute === 'chaos') speedMultiplier = 2.0;
             this.jiEndTimeRemaining -= delta * speedMultiplier;
 
              // ★試練IXのジエンドタイマー加速★
