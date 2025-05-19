@@ -27,7 +27,7 @@ const config = {
     physics: {
         default: 'arcade', // Arcade Physicsを使用
         arcade: {
-            debug: true, // 物理ボディのデバッグ表示 (trueで見えるfalseでみえない)
+            debug: false, // 物理ボディのデバッグ表示 (trueで見えるfalseでみえない)
             fps: 60, // デフォルトは通常ゲームのFPS (60が多い)
         // gravity: { y: 0 }
     
