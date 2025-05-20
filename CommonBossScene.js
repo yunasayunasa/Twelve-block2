@@ -170,15 +170,22 @@ export default class CommonBossScene extends Phaser.Scene {
             this.chaosSettings = { count: 4, ratePercent: 50 };
         }
         console.log('Chaos Settings Set:', this.chaosSettings);
-        let initialLivesToSet = data.lives;
-    if (data.lives >= 999) { // 無限ライフの場合
-        this.isPlayerInvincibleBySetting = true;
-        initialLivesToSet = this.runtimeMaxLives; // 表示上のライフは最大値にする
-        console.log(`[Init] Player is INVINCIBLE. Lives visually set to: ${initialLivesToSet}`);
-    } else {
-        this.isPlayerInvincibleBySetting = false;
-        initialLivesToSet = data.lives || INITIAL_PLAYER_LIVES || 9; // INITIAL_PLAYER_LIVESはconstantsから
+         let initialLivesToSet = data.lives;
+    this.isPlayerInvincibleBySetting = false; // ★最初にfalseで初期化しておく★
+
+    if (typeof data?.lives === 'number') { // data.livesが存在し数値であるか
+        if (data.lives >= 999) { // 「無限」を表す値 (例: 999)
+            this.isPlayerInvincibleBySetting = true; // ★無限ライフ専用フラグを立てる★
+            initialLivesToSet = this.runtimeMaxLives; // 表示上のライフは最大値
+            console.log(`[Init] Player is INVINCIBLE by setting. Lives visually set to: ${initialLivesToSet}, isPlayerInvincibleBySetting: ${this.isPlayerInvincibleBySetting}`);
+        } else {
+            initialLivesToSet = data.lives;
+        }
+        this.lives = Phaser.Math.Clamp(initialLivesToSet, 1, this.runtimeMaxLives);
+    } else { // data.lives がない場合はデフォルト値
+        this.lives = INITIAL_PLAYER_LIVES || 9; // INITIAL_PLAYER_LIVESもconstantsから
     }
+    console.log(`[Init] Final Initial Lives: ${this.lives}, Runtime Max Lives: ${this.runtimeMaxLives}, Is Invincible by Setting: ${this.isPlayerInvincibleBySetting}`);
     this.lives = Phaser.Math.Clamp(initialLivesToSet, 1, this.runtimeMaxLives);
     console.log(`[Init] Final Initial Lives set to: ${this.lives}`);
 
@@ -1337,11 +1344,49 @@ if (this.isMakiraActive && this.balls && this.familiars && this.familiars.countA
     // --- ▼ ゲーム進行メソッド ▼ ---
   // CommonBossScene.js 内
 
+  // (新規または修正) ライフ喪失（またはそれに準ずるリセット）時の共通処理
+resetBallAndEssentialPowerUpsAfterLifeLoss() {
+    console.log("[ResetAfterLifeLoss] Deactivating some power-ups and preparing for new ball/life.");
+    // アニラ以外の持続系パワーアップ解除をここで行うか検討
+    // this.deactivateAnchira(true);
+    // this.deactivateSindara(null, true);
+    // (Bikaraの貫通なども解除)
+
+    // isBallLaunchedフラグやボールの状態リセットは resetForNewLife で行うのが主
+    // ここでは、最低限、次の resetForNewLife が呼ばれるまでの準備
+    this.isBallLaunched = false; // 新しいボールは未発射状態に
+
+    // ボールが複数ある場合、メインのボール以外をクリアするなど
+    // あるいは、resetForNewLife がボールを全てクリアして再生成するなら、ここでは何もしない
+    // 多くのゲームでは、ライフを失うとアクティブなボールは全て消える
+    if (this.balls) {
+        // this.balls.clear(true, true); // ← これを呼ぶとresetForNewLifeでボールがない状態になる
+        // 代わりに、ボールを非アクティブ化し、速度を止める
+        this.balls.getChildren().forEach(ball => {
+            if (ball.active) {
+                ball.setVelocity(0,0).setActive(false).setVisible(false);
+            }
+        });
+    }
+    this.updateBallAndPaddleAppearance(); // パドルの色などもリセット
+}
+
     /**
      * ライフを処理し、ボールをリセットする。
      * アニラ効果でボールが失われた場合はライフを減らさない。
      */
     loseLife() {
+          // ★★★ 設定による無限ライフチェックを一番最初に行う ★★★
+    if (this.isPlayerInvincibleBySetting === true) { // === true を明示
+        console.log("[LoseLife] Damage prevented by INVINCIBLE setting from Title Screen.");
+        // 無限ライフでもボールはリセットし、一部パワーアップは解除するかもしれない
+        this.resetBallAndEssentialPowerUpsAfterLifeLoss(); // 新しいヘルパーを想定
+        // UIのライフ表示は "∞" のまま変わらないはずなので、再emitは不要か、"∞"を再emit
+        if (this.uiScene?.scene.isActive()) this.events.emit('updateLives', '∞', '∞');
+        return; // ライフは減らないし、通常のloseLife処理は行わない
+    }
+    // ★★★---------------------------------------------★★★
+
         // isPlayerTrulyInvincible は、このメソッドが呼ばれる直前に
         // deactivateAnila によって false になっている「はず」(アニラ効果時間終了の場合)
         // または、updateBallFall でアニラ中にボールが落ちた場合も false になっている。
