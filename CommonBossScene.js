@@ -159,7 +159,8 @@ export default class CommonBossScene extends Phaser.Scene {
         console.log(`--- ${this.scene.key} INIT ---`);
         console.log("Received data:", data);
 
-        this.lives = data?.lives ?? 3;
+         this.runtimeMaxLives = data.maxLives || SYSTEM_MAX_LIVES || 9; // SYSTEM_MAX_LIVESはconstantsから
+    console.log(`[Init] Runtime Max Lives set to: ${this.runtimeMaxLives} (Received: ${data.maxLives})`);
         if (data && data.chaosSettings) {
             this.chaosSettings = {
                 count: Phaser.Math.Clamp(data.chaosSettings.count ?? 4, 0, this.ALL_POSSIBLE_POWERUPS.length),
@@ -169,6 +170,17 @@ export default class CommonBossScene extends Phaser.Scene {
             this.chaosSettings = { count: 4, ratePercent: 50 };
         }
         console.log('Chaos Settings Set:', this.chaosSettings);
+        let initialLivesToSet = data.lives;
+    if (data.lives >= 999) { // 無限ライフの場合
+        this.isPlayerInvincibleBySetting = true;
+        initialLivesToSet = this.runtimeMaxLives; // 表示上のライフは最大値にする
+        console.log(`[Init] Player is INVINCIBLE. Lives visually set to: ${initialLivesToSet}`);
+    } else {
+        this.isPlayerInvincibleBySetting = false;
+        initialLivesToSet = data.lives || INITIAL_PLAYER_LIVES || 9; // INITIAL_PLAYER_LIVESはconstantsから
+    }
+    this.lives = Phaser.Math.Clamp(initialLivesToSet, 1, this.runtimeMaxLives);
+    console.log(`[Init] Final Initial Lives set to: ${this.lives}`);
 
         this.currentBossIndex = data?.currentBossIndex ?? 1;
         this.totalBosses = TOTAL_BOSSES;
@@ -1936,19 +1948,12 @@ returnToTitle() {
                 // バイシュラヴァは即時効果なので、ボールの状態変更やタイマーは不要
                 break; // ★★★------------------------------------★★★
                  // ★★★ ビカラ陽（ライフ回復）の処理を追加 ★★★
-            case POWERUP_TYPES.BIKARA_YANG:
-                console.log("[Bikara Yang] Activating: Heal 1 HP!");
-                if (this.lives < MAX_PLAYER_LIVES) {    this.lives++;
-                    console.log(`[Bikara Yang] HP recovered. Current lives: ${this.lives}`);
-                    // UIにライフ更新を通知
-                    this.events.emit('updateLives', this.lives);
-                    // TODO: 回復エフェクトや専用SEがあればここで再生
-                    // this.sound.play('se_heal');
-                } else {
-                    console.log(`[Bikara Yang] HP already at max (${this.lives}). No recovery.`);
-                    // TODO: 最大HP時に取得した場合のフィードバック（音だけ鳴らすなど）
-                }
-                // ビカラ陽は即時効果なので、ボールの状態変更やタイマーは不要
+             case POWERUP_TYPES.BIKARA_YANG:
+                console.log(`[Bikara Yang] Activating. Current Lives: ${this.lives}, Runtime Max: ${this.runtimeMaxLives}`);
+                if (this.lives < this.runtimeMaxLives) { // ★this.runtimeMaxLives を参照★
+                    this.lives++;
+                    this.events.emit('updateLives', this.lives, this.runtimeMaxLives); // ★UIにも新しい最大値を渡す★
+                } else { /* ... */ }
                 break;
             // ★★★------------------------------------★★★
              // ★★★ バドラ（ボール位置リセット、強化維持）の処理を追加 ★★★

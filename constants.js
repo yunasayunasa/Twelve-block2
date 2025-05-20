@@ -66,7 +66,7 @@ export const TOTAL_BOSSES = 4;
 export const BAISRAVA_DROP_RATE = 0.015; // バイシュラヴァの特別ドロップは廃止し、通常プールへ
 export const VAJRA_GAUGE_MAX = 100;
 export const VAJRA_GAUGE_INCREMENT = 10;
-export const MAX_PLAYER_LIVES = 9;
+export const SYSTEM_MAX_LIVES = 20;
 export const INITIAL_PLAYER_LIVES = 9;
 
 export const MAKORA_COPYABLE_POWERS = Object.values(POWERUP_TYPES).filter(

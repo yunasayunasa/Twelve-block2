@@ -1,5 +1,5 @@
 // TitleScene.js
-import { AUDIO_KEYS, POWERUP_TYPES, INITIAL_PLAYER_LIVES, TOTAL_BOSSES } from './constants.js'; // TOTAL_BOSSES もインポート
+import { AUDIO_KEYS, POWERUP_TYPES, INITIAL_PLAYER_LIVES, MAX_PLAYER_LIVES as SYSTEM_MAX_LIVES ,TOTAL_BOSSES } from './constants.js'; // TOTAL_BOSSES もインポート
 
 export default class TitleScene extends Phaser.Scene {
      constructor() {
@@ -11,6 +11,20 @@ export default class TitleScene extends Phaser.Scene {
         this.testStartBossIndex = 1; // 初期値はルシゼロ
 
         this.testButtonTextObject = null; // ★テストボタンのテキストオブジェクトを保持するプロパティ
+     
+
+       // ★★★ 難易度設定関連のプロパティ ★★★
+        this.difficultySettings = {
+            easy:     { name: "イージー", initialLives: 15, maxLives: 15 }, // 開始ライフと最大ライフを同じに
+            normal:   { name: "ノーマル", initialLives: 9,  maxLives: 9  },
+            hard:     { name: "ハード",   initialLives: 5,  maxLives: 5  },
+            shura:    { name: "修羅",     initialLives: 1,  maxLives: 1  }, // ルナティックの代替案
+            invincible: { name: "無限 ∞", initialLives: 999, maxLives: SYSTEM_MAX_LIVES || 20 } // 無限は内部的に大きな初期ライフ値
+        };
+        this.selectedDifficultyKey = 'normal'; // デフォルト難易度キー
+        // ★★★-----------------------------------★★★
+
+        this.testButtonTextObject = null;
      }
 
     create() {
@@ -129,6 +143,50 @@ export default class TitleScene extends Phaser.Scene {
             console.log("Selected Rate:", this.selectedRate); // ★デバッグログ追加
         });
 
+           // --- ▼▼▼ 難易度選択ドロップダウンリスト ▼▼▼ ---
+        const difficultySelectContainerHTML = document.createElement('div');
+        difficultySelectContainerHTML.style.marginTop = '15px';
+        difficultySelectContainerHTML.style.textAlign = 'center';
+
+        const difficultySelectLabel = document.createElement('label');
+        difficultySelectLabel.textContent = '難易度: ';
+        difficultySelectLabel.style.color = 'white';
+        difficultySelectLabel.style.fontSize = '18px';
+        difficultySelectLabel.style.marginRight = '5px';
+
+        const difficultySelectDropdown = document.createElement('select');
+        difficultySelectDropdown.id = 'difficulty-select-dropdown';
+        difficultySelectDropdown.style.fontSize = '16px';
+        difficultySelectDropdown.style.padding = '5px 8px';
+        difficultySelectDropdown.style.borderRadius = '3px';
+
+        // 難易度選択肢を生成
+        for (const key in this.difficultySettings) {
+            const setting = this.difficultySettings[key];
+            const option = document.createElement('option');
+            option.value = key; // easy, normal, hard, shura, invincible
+            option.textContent = setting.name; // "イージー", "ノーマル" など
+            if (key === this.selectedDifficultyKey) {
+                option.selected = true;
+            }
+            difficultySelectDropdown.appendChild(option);
+        }
+
+        difficultySelectDropdown.addEventListener('change', (event) => {
+            this.selectedDifficultyKey = event.target.value;
+            console.log("Selected Difficulty Key:", this.selectedDifficultyKey);
+            // (もし初期ライフ数も別途表示するなら、ここで更新)
+        });
+
+        difficultySelectContainerHTML.appendChild(difficultySelectLabel);
+        difficultySelectContainerHTML.appendChild(difficultySelectDropdown);
+
+        // 難易度選択UIのY座標 (ハチャメチャ度スライダーの下)
+        const difficultyDropdownY = domSliderElement.y + (domSliderElement.height || 100) / 2 + 35; // 要調整
+        const domDifficultySelect = this.add.dom(w / 2, difficultyDropdownY, difficultySelectContainerHTML).setOrigin(0.5);
+        this.domElements.push(domDifficultySelect);
+        // --- ▲▲▲ 難易度選択ドロップダウンリスト 終了 ▲▲▲ ---
+
         // --- ▼▼▼ ボス選択ドロップダウンリスト ▼▼▼ ---
         const bossSelectContainerHTML = document.createElement('div');
         bossSelectContainerHTML.style.marginTop = '20px'; // スライダーからのマージン
@@ -176,7 +234,7 @@ export default class TitleScene extends Phaser.Scene {
         bossSelectContainerHTML.appendChild(bossSelectDropdown);
 
         // ドロップダウンのY座標を、スライダーの下に調整
-        const dropdownY = domSliderElement.y + domSliderElement.height / 2 + 45; // スライダーの下 + 余白 (要微調整)
+        const bossDropdownY = difficultyDropdownY + (domDifficultySelect.height || 50) / 2 + 30; // 要調整
         const domBossSelect = this.add.dom(w / 2, dropdownY, bossSelectContainerHTML).setOrigin(0.5);
         this.domElements.push(domBossSelect);
         // --- ▲▲▲ ボス選択ドロップダウンリスト 終了 ▲▲▲ ---
@@ -200,7 +258,7 @@ export default class TitleScene extends Phaser.Scene {
         currentY = h * 0.68; // 「このボスと戦う」ボタンのY座標
 
         // --- ▼ 「選択したボスと戦う」ボタン (元テストボタン) ▼ ---
-        const fightSelectedBossButtonY = currentY;
+        const fightSelectedBossButtonY = bossDropdownY + (domBossSelect.height || 50) / 2 + 35; // 要調整
         const fightSelectedBossButtonStyle = { fontSize: '22px', fill: '#E0E0E0', backgroundColor: 'rgba(0,100,200,0.8)', padding: { x: 20, y: 10 }, borderRadius: '5px' }; // 少し目立つスタイルに
         const fightSelectedBossButtonHoverStyle = { fill: '#FFF', backgroundColor: 'rgba(0,120,240,0.9)'};
 
@@ -210,20 +268,20 @@ export default class TitleScene extends Phaser.Scene {
             .setInteractive({ useHandCursor: true })
             .on('pointerover', () => this.testButtonTextObject.setStyle(fightSelectedBossButtonHoverStyle))
             .on('pointerout', () => this.testButtonTextObject.setStyle(fightSelectedBossButtonStyle))
-            .on('pointerdown', () => {
-                // ★★★ ドロップダウンで選択されたボスで開始 ★★★
-                console.log(`"Fight Selected Boss" button clicked for Boss ${this.testStartBossIndex}.`);
-                this.sound.play(AUDIO_KEYS.SE_START);
-                this.stopTitleBgm();
-                this.clearDOM();
-
+              .on('pointerdown', () => {
+                 this.clearDOM();
+                const selectedDiffSetting = this.difficultySettings[this.selectedDifficultyKey] || this.difficultySettings.normal;
                 const testData = {
-                    lives: 9, // 通常の初期ライフでも良い INITIAL_PLAYER_LIVES
+                    lives: selectedDiffSetting.initialLives,    // ★選択された難易度の初期ライフ★
+                    maxLives: selectedDiffSetting.maxLives,     // ★選択された難易度の最大ライフ★
                     chaosSettings: { count: this.selectedCount, ratePercent: this.selectedRate },
                     currentBossIndex: this.testStartBossIndex
                 };
                 const targetSceneKey = `Boss${this.testStartBossIndex}Scene`;
-                // ... (シーン開始処理は既存のまま) ...
+                // ... (シーン開始処理は既存のまま) ... 
+                // this.sound.play(AUDIO_KEYS.SE_START);
+                this.stopTitleBgm();
+               
                 try {
                      if (this.scene.manager.keys[targetSceneKey]) {
                          this.scene.start(targetSceneKey, testData);
@@ -236,7 +294,7 @@ export default class TitleScene extends Phaser.Scene {
         // --- ▼ ボスラッシュ開始ボタン (本来のゲーム開始ボタン) ▼ ---
         const startButtonW = 280;
         const startButtonH = 70;
-        const startRushButtonY = currentY; // ★Y座標を明確に設定★
+        const startRushButtonY = fightSelectedBossButtonY + (this.testButtonTextObject?.displayHeight || 40) + 30; // 要調整
         const startButtonTextStyle = { fontSize: '32px', fill: '#fff', fontFamily: '"Arial Black", Gadget, sans-serif', shadow: { offsetX: 3, offsetY: 3, color: '#000000', blur: 5, stroke: true, fill: true } };
         const startButtonContainer = this.add.container(w / 2, startRushButtonY); // ★X座標, Y座標★
         const startButtonBg = this.add.graphics();
@@ -256,15 +314,13 @@ export default class TitleScene extends Phaser.Scene {
         });
 
         // ★★★ クリック処理を正しく設定 ★★★
-        startButtonContainer.on('pointerdown', () => {
-            console.log("Boss Rush Start button clicked.");
-            this.sound.play(AUDIO_KEYS.SE_START);
-            this.stopTitleBgm();
-            this.clearDOM();
+         startButtonContainer.on('pointerdown', () => {
+            const selectedDiffSetting = this.difficultySettings[this.selectedDifficultyKey] || this.difficultySettings.normal;
             const startData = {
-                 lives: INITIAL_PLAYER_LIVES,
+                 lives: selectedDiffSetting.initialLives,   // ★選択された難易度の初期ライフ★
+                 maxLives: selectedDiffSetting.maxLives,    // ★選択された難易度の最大ライフ★
                 chaosSettings: { count: this.selectedCount, ratePercent: this.selectedRate },
-                currentBossIndex: 1 // ボスラッシュは必ずBoss1から
+                currentBossIndex: 1
             };
             console.log("Passing data to Boss1Scene for Boss Rush:", startData);
             this.scene.start('Boss1Scene', startData);
