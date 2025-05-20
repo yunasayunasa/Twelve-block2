@@ -104,18 +104,18 @@ this.lastFinalBattleWarpTime = 0;
             jiEndTimerFontSizeRatio: 1 / 15,
 
                warpYRange: { minRatio: 0.15, maxRatio: 0.5 }, // ワープ先のY座標範囲 (画面高さ比)
-    warpDelayAfterAttack: 300, // 攻撃後のワープ開始までの遅延 (ms)
+    warpDelayAfterAttack: 500, // 攻撃後のワープ開始までの遅延 (ms)
     warpDelayAfterHit: 100,    // ボールヒット後のワープ開始までの遅延 (ms)
     warpDurationFadeOut: 200,  // ワープで消える時間
     warpDurationHold: 150,     // 消えている時間
     warpDurationFadeIn: 200,   // 再出現する時間
-    pauseAfterWarp: 1000,       // ワープ後の行動停止時間 (ms)
+    pauseAfterWarp: 1500,       // ワープ後の行動停止時間 (ms)
             trials: this.defineTrials(),
             trialRewardItem: POWERUP_TYPES.BIKARA_YANG,
 
              // --- ▼ 攻撃頻度の調整 ▼ ---
-    attackIntervalOrder: { min: 5000, max: 7500 }, // 秩序: 2.2秒～3.5秒間隔 (以前より少し遅く)
-    attackIntervalChaos: { min: 11000, max: 15000 }, // 混沌: 4.5秒～7秒間隔 (かなり遅く)
+    attackIntervalOrder: { min: 7500, max: 10000 }, // 秩序: 2.2秒～3.5秒間隔 (以前より少し遅く)
+    attackIntervalChaos: { min: 15000, max: 20000 }, // 混沌: 4.5秒～7秒間隔 (かなり遅く)
     // --- ▲ ------------------ ▲ ---
 
     // --- ▼ 放射攻撃パラメータのルート別調整（例）▼ ---
@@ -138,7 +138,7 @@ this.lastFinalBattleWarpTime = 0;
     },
     // --- ▲ ------------------------------------ ▲ ---
  finalBattleWarpInterval: 1000,     // 最終決戦中のワープ間隔 (ms) - 例: 8秒ごと
-    finalBattleParadiseLostInterval: 15000, // 最終決戦中のパラダイス・ロスト間隔 (ms) - 例: 45秒ごと
+    finalBattleParadiseLostInterval: 20000, // 最終決戦中のパラダイス・ロスト間隔 (ms) - 例: 45秒ごと
     // ...
     // --- ▼ ターゲット攻撃パラメータのルート別調整（例）▼ ---
     targetedAttackParamsBase: {
@@ -2248,10 +2248,10 @@ fireRadialAttack() {
         (this.bossData.radialAttackParamsChaos || {});
 
     const count = routeParams.count !== undefined ? routeParams.count : (baseParams.count || 5);
-    const speed = (baseParams.projectileSpeed || (DEFAULT_ATTACK_BRICK_VELOCITY_Y + 20)) * (routeParams.speedMultiplier !== undefined ? routeParams.speedMultiplier : 1.0);
+    const speed = (baseParams.projectileSpeed || (DEFAULT_ATTACK_BRICK_VELOCITY_Y + 50)) * (routeParams.speedMultiplier !== undefined ? routeParams.speedMultiplier : 1.0);
     const angles = baseParams.angles || [75, 90, 105];
     const texture = baseParams.projectileTexture || 'attack_brick_lucilius';
-    const scale = baseParams.projectileScale || 0.15;
+    const scale = baseParams.projectileScale || 0.10;
     // ★★★ bossData から回転速度を取得 ★★★
     const spinRateForThisAttack = baseParams.projectileSpinRate || this.bossData.radialAttackProjectileSpinRate || 0; // ルート別も考慮するなら routeParamsからも
     // ★★★-------------------------★★★
@@ -2282,9 +2282,9 @@ fireTargetedAttack() {
         (this.bossData.targetedAttackParamsOrder || {}) :
         (this.bossData.targetedAttackParamsChaos || {});
 
-    const speed = (baseParams.projectileSpeed || (DEFAULT_ATTACK_BRICK_VELOCITY_Y + 40)) * (routeParams.speedMultiplier !== undefined ? routeParams.speedMultiplier : 1.0);
+    const speed = (baseParams.projectileSpeed || (DEFAULT_ATTACK_BRICK_VELOCITY_Y + 70)) * (routeParams.speedMultiplier !== undefined ? routeParams.speedMultiplier : 1.0);
     const texture = baseParams.projectileTexture || 'attack_brick_lucilius_target';
-    const scale = baseParams.projectileScale || 0.15;
+    const scale = baseParams.projectileScale || 0.10;
     // ★★★ bossData から回転速度を取得 ★★★
     const spinRateForThisAttack = baseParams.projectileSpinRate || this.bossData.targetedAttackProjectileSpinRate || 0;
     // ★★★-------------------------★★★
