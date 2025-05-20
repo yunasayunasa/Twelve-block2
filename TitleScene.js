@@ -213,15 +213,9 @@ export default class TitleScene extends Phaser.Scene {
             const selectedBossName = this.bossList.find(b => b.value === this.selectedBossStartValue)?.name || `Boss ${this.selectedBossStartValue}`;
             this.selectedBossButtonTextObject.setText(`【${selectedDiffName}】で挑戦\n${selectedBossName} から`);
         }
-    
+    }
 
    
-
-        // --- シーン終了処理 ---
-        this.events.on('shutdown', this.shutdownScene, this);
-
-        console.log("TitleScene Create End");
-    }
 
     playTitleBgm() {
         this.stopTitleBgm();
