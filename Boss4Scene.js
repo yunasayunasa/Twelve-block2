@@ -75,7 +75,7 @@ this.lastFinalBattleWarpTime = 0;
         console.log("--- Boss4Scene initializeBossData (Lucilius Zero) ---");
         this.bossData = {
             health: Infinity,
-            finalBattleHp: 10,
+            finalBattleHp: 20,
             textureKey: 'boss_lucilius_stand',
             negativeKey: 'boss_lucilius_negative',
               backgroundKey: 'gameBackground_Boss4',
@@ -109,7 +109,7 @@ this.lastFinalBattleWarpTime = 0;
     warpDurationFadeOut: 200,  // ワープで消える時間
     warpDurationHold: 150,     // 消えている時間
     warpDurationFadeIn: 200,   // 再出現する時間
-    pauseAfterWarp: 800,       // ワープ後の行動停止時間 (ms)
+    pauseAfterWarp: 1000,       // ワープ後の行動停止時間 (ms)
             trials: this.defineTrials(),
             trialRewardItem: POWERUP_TYPES.BIKARA_YANG,
 
@@ -121,9 +121,9 @@ this.lastFinalBattleWarpTime = 0;
     // --- ▼ 放射攻撃パラメータのルート別調整（例）▼ ---
     radialAttackParamsBase: { // 基本パラメータ
         angles: [70, 80, 90, 100, 110], // 5方向を基本とする
-        projectileSpeed: DEFAULT_ATTACK_BRICK_VELOCITY_Y + 20, // 基本速度
+        projectileSpeed: DEFAULT_ATTACK_BRICK_VELOCITY_Y + 30, // 基本速度
         projectileTexture: 'attack_brick_lucilius',
-        projectileScale: 0.15,
+        projectileScale: 0.10,
         projectileSpinRate: 180,
     },
     radialAttackParamsOrder: { // 秩序ルート: 弾数を増やし、少し速く
@@ -142,17 +142,17 @@ this.lastFinalBattleWarpTime = 0;
     // ...
     // --- ▼ ターゲット攻撃パラメータのルート別調整（例）▼ ---
     targetedAttackParamsBase: {
-        projectileSpeed: DEFAULT_ATTACK_BRICK_VELOCITY_Y + 40,
+        projectileSpeed: DEFAULT_ATTACK_BRICK_VELOCITY_Y + 50,
         projectileTexture: 'attack_brick_lucilius_target',
-        projectileScale: 0.15,
+        projectileScale: 0.1,
         projectileSpinRate: 270,
     },
     targetedAttackParamsOrder: { // 秩序ルート: 速度微増
-        speedMultiplier: 1.05,
+        speedMultiplier: 0.9,
         // (オプション) 2発連続で撃ってくるなども
     },
     targetedAttackParamsChaos: { // 混沌ルート: 速度大幅減
-        speedMultiplier: 0.6,
+        speedMultiplier: 0.5,
     },
 
         };
