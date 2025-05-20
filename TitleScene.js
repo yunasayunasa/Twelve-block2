@@ -86,7 +86,7 @@ export default class TitleScene extends Phaser.Scene {
         rateDiv.appendChild(rateLabel); rateDiv.appendChild(rateValueSpan); rateDiv.appendChild(rateSlider);
         sliderContainer.appendChild(rateDiv);
 
-        const sliderY = h * 0.35; // Y座標調整
+        const sliderY = h * 0.40; // Y座標調整
         const domSliderElement = this.add.dom(w / 2, sliderY, sliderContainer).setOrigin(0.5);
         this.domElements.push(domSliderElement);
 
@@ -166,7 +166,7 @@ export default class TitleScene extends Phaser.Scene {
                     currentBossIndex: this.selectedBossStartValue
                 };
                 const targetSceneKey = `Boss${this.selectedBossStartValue}Scene`;
-                console.log(`"挑戦する" button clicked. Starting ${targetSceneKey} with difficulty ${this.selectedDifficultyKey}`, startData);
+                console.log(`"らっしゅ！" button clicked. Starting ${targetSceneKey} with difficulty ${this.selectedDifficultyKey}`, startData);
                 this.sound.play(AUDIO_KEYS.SE_START); this.stopTitleBgm(); this.clearDOM();
                 try {
                      if (this.scene.manager.keys[targetSceneKey]) this.scene.start(targetSceneKey, startData);
@@ -183,7 +183,7 @@ export default class TitleScene extends Phaser.Scene {
         const startButtonBg = this.add.graphics();
         startButtonBg.fillStyle(0x388E3C, 0.9).fillRoundedRect(-startButtonW / 2, -startButtonH / 2, startButtonW, startButtonH, startButtonRadius); // 少し濃い緑
         startButtonContainer.add(startButtonBg);
-        const startButtonText = this.add.text(0, 0, '最初から挑戦！', startButtonTextStyle).setOrigin(0.5);
+        const startButtonText = this.add.text(0, 0, '最初かららっしゅ！', startButtonTextStyle).setOrigin(0.5);
         startButtonContainer.add(startButtonText);
         startButtonContainer.setSize(startButtonW, startButtonH).setInteractive({ useHandCursor: true });
         startButtonContainer.on('pointerover', () => { startButtonBg.clear().fillStyle(0x66BB6A, 1).fillRoundedRect(-startButtonW / 2, -startButtonH / 2, startButtonW, startButtonH, startButtonRadius); });
@@ -211,7 +211,7 @@ export default class TitleScene extends Phaser.Scene {
         if (this.selectedBossButtonTextObject) {
             const selectedDiffName = this.difficultySettings[this.selectedDifficultyKey]?.name || "ノーマル";
             const selectedBossName = this.bossList.find(b => b.value === this.selectedBossStartValue)?.name || `Boss ${this.selectedBossStartValue}`;
-            this.selectedBossButtonTextObject.setText(`【${selectedDiffName}】で挑戦\n${selectedBossName} から`);
+            this.selectedBossButtonTextObject.setText(`【${selectedDiffName}】でらっしゅ\n${selectedBossName} から`);
         }
     }
 
