@@ -68,6 +68,7 @@ export const VAJRA_GAUGE_MAX = 100;
 export const VAJRA_GAUGE_INCREMENT = 10;
 export const SYSTEM_MAX_LIVES = 20;
 export const INITIAL_PLAYER_LIVES = 9;
+export const MAX_PLAYER_LIVES = 20;
 
 export const MAKORA_COPYABLE_POWERS = Object.values(POWERUP_TYPES).filter(
     type => type !== POWERUP_TYPES.BAISRAVA && type !== POWERUP_TYPES.MAKORA
