@@ -15,7 +15,7 @@ export default class TitleScene extends Phaser.Scene {
             normal:   { name: "ノーマル", initialLives: 9,  maxLives: 9  },
             hard:     { name: "ハード",   initialLives: 5,  maxLives: 5  },
             shura:    { name: "修羅",     initialLives: 1,  maxLives: 1  },
-            invincible: { name: "無限 ∞", initialLives: 999, maxLives: SYSTEM_MAX_LIVES || 20 }
+           
         };
         this.selectedDifficultyKey = 'normal'; // デフォルト難易度
 
