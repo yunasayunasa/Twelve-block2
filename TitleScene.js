@@ -1,30 +1,34 @@
 // TitleScene.js
-import { AUDIO_KEYS, POWERUP_TYPES, INITIAL_PLAYER_LIVES, MAX_PLAYER_LIVES as SYSTEM_MAX_LIVES ,dropdownY,TOTAL_BOSSES } from './constants.js'; // TOTAL_BOSSES もインポート
+import { AUDIO_KEYS, POWERUP_TYPES, INITIAL_PLAYER_LIVES, MAX_PLAYER_LIVES as SYSTEM_MAX_LIVES, TOTAL_BOSSES } from './constants.js';
 
 export default class TitleScene extends Phaser.Scene {
      constructor() {
         super('TitleScene');
-        this.selectedCount = 6;
-        this.selectedRate = 50;
-        this.domElements = [];
-        this.currentBgm = null;
-        this.testStartBossIndex = 1; // 初期値はルシゼロ
+        this.selectedCount = 6; // アイテム抽選候補数
+        this.selectedRate = 50; // アイテムドロップ率
+        this.domElements = [];  // DOM要素管理用
+        this.currentBgm = null; // BGM管理用
 
-        this.testButtonTextObject = null; // ★テストボタンのテキストオブジェクトを保持するプロパティ
-     
-
-       // ★★★ 難易度設定関連のプロパティ ★★★
+        // 難易度設定
         this.difficultySettings = {
-            easy:     { name: "イージー", initialLives: 15, maxLives: 15 }, // 開始ライフと最大ライフを同じに
+            easy:     { name: "イージー", initialLives: 15, maxLives: 15 },
             normal:   { name: "ノーマル", initialLives: 9,  maxLives: 9  },
             hard:     { name: "ハード",   initialLives: 5,  maxLives: 5  },
-            shura:    { name: "修羅",     initialLives: 1,  maxLives: 1  }, // ルナティックの代替案
-            invincible: { name: "無限 ∞", initialLives: 999, maxLives: SYSTEM_MAX_LIVES || 20 } // 無限は内部的に大きな初期ライフ値
+            shura:    { name: "修羅",     initialLives: 1,  maxLives: 1  },
+            invincible: { name: "無限 ∞", initialLives: 999, maxLives: SYSTEM_MAX_LIVES || 20 }
         };
-        this.selectedDifficultyKey = 'normal'; // デフォルト難易度キー
-        // ★★★-----------------------------------★★★
+        this.selectedDifficultyKey = 'normal'; // デフォルト難易度
 
-        this.testButtonTextObject = null;
+        // ボス選択用
+        this.bossList = [ // ボス選択肢をプロパティとして定義
+            { name: 'Stage 1 (アートマンHL)', value: 1 },
+            { name: 'Stage 2 (サンカラ＆ソワカ)', value: 2 },
+            { name: 'Stage 3 (キングスライム)', value: 3 },
+            { name: 'Stage 4 (ダークラプチャーゼロ)', value: 4 }
+        ];
+        this.selectedBossStartValue = 1; // 初期選択ボス (最初のボス)
+
+        this.selectedBossButtonTextObject = null; // 「このボスから」ボタンのテキストオブジェクト
      }
 
     create() {
@@ -32,301 +36,197 @@ export default class TitleScene extends Phaser.Scene {
         const w = this.scale.width;
         const h = this.scale.height;
 
-        // --- 背景 ---
+        // --- 1. 背景 ---
         this.add.image(w / 2, h / 2, 'gameBackground3')
            .setOrigin(0.5, 0.5)
            .setDisplaySize(w, h);
 
-        // --- BGM再生 ---
+        // --- 2. BGM再生 ---
         this.playTitleBgm();
 
-        // --- タイトルロゴ ---
+        // --- 3. タイトルロゴ ---
         this.add.text(w / 2, h * 0.15, 'はちゃめちゃ！\n十二神将会議2！\n〜ぼすらっしゅ！〜', {
-            fontSize: `${Math.min(48, w / 10)}px`, // フォントサイズを画面幅にも少し連動
+            fontSize: `${Math.min(h * 0.06, w / 8)}px`, // 画面サイズに応じたフォントサイズ
             fontFamily: '"Comic Sans MS", "Chalkduster", "Arial Rounded MT Bold", sans-serif',
-            fill: '#FFD700',
-            stroke: '#C71585',
-            strokeThickness: 6,
-            align: 'center',
-            shadow: { offsetX: 4, offsetY: 4, color: '#000000', blur: 6, stroke: true, fill: true }
+            fill: '#FFD700', stroke: '#C71585', strokeThickness: 6, align: 'center',
+            shadow: { offsetX: 3, offsetY: 3, color: '#000000', blur: 4, stroke: true, fill: true }
         }).setOrigin(0.5);
 
-        // --- ハチャメチャ度設定UI (DOM要素) ---
+        // --- 4. ハチャメチャ度設定UI (DOM要素) ---
         const sliderContainer = document.createElement('div');
         sliderContainer.id = 'chaos-slider-container';
-        sliderContainer.style.width = '80%'; // コンテナの幅を画面の80%に
-        sliderContainer.style.maxWidth = '400px'; // 最大幅も設定
-        sliderContainer.style.margin = 'auto'; // 中央揃えの試み (DOM要素なのでCSS依存)
+        sliderContainer.style.width = 'clamp(300px, 80%, 500px)'; // 幅を柔軟に
+        sliderContainer.style.margin = '0 auto'; // 水平中央
         sliderContainer.style.padding = '15px';
-        sliderContainer.style.backgroundColor = 'rgba(0,0,0,0.6)';
-        sliderContainer.style.borderRadius = '10px';
+        sliderContainer.style.backgroundColor = 'rgba(20, 20, 40, 0.75)';
+        sliderContainer.style.borderRadius = '12px';
+        sliderContainer.style.boxShadow = '0 0 10px rgba(255,255,255,0.2)';
 
-
+        // アイテム抽選数スライダー
         const countDiv = document.createElement('div');
-        countDiv.style.marginBottom = '15px'; // 少し余白を増やす
-        countDiv.style.display = 'flex';      // flexboxで要素を横並び
-        countDiv.style.alignItems = 'center'; // 垂直方向中央揃え
+        countDiv.style.marginBottom = '12px'; countDiv.style.display = 'flex'; countDiv.style.alignItems = 'center';
         const countLabel = document.createElement('label');
-        countLabel.htmlFor = 'count-slider';
-        countLabel.textContent = 'アイテム抽選数:';
-        countLabel.style.color = 'white';
-        countLabel.style.fontSize = '16px';
-        countLabel.style.marginRight = '10px';
-        countLabel.style.flexShrink = '0'; // ラベルが縮まないように
+        countLabel.textContent = 'アイテム抽選数:'; countLabel.style.color = '#E0E0E0'; countLabel.style.fontSize = '16px'; countLabel.style.marginRight = '8px'; countLabel.style.flexBasis = '140px'; countLabel.style.flexShrink = '0';
         const countValueSpan = document.createElement('span');
-        countValueSpan.id = 'count-value';
-        countValueSpan.textContent = this.selectedCount.toString();
-        countValueSpan.style.color = 'white';
-        countValueSpan.style.fontSize = '16px';
-        countValueSpan.style.minWidth = '2em';
-        countValueSpan.style.textAlign = 'right';
-        countValueSpan.style.marginRight = '10px';
+        countValueSpan.textContent = this.selectedCount.toString(); countValueSpan.style.color = '#FFF'; countValueSpan.style.fontSize = '16px'; countValueSpan.style.minWidth = '2.5em'; countValueSpan.style.textAlign = 'right'; countValueSpan.style.marginRight = '8px';
         const countSlider = document.createElement('input');
-        countSlider.type = 'range';
-        countSlider.id = 'count-slider';
-        countSlider.min = '0';
-        const totalPowerUps = Object.keys(POWERUP_TYPES).length;
-        countSlider.max = totalPowerUps.toString();
-        countSlider.value = this.selectedCount.toString();
-        countSlider.step = '1';
-        countSlider.style.flexGrow = '1'; // スライダーが残りの幅を埋める
-        countSlider.style.width = 'auto'; // width指定を削除してflexに任せる
-        countDiv.appendChild(countLabel);
-        countDiv.appendChild(countValueSpan);
-        countDiv.appendChild(countSlider);
-
-        const rateDiv = document.createElement('div');
-        rateDiv.style.display = 'flex';
-        rateDiv.style.alignItems = 'center';
-        const rateLabel = document.createElement('label');
-        rateLabel.htmlFor = 'rate-slider';
-        rateLabel.textContent = 'アイテムドロップ率:';
-        rateLabel.style.color = 'white';
-        rateLabel.style.fontSize = '16px';
-        rateLabel.style.marginRight = '10px';
-        rateLabel.style.flexShrink = '0';
-        const rateValueSpan = document.createElement('span');
-        rateValueSpan.id = 'rate-value';
-        rateValueSpan.textContent = this.selectedRate.toString() + '%';
-        rateValueSpan.style.color = 'white';
-        rateValueSpan.style.fontSize = '16px';
-        rateValueSpan.style.minWidth = '3.5em'; // 少し調整
-        rateValueSpan.style.textAlign = 'right';
-        rateValueSpan.style.marginRight = '10px';
-        const rateSlider = document.createElement('input');
-        rateSlider.type = 'range';
-        rateSlider.id = 'rate-slider';
-        rateSlider.min = '0';
-        rateSlider.max = '100';
-        rateSlider.value = this.selectedRate.toString();
-        rateSlider.step = '10';
-        rateSlider.style.flexGrow = '1';
-        rateSlider.style.width = 'auto';
-        rateDiv.appendChild(rateLabel);
-        rateDiv.appendChild(rateValueSpan);
-        rateDiv.appendChild(rateSlider);
-
+        countSlider.type = 'range'; countSlider.min = '0'; countSlider.max = Object.keys(POWERUP_TYPES).length.toString(); countSlider.value = this.selectedCount.toString(); countSlider.step = '1'; countSlider.style.flexGrow = '1';
+        countDiv.appendChild(countLabel); countDiv.appendChild(countValueSpan); countDiv.appendChild(countSlider);
         sliderContainer.appendChild(countDiv);
+
+        // アイテムドロップ率スライダー
+        const rateDiv = document.createElement('div');
+        rateDiv.style.display = 'flex'; rateDiv.style.alignItems = 'center';
+        const rateLabel = document.createElement('label');
+        rateLabel.textContent = 'アイテムドロップ率:'; rateLabel.style.color = '#E0E0E0'; rateLabel.style.fontSize = '16px'; rateLabel.style.marginRight = '8px'; rateLabel.style.flexBasis = '140px'; rateLabel.style.flexShrink = '0';
+        const rateValueSpan = document.createElement('span');
+        rateValueSpan.textContent = this.selectedRate.toString() + '%'; rateValueSpan.style.color = '#FFF'; rateValueSpan.style.fontSize = '16px'; rateValueSpan.style.minWidth = '3.5em'; rateValueSpan.style.textAlign = 'right'; rateValueSpan.style.marginRight = '8px';
+        const rateSlider = document.createElement('input');
+        rateSlider.type = 'range'; rateSlider.min = '0'; rateSlider.max = '100'; rateSlider.value = this.selectedRate.toString(); rateSlider.step = '10'; rateSlider.style.flexGrow = '1';
+        rateDiv.appendChild(rateLabel); rateDiv.appendChild(rateValueSpan); rateDiv.appendChild(rateSlider);
         sliderContainer.appendChild(rateDiv);
 
-        const domSliderElement = this.add.dom(w / 2, h * 0.45, sliderContainer).setOrigin(0.5); // Y位置を少し上げる
+        const sliderY = h * 0.35; // Y座標調整
+        const domSliderElement = this.add.dom(w / 2, sliderY, sliderContainer).setOrigin(0.5);
         this.domElements.push(domSliderElement);
 
         countSlider.addEventListener('input', (event) => {
             this.selectedCount = parseInt(event.target.value);
             countValueSpan.textContent = this.selectedCount.toString();
-            console.log("Selected Count:", this.selectedCount); // ★デバッグログ追加
+            console.log("Selected Count (Chaos):", this.selectedCount);
         });
         rateSlider.addEventListener('input', (event) => {
             this.selectedRate = parseInt(event.target.value);
             rateValueSpan.textContent = this.selectedRate.toString() + '%';
-            console.log("Selected Rate:", this.selectedRate); // ★デバッグログ追加
+            console.log("Selected Rate (Chaos):", this.selectedRate);
         });
 
-           // --- ▼▼▼ 難易度選択ドロップダウンリスト ▼▼▼ ---
+        // --- 5. 難易度選択ドロップダウンリスト ---
         const difficultySelectContainerHTML = document.createElement('div');
-        difficultySelectContainerHTML.style.marginTop = '15px';
+        difficultySelectContainerHTML.style.marginTop = '25px'; // 上からのマージン
         difficultySelectContainerHTML.style.textAlign = 'center';
-
         const difficultySelectLabel = document.createElement('label');
-        difficultySelectLabel.textContent = '難易度: ';
-        difficultySelectLabel.style.color = 'white';
-        difficultySelectLabel.style.fontSize = '18px';
-        difficultySelectLabel.style.marginRight = '5px';
-
+        difficultySelectLabel.textContent = '難易度: '; difficultySelectLabel.style.color = 'white'; difficultySelectLabel.style.fontSize = '18px'; difficultySelectLabel.style.marginRight = '5px';
         const difficultySelectDropdown = document.createElement('select');
-        difficultySelectDropdown.id = 'difficulty-select-dropdown';
-        difficultySelectDropdown.style.fontSize = '16px';
-        difficultySelectDropdown.style.padding = '5px 8px';
-        difficultySelectDropdown.style.borderRadius = '3px';
-
-        // 難易度選択肢を生成
+        difficultySelectDropdown.style.fontSize = '16px'; difficultySelectDropdown.style.padding = '6px 10px'; difficultySelectDropdown.style.borderRadius = '4px';
         for (const key in this.difficultySettings) {
-            const setting = this.difficultySettings[key];
-            const option = document.createElement('option');
-            option.value = key; // easy, normal, hard, shura, invincible
-            option.textContent = setting.name; // "イージー", "ノーマル" など
-            if (key === this.selectedDifficultyKey) {
-                option.selected = true;
-            }
+            const option = document.createElement('option'); option.value = key; option.textContent = this.difficultySettings[key].name;
+            if (key === this.selectedDifficultyKey) option.selected = true;
             difficultySelectDropdown.appendChild(option);
         }
-
         difficultySelectDropdown.addEventListener('change', (event) => {
             this.selectedDifficultyKey = event.target.value;
             console.log("Selected Difficulty Key:", this.selectedDifficultyKey);
-            // (もし初期ライフ数も別途表示するなら、ここで更新)
+            this.updateSelectedBossButtonText(); // ボタンテキスト更新
         });
-
         difficultySelectContainerHTML.appendChild(difficultySelectLabel);
         difficultySelectContainerHTML.appendChild(difficultySelectDropdown);
-
-        // 難易度選択UIのY座標 (ハチャメチャ度スライダーの下)
-        const difficultyDropdownY = domSliderElement.y + (domSliderElement.height || 100) / 2 + 35; // 要調整
+        const difficultyDropdownY = sliderY + 100; // スライダーの下 (固定値で調整)
         const domDifficultySelect = this.add.dom(w / 2, difficultyDropdownY, difficultySelectContainerHTML).setOrigin(0.5);
         this.domElements.push(domDifficultySelect);
-        // --- ▲▲▲ 難易度選択ドロップダウンリスト 終了 ▲▲▲ ---
 
-        // --- ▼▼▼ ボス選択ドロップダウンリスト ▼▼▼ ---
+        // --- 6. ボス選択ドロップダウンリスト ---
         const bossSelectContainerHTML = document.createElement('div');
-        bossSelectContainerHTML.style.marginTop = '20px'; // スライダーからのマージン
+        bossSelectContainerHTML.style.marginTop = '15px';
         bossSelectContainerHTML.style.textAlign = 'center';
-
         const bossSelectLabel = document.createElement('label');
-        bossSelectLabel.textContent = '好きなボスかららっしゅ！: ';
-        bossSelectLabel.style.color = 'white';
-        bossSelectLabel.style.fontSize = '18px';
-        bossSelectLabel.style.marginRight = '5px';
-
+        bossSelectLabel.textContent = '挑戦するボス: '; bossSelectLabel.style.color = 'white'; bossSelectLabel.style.fontSize = '18px'; bossSelectLabel.style.marginRight = '5px';
         const bossSelectDropdown = document.createElement('select');
-        bossSelectDropdown.id = 'boss-select-dropdown';
-        bossSelectDropdown.style.fontSize = '16px';
-        bossSelectDropdown.style.padding = '5px 8px'; // 少しパディング調整
-        bossSelectDropdown.style.borderRadius = '3px';
-
-        const bossList = [
-            { name: ' (アートマンHL)', value: 1 },
-            { name: ' (サンカラ＆ソワカ)', value: 2 },
-            { name: ' (キングスライム)', value: 3 },
-            { name: ' (ダークラプチャーゼロ)', value: 4 }
-        ];
-
-        bossList.forEach(boss => {
-            const option = document.createElement('option');
-            option.value = boss.value.toString();
-            option.textContent = boss.name;
-            if (boss.value === this.testStartBossIndex) {
-                option.selected = true;
-            }
+        bossSelectDropdown.style.fontSize = '16px'; bossSelectDropdown.style.padding = '6px 10px'; bossSelectDropdown.style.borderRadius = '4px';
+        this.bossList.forEach(boss => {
+            const option = document.createElement('option'); option.value = boss.value.toString(); option.textContent = boss.name;
+            if (boss.value === this.selectedBossStartValue) option.selected = true;
             bossSelectDropdown.appendChild(option);
         });
-
         bossSelectDropdown.addEventListener('change', (event) => {
-            this.testStartBossIndex = parseInt(event.target.value);
-            console.log("Selected Boss Index for Test:", this.testStartBossIndex);
-            if (this.testButtonTextObject) { // テストボタンのテキストを更新
-                 const selectedBoss = bossList.find(b => b.value === this.testStartBossIndex);
-                 this.testButtonTextObject.setText(`このボスから: ${selectedBoss ? selectedBoss.name : `Boss ${this.testStartBossIndex}`}`);
-            }
+            this.selectedBossStartValue = parseInt(event.target.value);
+            console.log("Selected Boss Start Value:", this.selectedBossStartValue);
+            this.updateSelectedBossButtonText(); // ボタンテキスト更新
         });
-
         bossSelectContainerHTML.appendChild(bossSelectLabel);
         bossSelectContainerHTML.appendChild(bossSelectDropdown);
-
-        // ドロップダウンのY座標を、スライダーの下に調整
-        const bossDropdownY = difficultyDropdownY + (domDifficultySelect.height || 50) / 2 + 30; // 要調整
-        const domBossSelect = this.add.dom(w / 2, dropdownY, bossSelectContainerHTML).setOrigin(0.5);
+        const bossDropdownY = difficultyDropdownY + 60; // 難易度選択の下 (固定値で調整)
+        const domBossSelect = this.add.dom(w / 2, bossDropdownY, bossSelectContainerHTML).setOrigin(0.5);
         this.domElements.push(domBossSelect);
-        // --- ▲▲▲ ボス選択ドロップダウンリスト 終了 ▲▲▲ ---
 
-
-        // --- ▼▼▼ 各ボタンのY座標を明確に定義 ▼▼▼
-        // スライダーUIのDOM要素 (domSliderElement) とドロップダウンのDOM要素 (domBossSelect) は生成済みとする
-        let currentY = h * 0.45; // スライダーのY座標の目安
-
-        // スライダーの表示 (Y座標は domSliderElement で設定済み)
-        // const domSliderElement = this.add.dom(w / 2, currentY, sliderContainer).setOrigin(0.5);
-        // this.domElements.push(domSliderElement);
-        // currentY += (domSliderElement.height || 100) + 20; // スライダーの高さ分とマージン (仮に高さを100とする)
-                                                        // DOM要素の高さ取得が不安定なため固定値か割合で調整推奨
-        currentY = h * 0.58; // ドロップダウンのY座標 (固定値や画面比率で調整)
-
-        // ボス選択ドロップダウンリスト (Y座標を設定)
-        // const domBossSelect = this.add.dom(w / 2, currentY, bossSelectContainerHTML).setOrigin(0.5);
-        // this.domElements.push(domBossSelect);
-        // currentY += (domBossSelect.height || 50) + 30; // ドロップダウンの高さ分とマージン (仮に高さを50とする)
-        currentY = h * 0.68; // 「このボスと戦う」ボタンのY座標
-
-        // --- ▼ 「選択したボスと戦う」ボタン (元テストボタン) ▼ ---
-        const fightSelectedBossButtonY = bossDropdownY + (domBossSelect.height || 50) / 2 + 35; // 要調整
-        const fightSelectedBossButtonStyle = { fontSize: '22px', fill: '#E0E0E0', backgroundColor: 'rgba(0,100,200,0.8)', padding: { x: 20, y: 10 }, borderRadius: '5px' }; // 少し目立つスタイルに
-        const fightSelectedBossButtonHoverStyle = { fill: '#FFF', backgroundColor: 'rgba(0,120,240,0.9)'};
-
-        const initialFightButtonLabel = `このボスと戦う (${bossList.find(b => b.value === this.testStartBossIndex)?.name || `Boss ${this.testStartBossIndex}`})`;
-        this.testButtonTextObject = this.add.text(w / 2, fightSelectedBossButtonY, initialFightButtonLabel, fightSelectedBossButtonStyle)
-            .setOrigin(0.5)
-            .setInteractive({ useHandCursor: true })
-            .on('pointerover', () => this.testButtonTextObject.setStyle(fightSelectedBossButtonHoverStyle))
-            .on('pointerout', () => this.testButtonTextObject.setStyle(fightSelectedBossButtonStyle))
-              .on('pointerdown', () => {
-                 this.clearDOM();
-                const selectedDiffSetting = this.difficultySettings[this.selectedDifficultyKey] || this.difficultySettings.normal;
-                const testData = {
-                    lives: selectedDiffSetting.initialLives,    // ★選択された難易度の初期ライフ★
-                    maxLives: selectedDiffSetting.maxLives,     // ★選択された難易度の最大ライフ★
+        // --- 7. 「選択したボスから挑戦」ボタン ---
+        const fightSelectedBossButtonY = bossDropdownY + 65; // ボス選択の下 (固定値で調整)
+        const fightSelectedBossButtonStyle = { fontSize: '22px', fill: '#E8E8E8', backgroundColor: 'rgba(0, 80, 180, 0.85)', padding: { x: 25, y: 12 }, borderRadius: '8px', align: 'center' };
+        const fightSelectedBossButtonHoverStyle = { fill: '#FFFFFF', backgroundColor: 'rgba(0, 100, 220, 1)'};
+        this.selectedBossButtonTextObject = this.add.text(w / 2, fightSelectedBossButtonY, "", fightSelectedBossButtonStyle) // 初期テキストはupdateメソッドで設定
+            .setOrigin(0.5).setInteractive({ useHandCursor: true })
+            .on('pointerover', () => this.selectedBossButtonTextObject.setStyle(fightSelectedBossButtonHoverStyle))
+            .on('pointerout', () => this.selectedBossButtonTextObject.setStyle(fightSelectedBossButtonStyle))
+            .on('pointerdown', () => {
+                const selectedDiff = this.difficultySettings[this.selectedDifficultyKey] || this.difficultySettings.normal;
+                const startData = {
+                    lives: selectedDiff.initialLives,
+                    maxLives: selectedDiff.maxLives,
                     chaosSettings: { count: this.selectedCount, ratePercent: this.selectedRate },
-                    currentBossIndex: this.testStartBossIndex
+                    currentBossIndex: this.selectedBossStartValue
                 };
-                const targetSceneKey = `Boss${this.testStartBossIndex}Scene`;
-                // ... (シーン開始処理は既存のまま) ... 
-                // this.sound.play(AUDIO_KEYS.SE_START);
-                this.stopTitleBgm();
-               
+                const targetSceneKey = `Boss${this.selectedBossStartValue}Scene`;
+                console.log(`"挑戦する" button clicked. Starting ${targetSceneKey} with difficulty ${this.selectedDifficultyKey}`, startData);
+                this.sound.play(AUDIO_KEYS.SE_START); this.stopTitleBgm(); this.clearDOM();
                 try {
-                     if (this.scene.manager.keys[targetSceneKey]) {
-                         this.scene.start(targetSceneKey, testData);
-                     } else { /* ... エラー処理 ... */ }
-                } catch (e) { /* ... エラー処理 ... */ }
+                     if (this.scene.manager.keys[targetSceneKey]) this.scene.start(targetSceneKey, startData);
+                     else { console.error(`Scene '${targetSceneKey}' not found!`); alert(`エラー: シーン '${targetSceneKey}' が見つかりません。`); this.scene.start('TitleScene');}
+                } catch (e) { console.error(`Error starting scene ${targetSceneKey}:`, e); alert(`シーン '${targetSceneKey}' 開始エラー。`); this.scene.start('TitleScene');}
             });
-        // currentY += (this.testButtonTextObject.displayHeight || 40) + 30; // 「このボスと戦う」ボタンの高さ分とマージン
-        currentY = h * 0.80; // ボスラッシュ開始ボタンのY座標
+        this.updateSelectedBossButtonText(); // 初期テキスト設定
 
-        // --- ▼ ボスラッシュ開始ボタン (本来のゲーム開始ボタン) ▼ ---
-        const startButtonW = 280;
-        const startButtonH = 70;
-        const startRushButtonY = fightSelectedBossButtonY + (this.testButtonTextObject?.displayHeight || 40) + 30; // 要調整
-        const startButtonTextStyle = { fontSize: '32px', fill: '#fff', fontFamily: '"Arial Black", Gadget, sans-serif', shadow: { offsetX: 3, offsetY: 3, color: '#000000', blur: 5, stroke: true, fill: true } };
-        const startButtonContainer = this.add.container(w / 2, startRushButtonY); // ★X座標, Y座標★
+        // --- 8. 「最初から挑戦」ボタン (ボスラッシュ開始) ---
+        const startRushButtonY = fightSelectedBossButtonY + 85; // 「このボスから」の下 (固定値で調整)
+        const startButtonW = 300; const startButtonH = 75; const startButtonRadius = 18;
+        const startButtonTextStyle = { fontSize: `${Math.min(32, w/15)}px`, fill: '#fff', fontFamily: '"Arial Black", Gadget, sans-serif', shadow: { offsetX: 2, offsetY: 2, color: '#333', blur: 3, stroke: true, fill: true }};
+        const startButtonContainer = this.add.container(w / 2, startRushButtonY);
         const startButtonBg = this.add.graphics();
-        startButtonBg.fillStyle(0x4CAF50, 0.8); // Normal color and alpha
-        startButtonBg.fillRoundedRect(-startButtonW / 2, -startButtonH / 2, startButtonW, startButtonH, 15);
+        startButtonBg.fillStyle(0x388E3C, 0.9).fillRoundedRect(-startButtonW / 2, -startButtonH / 2, startButtonW, startButtonH, startButtonRadius); // 少し濃い緑
         startButtonContainer.add(startButtonBg);
-        const startButtonText = this.add.text(0, 0, '最初かららっしゅ！', startButtonTextStyle).setOrigin(0.5);
+        const startButtonText = this.add.text(0, 0, '最初から挑戦！', startButtonTextStyle).setOrigin(0.5);
         startButtonContainer.add(startButtonText);
-        startButtonContainer.setSize(startButtonW, startButtonH);
-        startButtonContainer.setInteractive({ useHandCursor: true }); // ★インタラクティブ設定★
-
-        startButtonContainer.on('pointerover', () => {
-            startButtonBg.clear().fillStyle(0x8BC34A, 0.95).fillRoundedRect(-startButtonW / 2, -startButtonH / 2, startButtonW, startButtonH, 15);
-        });
-        startButtonContainer.on('pointerout', () => {
-            startButtonBg.clear().fillStyle(0x4CAF50, 0.8).fillRoundedRect(-startButtonW / 2, -startButtonH / 2, startButtonW, startButtonH, 15);
-        });
-
-        // ★★★ クリック処理を正しく設定 ★★★
-         startButtonContainer.on('pointerdown', () => {
-            const selectedDiffSetting = this.difficultySettings[this.selectedDifficultyKey] || this.difficultySettings.normal;
+        startButtonContainer.setSize(startButtonW, startButtonH).setInteractive({ useHandCursor: true });
+        startButtonContainer.on('pointerover', () => { startButtonBg.clear().fillStyle(0x66BB6A, 1).fillRoundedRect(-startButtonW / 2, -startButtonH / 2, startButtonW, startButtonH, startButtonRadius); });
+        startButtonContainer.on('pointerout', () => { startButtonBg.clear().fillStyle(0x388E3C, 0.9).fillRoundedRect(-startButtonW / 2, -startButtonH / 2, startButtonW, startButtonH, startButtonRadius); });
+        startButtonContainer.on('pointerdown', () => {
+            const selectedDiff = this.difficultySettings[this.selectedDifficultyKey] || this.difficultySettings.normal;
             const startData = {
-                 lives: selectedDiffSetting.initialLives,   // ★選択された難易度の初期ライフ★
-                 maxLives: selectedDiffSetting.maxLives,    // ★選択された難易度の最大ライフ★
+                 lives: selectedDiff.initialLives,
+                 maxLives: selectedDiff.maxLives,
                 chaosSettings: { count: this.selectedCount, ratePercent: this.selectedRate },
                 currentBossIndex: 1
             };
-            console.log("Passing data to Boss1Scene for Boss Rush:", startData);
+            console.log("Boss Rush Start button clicked. Starting Boss1Scene with difficulty " + this.selectedDifficultyKey, startData);
+            this.sound.play(AUDIO_KEYS.SE_START); this.stopTitleBgm(); this.clearDOM();
             this.scene.start('Boss1Scene', startData);
         });
-        // --- ▲ ボスラッシュ開始ボタン ▲ ---
 
+        // --- シーン終了処理 ---
+        this.events.on('shutdown', this.shutdownScene, this);
+        console.log("TitleScene Create End");
+    }
+
+    // 「このボスから挑戦」ボタンのテキストを更新するヘルパーメソッド
+    updateSelectedBossButtonText() {
+        if (this.selectedBossButtonTextObject) {
+            const selectedDiffName = this.difficultySettings[this.selectedDifficultyKey]?.name || "ノーマル";
+            const selectedBossName = this.bossList.find(b => b.value === this.selectedBossStartValue)?.name || `Boss ${this.selectedBossStartValue}`;
+            this.selectedBossButtonTextObject.setText(`【${selectedDiffName}】で挑戦\n${selectedBossName} から`);
+        }
+    }
+
+    playTitleBgm() { /* ... (変更なし) ... */ }
+    stopTitleBgm() { /* ... (変更なし) ... */ }
+    shutdownScene() { /* ... (変更なし、this.selectedBossButtonTextObject = null; を追加) ... */
+        console.log("TitleScene shutdown initiated.");
+        this.clearDOM();
+        this.stopTitleBgm();
+        this.events.off('shutdown', this.shutdownScene, this);
+        this.selectedBossButtonTextObject = null; // ★プロパティもクリア
+        console.log("TitleScene shutdown complete.");
+    }
+    clearDOM() { /* ... (変更なし) ... */ }
+}
 
         // --- シーン終了処理 ---
         this.events.on('shutdown', this.shutdownScene, this);
