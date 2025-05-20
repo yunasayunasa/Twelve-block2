@@ -1351,9 +1351,7 @@ resetBallAndEssentialPowerUpsAfterLifeLoss() {
     // this.deactivateAnchira(true);
     // this.deactivateSindara(null, true);
     // (Bikaraの貫通なども解除)
- if (this.lives > 0 || this.isPlayerInvincibleBySetting) { // 無限ライフでもボールは再生成
-            this.time.delayedCall(800, this.resetForNewLife, [], this); // ★ここでresetForNewLifeを呼ぶ★
-        } else if (!this.isGameOver) {
+
     // isBallLaunchedフラグやボールの状態リセットは resetForNewLife で行うのが主
     // ここでは、最低限、次の resetForNewLife が呼ばれるまでの準備
     this.isBallLaunched = false; // 新しいボールは未発射状態に
@@ -1472,12 +1470,6 @@ resetBallAndEssentialPowerUpsAfterLifeLoss() {
                 this.resetForNewLife();
             }, [], this);
         } else {
-
-                // 持続系パワーアップ解除、ボールクリア、次の処理 (resetForNewLife or gameOver)
-    this.resetBallAndEssentialPowerUpsAfterLifeLoss(); // ライフが0でもこれらは行う
-
-    if (this.lives <= 0 && !this.isGameOver) {
-        console.log("[LoseLife] No lives remaining. Triggering Game Over.");
             // ライフが0の場合（実際に減った結果0になった場合）
             console.log("[LoseLife] No lives remaining. Triggering Game Over.");
             // this.isProcessingLifeLoss = false; // もし使うならここで戻す
