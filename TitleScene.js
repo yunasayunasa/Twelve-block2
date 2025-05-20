@@ -1,5 +1,5 @@
 // TitleScene.js
-import { AUDIO_KEYS, POWERUP_TYPES, INITIAL_PLAYER_LIVES, MAX_PLAYER_LIVES as SYSTEM_MAX_LIVES ,TOTAL_BOSSES } from './constants.js'; // TOTAL_BOSSES もインポート
+import { AUDIO_KEYS, POWERUP_TYPES, INITIAL_PLAYER_LIVES, MAX_PLAYER_LIVES as SYSTEM_MAX_LIVES ,dropdownY,TOTAL_BOSSES } from './constants.js'; // TOTAL_BOSSES もインポート
 
 export default class TitleScene extends Phaser.Scene {
      constructor() {
