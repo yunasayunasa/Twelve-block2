@@ -11,7 +11,7 @@ export default class TitleScene extends Phaser.Scene {
 
         // 難易度設定
         this.difficultySettings = {
-            easy:     { name: "イージー", initialLives: 15, maxLives: 15 },
+            easy:     { name: "イージー", initialLives: 20, maxLives: 20 },
             normal:   { name: "ノーマル", initialLives: 9,  maxLives: 9  },
             hard:     { name: "ハード",   initialLives: 5,  maxLives: 5  },
             shura:    { name: "修羅",     initialLives: 1,  maxLives: 1  },
