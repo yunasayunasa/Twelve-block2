@@ -1,5 +1,5 @@
 // TitleScene.js
-import { AUDIO_KEYS, POWERUP_TYPES, INITIAL_PLAYER_LIVES, MAX_PLAYER_LIVES as SYSTEM_MAX_LIVES, TOTAL_BOSSES } from './constants.js';
+import { AUDIO_KEYS, POWERUP_TYPES, INITIAL_PLAYER_LIVES, MAX_PLAYER_LIVES, SYSTEM_MAX_LIVES, TOTAL_BOSSES } from './constants.js';
 
 export default class TitleScene extends Phaser.Scene {
      constructor() {
@@ -11,11 +11,11 @@ export default class TitleScene extends Phaser.Scene {
 
         // 難易度設定
         this.difficultySettings = {
-            easy:     { name: "イージー", initialLives: 20, maxLives: 20 },
-            normal:   { name: "ノーマル", initialLives: 9,  maxLives: 9  },
-            hard:     { name: "ハード",   initialLives: 5,  maxLives: 5  },
-            shura:    { name: "修羅",     initialLives: 1,  maxLives: 1  },
-           
+            easy:     { name: "イージー", initialLives: Math.min(15, SYSTEM_MAX_LIVES), maxLives: Math.min(15, SYSTEM_MAX_LIVES) },
+            normal:   { name: "ノーマル", initialLives: Math.min(INITIAL_PLAYER_LIVES, SYSTEM_MAX_LIVES),  maxLives: Math.min(INITIAL_PLAYER_LIVES, SYSTEM_MAX_LIVES)  },
+            hard:     { name: "ハード",   initialLives: Math.min(5, SYSTEM_MAX_LIVES),  maxLives: Math.min(5, SYSTEM_MAX_LIVES)  },
+            shura:    { name: "おに",     initialLives: Math.min(1, SYSTEM_MAX_LIVES),  maxLives: Math.min(1, SYSTEM_MAX_LIVES)  },
+            // 無限ライフは削除したので不要
         };
         this.selectedDifficultyKey = 'normal'; // デフォルト難易度
 
