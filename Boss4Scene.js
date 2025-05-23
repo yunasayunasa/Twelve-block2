@@ -99,7 +99,7 @@ this.lastFinalBattleWarpTime = 0;
              paradiseLostPillarCount: 13, // パラダイス・ロストの光の柱の数
     paradiseLostPillarDuration: 550, // 光の柱1本の基本落下時間(ms)
     lightPillarTexture: 'light_pillar_effect', // ★要アセット＆BootSceneロード
-            jiEndCountInitialMinutes: 8,//ジエンドまでの時間
+            jiEndCountInitialMinutes: 10,//ジエンドまでの時間
             jiEndTimerYPosRatio: 0.1,
             jiEndTimerFontSizeRatio: 1 / 15,
 
