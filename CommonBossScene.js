@@ -126,7 +126,7 @@ export default class CommonBossScene extends Phaser.Scene {
         // --- ゲーム進行・状態 ---
         this.currentBossIndex = 1;
         this.totalBosses = TOTAL_BOSSES;
-        this.chaosSettings = { count: 4, ratePercent: 50 };
+        this.chaosSettings = { count: 6, ratePercent: 50 };
         this.isGameOver = false;
         this.gameClearText = null;
         this.gameOverText = null;
@@ -177,6 +177,25 @@ export default class CommonBossScene extends Phaser.Scene {
         this.initializeBossData(); // ★ ボス固有データ初期化を呼ぶ
         // initializeBossData の中で this.bossVoiceKeys = this.bossData.voiceRandom; が実行される想定
         console.log(`[Init - ${this.scene.key}] Boss voice keys for random:`, this.bossVoiceKeys);
+
+
+        console.log(`--- ${this.scene.key} INIT --- Received Data:`, JSON.stringify(data));
+        super.init(data); // Phaser.Sceneのinitを呼ぶ
+
+        // --- ▼▼▼ chaosSettings (ハチャメチャ度) の設定 ▼▼▼ ---
+        if (data && data.chaosSettings && typeof data.chaosSettings.count === 'number' && typeof data.chaosSettings.ratePercent === 'number') {
+            // TitleSceneから渡された有効なデータがあれば、それを使う
+            this.chaosSettings = {
+                count: data.chaosSettings.count,
+                ratePercent: data.chaosSettings.ratePercent
+            };
+            console.log("[Init Common] Chaos Settings updated from TitleScene data:", this.chaosSettings);
+        } else {
+            // データがない、または不正な場合は、デフォルト値を維持する
+            // (constructorで既に設定済みだが、念のためログ出し)
+            console.log("[Init Common] No valid chaosSettings in data, using default:", this.chaosSettings);
+        }
+        // --- ▲▲▲ chaosSettings (ハチャメチャ度) の設定 終了 ▲▲▲ ---
 
         Object.values(this.powerUpTimers).forEach(timer => timer?.remove());
         this.powerUpTimers = {};
