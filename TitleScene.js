@@ -198,7 +198,7 @@ export default class TitleScene extends Phaser.Scene {
                 
                 currentBossIndex: 1
             };
-            console.log("Starting test with chaosSettings:", testData.chaosSettings); // ★デバッグログ追加★
+            console.log("Starting boss rush with chaosSettings:", startData.chaosSettings); // ★デバッグログ追加★
             console.log("Boss Rush Start button clicked. Starting Boss1Scene with difficulty " + this.selectedDifficultyKey, startData);
             this.sound.play(AUDIO_KEYS.SE_START); this.stopTitleBgm(); this.clearDOM();
             this.scene.start('Boss1Scene', startData);
