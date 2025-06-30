@@ -165,6 +165,7 @@ export default class TitleScene extends Phaser.Scene {
                     chaosSettings: { count: this.selectedCount, ratePercent: this.selectedRate },
                     currentBossIndex: this.selectedBossStartValue
                 };
+                console.log("Starting test with chaosSettings:", testData.chaosSettings); // ★デバッグログ追加★
                 const targetSceneKey = `Boss${this.selectedBossStartValue}Scene`;
                 console.log(`"らっしゅ！" button clicked. Starting ${targetSceneKey} with difficulty ${this.selectedDifficultyKey}`, startData);
                 this.sound.play(AUDIO_KEYS.SE_START); this.stopTitleBgm(); this.clearDOM();
@@ -194,8 +195,10 @@ export default class TitleScene extends Phaser.Scene {
                  lives: selectedDiff.initialLives,
                  maxLives: selectedDiff.maxLives,
                 chaosSettings: { count: this.selectedCount, ratePercent: this.selectedRate },
+                
                 currentBossIndex: 1
             };
+            console.log("Starting test with chaosSettings:", testData.chaosSettings); // ★デバッグログ追加★
             console.log("Boss Rush Start button clicked. Starting Boss1Scene with difficulty " + this.selectedDifficultyKey, startData);
             this.sound.play(AUDIO_KEYS.SE_START); this.stopTitleBgm(); this.clearDOM();
             this.scene.start('Boss1Scene', startData);
