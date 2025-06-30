@@ -180,7 +180,7 @@ export default class CommonBossScene extends Phaser.Scene {
 
 
         console.log(`--- ${this.scene.key} INIT --- Received Data:`, JSON.stringify(data));
-        super.init(data); // Phaser.Sceneのinitを呼ぶ
+       // super.init(data); // Phaser.Sceneのinitを呼ぶ
 
         // --- ▼▼▼ chaosSettings (ハチャメチャ度) の設定 ▼▼▼ ---
         if (data && data.chaosSettings && typeof data.chaosSettings.count === 'number' && typeof data.chaosSettings.ratePercent === 'number') {
